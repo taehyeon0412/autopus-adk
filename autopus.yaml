@@ -1,0 +1,78 @@
+mode: full
+project_name: autopus-adk
+platforms:
+    - claude-code
+isolate_rules: true
+language:
+    comments: ko
+    commits: ko
+    ai_responses: ko
+architecture:
+    auto_generate: true
+    enforce: true
+    layers: []
+lore:
+    enabled: true
+    auto_inject: false
+    required_trailers:
+        - Constraint
+    stale_threshold_days: 90
+spec:
+    id_format: SPEC-{DOMAIN}-{NUMBER}
+    ears_types:
+        - ubiquitous
+        - event-driven
+        - unwanted
+        - optional
+        - complex
+methodology:
+    mode: tdd
+    enforce: true
+    review_gate: true
+router:
+    strategy: balanced
+    tiers:
+        economy: claude-haiku-4-5
+        premium: claude-opus-4-6
+        standard: claude-sonnet-4-6
+    categories:
+        deep: premium
+        git: economy
+        quick: economy
+        ultrabrain: premium
+        visual: standard
+        writing: standard
+    intent_gate: true
+hooks:
+    pre_commit_arch: true
+    pre_commit_lore: false
+    react_ci_failure: false
+    react_review: false
+session:
+    handoff_enabled: true
+    continue_file: .auto-continue.md
+    max_context_tokens: 2000
+orchestra:
+    enabled: true
+    default_strategy: consensus
+    timeout_seconds: 120
+    providers:
+        claude:
+            binary: claude
+            args: [--print]
+        codex:
+            binary: codex
+            args: [--quiet]
+        gemini:
+            binary: gemini
+            args: []
+    commands:
+        plan:
+            strategy: consensus
+            providers: [claude, gemini]
+        review:
+            strategy: debate
+            providers: [claude, codex, gemini]
+        secure:
+            strategy: consensus
+            providers: [claude, gemini]

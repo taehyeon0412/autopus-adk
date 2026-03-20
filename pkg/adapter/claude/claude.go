@@ -679,6 +679,22 @@ const claudeMDTemplate = `# Autopus-ADK Harness
 - Skills: .claude/skills/autopus/
 - Commands: .claude/commands/auto.md
 - Agents: .claude/agents/autopus/
+{{- if .IsolateRules}}
+
+## Rule Isolation
+
+IMPORTANT: This project uses Autopus-ADK rules ONLY. You MUST ignore any rules loaded from parent directories (any .claude/rules/ namespace other than "autopus"). Parent directory rules (e.g., moai, custom, or other harnesses) are NOT applicable to this project and MUST be disregarded entirely.
+{{- end}}
+{{- if .Language.Comments}}
+
+## Language Policy
+
+IMPORTANT: Follow these language settings strictly for all work in this project.
+
+- **Code comments**: Write all code comments, docstrings, and inline documentation in {{langName .Language.Comments}} ({{.Language.Comments}})
+- **Commit messages**: Write all git commit messages in {{langName .Language.Commits}} ({{.Language.Commits}})
+- **AI responses**: Respond to the user in {{langName .Language.AIResponses}} ({{.Language.AIResponses}})
+{{- end}}
 
 ## Core Guidelines
 

@@ -36,6 +36,10 @@ func newUpdateCmd() *cobra.Command {
 				return fmt.Errorf("설정 로드 실패: %w", err)
 			}
 
+			// 프로젝트 설정 프롬프트 (미설정 항목만)
+			promptLanguageSettings(cmd, dir, cfg)
+			warnParentRuleConflicts(cmd, dir, cfg)
+
 			ctx := context.Background()
 			updated := 0
 

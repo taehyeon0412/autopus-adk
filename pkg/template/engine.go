@@ -68,5 +68,17 @@ func defaultFuncMap() template.FuncMap {
 			return strings.Join(elems, sep)
 		},
 		"contains": strings.Contains,
+		"langName": func(code string) string {
+			names := map[string]string{
+				"en": "English",
+				"ko": "Korean",
+				"ja": "Japanese",
+				"zh": "Chinese",
+			}
+			if name, ok := names[code]; ok {
+				return name
+			}
+			return code
+		},
 	}
 }

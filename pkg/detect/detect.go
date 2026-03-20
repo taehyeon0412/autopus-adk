@@ -2,7 +2,9 @@
 package detect
 
 import (
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 )
 
@@ -71,9 +73,9 @@ type Dependency struct {
 
 // FullModeDeps는 Full 모드의 의존성 목록이다.
 var FullModeDeps = []Dependency{
-	{Name: "ast-grep", Binary: "sg", InstallCmd: "npm i -g @ast-grep/cli", Required: false, Description: "Structural code search"},
+	{Name: "ast-grep", Binary: "sg", InstallCmd: "npm i -g @ast-grep/cli", Required: true, Description: "Structural code search"},
 	{Name: "playwright", Binary: "playwright", InstallCmd: "npm i -g playwright", Required: false, Description: "E2E testing + screenshots"},
-	{Name: "agent-browser", Binary: "agent-browser", InstallCmd: "npm i -g @anthropic-ai/agent-browser", Required: false, Description: "Web browsing"},
+	{Name: "agent-browser", Binary: "agent-browser", InstallCmd: "npm i -g agent-browser", Required: true, Description: "Web browsing"},
 	{Name: "gh", Binary: "gh", InstallCmd: "", Required: false, Description: "GitHub CLI"},
 }
 
@@ -93,4 +95,43 @@ func CheckDependencies(deps []Dependency) []DependencyStatus {
 type DependencyStatus struct {
 	Dependency
 	Installed bool
+}
+
+// ParentRuleConflict는 부모 디렉터리에서 발견된 규칙 충돌 정보이다.
+type ParentRuleConflict struct {
+	ParentDir string // 충돌이 발견된 부모 디렉터리
+	RulesDir  string // 부모의 .claude/rules/ 경로
+	Namespace string // 규칙 네임스페이스 (예: "moai")
+}
+
+// CheckParentRuleConflicts는 부모 디렉터리에 다른 하네스의 .claude/rules/가 있는지 탐지한다.
+// Claude Code는 상위 디렉터리를 탐색하며 규칙을 로드하므로,
+// 부모에 다른 하네스 규칙이 있으면 현재 프로젝트에 의도치 않게 적용된다.
+func CheckParentRuleConflicts(projectDir string) []ParentRuleConflict {
+	absDir, err := filepath.Abs(projectDir)
+	if err != nil {
+		return nil
+	}
+
+	var conflicts []ParentRuleConflict
+	current := filepath.Dir(absDir) // 부모부터 시작
+
+	for current != "/" && current != "." {
+		rulesDir := filepath.Join(current, ".claude", "rules")
+		entries, err := os.ReadDir(rulesDir)
+		if err == nil {
+			for _, entry := range entries {
+				if entry.IsDir() && entry.Name() != "autopus" {
+					conflicts = append(conflicts, ParentRuleConflict{
+						ParentDir: current,
+						RulesDir:  rulesDir,
+						Namespace: entry.Name(),
+					})
+				}
+			}
+		}
+		current = filepath.Dir(current)
+	}
+
+	return conflicts
 }

@@ -102,7 +102,25 @@ func newDoctorCmd() *cobra.Command {
 				}
 			}
 
-			// 4. 코딩 CLI 감지 상태
+			// 4. 부모 디렉터리 규칙 충돌 검사
+			conflicts := detect.CheckParentRuleConflicts(dir)
+			if len(conflicts) > 0 {
+				fmt.Fprintln(out, "\nRule Conflicts:")
+				if cfg.IsolateRules {
+					fmt.Fprintln(out, "  [OK] isolate_rules: true (parent rules ignored via CLAUDE.md directive)")
+				}
+				for _, c := range conflicts {
+					if cfg.IsolateRules {
+						fmt.Fprintf(out, "  [INFO] %s/.claude/rules/%s/ (ignored)\n", c.ParentDir, c.Namespace)
+					} else {
+						fmt.Fprintf(out, "  [WARN] Parent rules detected: %s/.claude/rules/%s/\n", c.ParentDir, c.Namespace)
+						fmt.Fprintf(out, "         Run 'auto init' or 'auto update' to configure rule isolation.\n")
+						allOK = false
+					}
+				}
+			}
+
+			// 5. 코딩 CLI 감지 상태
 			fmt.Fprintln(out, "\nInstalled CLIs:")
 			detected := detect.DetectPlatforms()
 			if len(detected) == 0 {

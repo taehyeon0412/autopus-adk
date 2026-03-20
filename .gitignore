@@ -15,3 +15,9 @@ coverage.out
 .codex/skills/
 .gemini/skills/autopus/
 .agents/skills/
+
+# Autopus-ADK generated files
+.claude/commands/auto.md
+.autopus/manifest.json
+.autopus/*-manifest.json
+.autopus/backup/

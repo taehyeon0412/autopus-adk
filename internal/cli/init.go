@@ -92,6 +92,10 @@ func newInitCmd() *cobra.Command {
 				return fmt.Errorf("autopus.yaml 저장 실패: %w", err)
 			}
 
+			// 프로젝트 설정 프롬프트
+			promptLanguageSettings(cmd, dir, cfg)
+			warnParentRuleConflicts(cmd, dir, cfg)
+
 			// 플랫폼별 파일 생성
 			ctx := context.Background()
 			if err := generatePlatformFiles(ctx, dir, cfg, cmd); err != nil {

@@ -11,19 +11,28 @@ const (
 	ModeLite Mode = "lite"
 )
 
+// LanguageConf는 프로젝트 언어 설정이다.
+type LanguageConf struct {
+	Comments    string `yaml:"comments"`     // 코드 주석 언어 (en, ko, ja, zh)
+	Commits     string `yaml:"commits"`      // 커밋 메시지 언어
+	AIResponses string `yaml:"ai_responses"` // AI 응답 언어
+}
+
 // HarnessConfig는 autopus.yaml의 최상위 설정 구조이다.
 type HarnessConfig struct {
-	Mode         Mode              `yaml:"mode"`
-	ProjectName  string            `yaml:"project_name"`
-	Platforms    []string          `yaml:"platforms"`
-	Architecture ArchitectureConf  `yaml:"architecture"`
-	Lore         LoreConf          `yaml:"lore"`
-	Spec         SpecConf          `yaml:"spec"`
-	Methodology  MethodologyConf   `yaml:"methodology,omitempty"`
-	Router       RouterConf        `yaml:"router,omitempty"`
-	Hooks        HooksConf         `yaml:"hooks"`
-	Session      SessionConf       `yaml:"session,omitempty"`
-	Orchestra    OrchestraConf     `yaml:"orchestra,omitempty"`
+	Mode          Mode              `yaml:"mode"`
+	ProjectName   string            `yaml:"project_name"`
+	Platforms     []string          `yaml:"platforms"`
+	IsolateRules  bool              `yaml:"isolate_rules,omitempty"`
+	Language      LanguageConf      `yaml:"language,omitempty"`
+	Architecture  ArchitectureConf  `yaml:"architecture"`
+	Lore          LoreConf          `yaml:"lore"`
+	Spec          SpecConf          `yaml:"spec"`
+	Methodology   MethodologyConf   `yaml:"methodology,omitempty"`
+	Router        RouterConf        `yaml:"router,omitempty"`
+	Hooks         HooksConf         `yaml:"hooks"`
+	Session       SessionConf       `yaml:"session,omitempty"`
+	Orchestra     OrchestraConf     `yaml:"orchestra,omitempty"`
 }
 
 // OrchestraConf는 다중 모델 오케스트레이션 설정이다 (Full 전용).
