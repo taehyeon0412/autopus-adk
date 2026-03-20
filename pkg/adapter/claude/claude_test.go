@@ -62,7 +62,7 @@ func TestClaudeAdapter_Generate_CreatesDirectories(t *testing.T) {
 	expectedDirs := []string{
 		".claude/rules/autopus",
 		".claude/skills/autopus",
-		".claude/commands/autopus",
+		".claude/commands",
 		".claude/agents/autopus",
 	}
 	for _, d := range expectedDirs {
@@ -70,6 +70,12 @@ func TestClaudeAdapter_Generate_CreatesDirectories(t *testing.T) {
 		require.NoError(t, statErr, "디렉터리가 존재해야 함: %s", d)
 		assert.True(t, info.IsDir(), "%s는 디렉터리여야 함", d)
 	}
+
+	// auto.md 파일 존재 확인
+	autoMD := filepath.Join(dir, ".claude", "commands", "auto.md")
+	info, statErr := os.Stat(autoMD)
+	require.NoError(t, statErr, "auto.md가 존재해야 함")
+	assert.False(t, info.IsDir(), "auto.md는 파일이어야 함")
 }
 
 func TestClaudeAdapter_Generate_ClaudeMD_MarkerSection(t *testing.T) {

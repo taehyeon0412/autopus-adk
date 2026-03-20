@@ -70,7 +70,7 @@ func (a *Adapter) Generate(_ context.Context, cfg *config.HarnessConfig) (*adapt
 	dirs := []string{
 		filepath.Join(a.root, ".claude", "rules", "autopus"),
 		filepath.Join(a.root, ".claude", "skills", "autopus"),
-		filepath.Join(a.root, ".claude", "commands", "autopus"),
+		filepath.Join(a.root, ".claude", "commands"),
 		filepath.Join(a.root, ".claude", "agents", "autopus"),
 	}
 	for _, d := range dirs {
@@ -98,8 +98,8 @@ func (a *Adapter) Generate(_ context.Context, cfg *config.HarnessConfig) (*adapt
 		Content:         []byte(claudeMD),
 	})
 
-	// 커맨드 템플릿 렌더링 후 .claude/commands/autopus/ 에 작성
-	commandFiles, err := a.renderCommandTemplates(cfg)
+	// 단일 라우터 커맨드 렌더링 후 .claude/commands/auto.md 에 작성
+	commandFiles, err := a.renderRouterCommand(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("커맨드 템플릿 렌더링 실패: %w", err)
 	}
@@ -139,7 +139,6 @@ func (a *Adapter) Validate(_ context.Context) ([]adapter.ValidationError, error)
 	requiredDirs := []string{
 		filepath.Join(".claude", "rules", "autopus"),
 		filepath.Join(".claude", "skills", "autopus"),
-		filepath.Join(".claude", "commands", "autopus"),
 		filepath.Join(".claude", "agents", "autopus"),
 	}
 	for _, d := range requiredDirs {
@@ -151,6 +150,16 @@ func (a *Adapter) Validate(_ context.Context) ([]adapter.ValidationError, error)
 				Level:   "error",
 			})
 		}
+	}
+
+	// 라우터 커맨드 파일 확인
+	autoMDPath := filepath.Join(".claude", "commands", "auto.md")
+	if _, err := os.Stat(filepath.Join(a.root, autoMDPath)); os.IsNotExist(err) {
+		errs = append(errs, adapter.ValidationError{
+			File:    autoMDPath,
+			Message: "라우터 커맨드 파일이 없음: .claude/commands/auto.md",
+			Level:   "error",
+		})
 	}
 
 	// CLAUDE.md 마커 확인
@@ -181,13 +190,19 @@ func (a *Adapter) Clean(_ context.Context) error {
 	autopusDirs := []string{
 		filepath.Join(a.root, ".claude", "rules", "autopus"),
 		filepath.Join(a.root, ".claude", "skills", "autopus"),
-		filepath.Join(a.root, ".claude", "commands", "autopus"),
+		filepath.Join(a.root, ".claude", "commands", "autopus"), // 구 디렉터리 정리
 		filepath.Join(a.root, ".claude", "agents", "autopus"),
 	}
 	for _, d := range autopusDirs {
 		if err := os.RemoveAll(d); err != nil && !os.IsNotExist(err) {
 			return fmt.Errorf("디렉터리 제거 실패 %s: %w", d, err)
 		}
+	}
+
+	// 라우터 커맨드 파일 삭제
+	autoMDPath := filepath.Join(a.root, ".claude", "commands", "auto.md")
+	if err := os.Remove(autoMDPath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("라우터 커맨드 삭제 실패: %w", err)
 	}
 
 	// CLAUDE.md에서 마커 섹션 제거
@@ -291,69 +306,30 @@ func checksum(s string) string {
 	return hex.EncodeToString(h[:])
 }
 
-// fullOnlyCommands는 Full 모드에서만 생성되는 커맨드 목록이다.
-var fullOnlyCommands = map[string]bool{
-	"go":     true,
-	"review": true,
-	"secure": true,
-}
-
-// renderCommandTemplates는 embedded FS에서 커맨드 템플릿을 읽어 렌더링 후 파일로 저장한다.
-// Lite 모드에서는 fullOnlyCommands를 건너뛴다.
-func (a *Adapter) renderCommandTemplates(cfg *config.HarnessConfig) ([]adapter.FileMapping, error) {
-	var files []adapter.FileMapping
-
-	// embedded FS에서 claude/commands/*.tmpl 목록 조회
-	entries, err := templates.FS.ReadDir("claude/commands")
+// renderRouterCommand는 단일 라우터 템플릿(auto-router.md.tmpl)을 렌더링하여
+// .claude/commands/auto.md 파일을 생성한다.
+func (a *Adapter) renderRouterCommand(cfg *config.HarnessConfig) ([]adapter.FileMapping, error) {
+	tmplContent, err := templates.FS.ReadFile("claude/commands/auto-router.md.tmpl")
 	if err != nil {
-		return nil, fmt.Errorf("커맨드 템플릿 디렉터리 읽기 실패: %w", err)
+		return nil, fmt.Errorf("라우터 템플릿 읽기 실패: %w", err)
 	}
 
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		name := entry.Name()
-		if !strings.HasSuffix(name, ".tmpl") {
-			continue
-		}
-
-		// 커맨드명 추출 (예: plan.md.tmpl -> plan)
-		cmdName := strings.TrimSuffix(strings.TrimSuffix(name, ".tmpl"), ".md")
-
-		// Lite 모드에서 Full 전용 커맨드 건너뜀
-		if !cfg.IsFullMode() && fullOnlyCommands[cmdName] {
-			continue
-		}
-
-		// 템플릿 내용 읽기
-		tmplContent, err := templates.FS.ReadFile("claude/commands/" + name)
-		if err != nil {
-			return nil, fmt.Errorf("커맨드 템플릿 읽기 실패 %s: %w", name, err)
-		}
-
-		// 템플릿 렌더링
-		rendered, err := a.engine.RenderString(string(tmplContent), cfg)
-		if err != nil {
-			return nil, fmt.Errorf("커맨드 템플릿 렌더링 실패 %s: %w", name, err)
-		}
-
-		// 대상 경로: .claude/commands/autopus/{cmd}.md
-		targetName := cmdName + ".md"
-		targetPath := filepath.Join(a.root, ".claude", "commands", "autopus", targetName)
-		if err := os.WriteFile(targetPath, []byte(rendered), 0644); err != nil {
-			return nil, fmt.Errorf("커맨드 파일 쓰기 실패 %s: %w", targetPath, err)
-		}
-
-		files = append(files, adapter.FileMapping{
-			TargetPath:      filepath.Join(".claude", "commands", "autopus", targetName),
-			OverwritePolicy: adapter.OverwriteAlways,
-			Checksum:        checksum(rendered),
-			Content:         []byte(rendered),
-		})
+	rendered, err := a.engine.RenderString(string(tmplContent), cfg)
+	if err != nil {
+		return nil, fmt.Errorf("라우터 템플릿 렌더링 실패: %w", err)
 	}
 
-	return files, nil
+	targetPath := filepath.Join(a.root, ".claude", "commands", "auto.md")
+	if err := os.WriteFile(targetPath, []byte(rendered), 0644); err != nil {
+		return nil, fmt.Errorf("라우터 커맨드 쓰기 실패: %w", err)
+	}
+
+	return []adapter.FileMapping{{
+		TargetPath:      filepath.Join(".claude", "commands", "auto.md"),
+		OverwritePolicy: adapter.OverwriteAlways,
+		Checksum:        checksum(rendered),
+		Content:         []byte(rendered),
+	}}, nil
 }
 
 // copyContentFiles는 embedded content FS에서 파일을 읽어 대상 디렉터리에 복사한다.
@@ -416,6 +392,6 @@ const claudeMDTemplate = `# Autopus-ADK Harness
 
 - Rules: .claude/rules/autopus/
 - Skills: .claude/skills/autopus/
-- Commands: .claude/commands/autopus/
+- Commands: .claude/commands/auto.md
 - Agents: .claude/agents/autopus/
 `

@@ -20,7 +20,7 @@ import (
 var gitignorePatterns = []string{
 	".claude/rules/autopus/",
 	".claude/skills/autopus/",
-	".claude/commands/autopus/",
+	".claude/commands/auto.md",
 	".claude/agents/autopus/",
 	".codex/skills/",
 	".gemini/skills/autopus/",

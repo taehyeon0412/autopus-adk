@@ -42,8 +42,12 @@ func TestInitLite_CreatesCorrectFiles(t *testing.T) {
 	// .claude/ 디렉터리 구조 생성 확인
 	assert.DirExists(t, filepath.Join(dir, ".claude", "rules", "autopus"))
 	assert.DirExists(t, filepath.Join(dir, ".claude", "skills", "autopus"))
-	assert.DirExists(t, filepath.Join(dir, ".claude", "commands", "autopus"))
+	assert.DirExists(t, filepath.Join(dir, ".claude", "commands"))
 	assert.DirExists(t, filepath.Join(dir, ".claude", "agents", "autopus"))
+	// 라우터 커맨드 파일 존재 확인
+	assert.FileExists(t, filepath.Join(dir, ".claude", "commands", "auto.md"))
+	// autopus 커맨드 디렉터리는 생성되지 않아야 함
+	assert.NoDirExists(t, filepath.Join(dir, ".claude", "commands", "autopus"))
 
 	// .gitignore 패턴 추가 확인
 	gitignorePath := filepath.Join(dir, ".gitignore")
@@ -80,8 +84,10 @@ func TestInitFull_CreatesAllContent(t *testing.T) {
 	// .claude/ 디렉터리 구조 생성 확인
 	assert.DirExists(t, filepath.Join(dir, ".claude", "rules", "autopus"))
 	assert.DirExists(t, filepath.Join(dir, ".claude", "skills", "autopus"))
-	assert.DirExists(t, filepath.Join(dir, ".claude", "commands", "autopus"))
+	assert.DirExists(t, filepath.Join(dir, ".claude", "commands"))
 	assert.DirExists(t, filepath.Join(dir, ".claude", "agents", "autopus"))
+	// 라우터 커맨드 파일 존재 확인
+	assert.FileExists(t, filepath.Join(dir, ".claude", "commands", "auto.md"))
 
 	// CLAUDE.md 생성 확인
 	claudePath := filepath.Join(dir, "CLAUDE.md")

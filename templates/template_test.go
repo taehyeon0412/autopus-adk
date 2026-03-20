@@ -64,26 +64,21 @@ func TestSharedAutopusYamlTemplate(t *testing.T) {
 	assert.Contains(t, result, "claude-code")
 }
 
-func TestClaudeCommandTemplates(t *testing.T) {
+func TestClaudeRouterTemplate(t *testing.T) {
 	t.Parallel()
 	e := tmpl.New()
 	cfg := config.DefaultFullConfig("cmd-project")
 
-	commands := []string{
-		"plan", "go", "sync", "fix", "why",
-		"map", "secure", "review", "stale", "auto",
-	}
+	tmplPath := filepath.Join(templateRoot(), "claude", "commands", "auto-router.md.tmpl")
+	result, err := e.RenderFile(tmplPath, cfg)
+	require.NoError(t, err, "라우터 템플릿 렌더링 실패")
+	assert.Contains(t, result, "cmd-project", "프로젝트명이 포함되어야 함")
+	assert.True(t, len(result) > 100, "템플릿 결과가 너무 짧음")
 
-	for _, cmd := range commands {
-		cmd := cmd
-		t.Run(cmd, func(t *testing.T) {
-			t.Parallel()
-			tmplPath := filepath.Join(templateRoot(), "claude", "commands", cmd+".md.tmpl")
-			result, err := e.RenderFile(tmplPath, cfg)
-			require.NoError(t, err, "커맨드 템플릿 렌더링 실패: %s", cmd)
-			assert.Contains(t, result, "cmd-project", "프로젝트명이 포함되어야 함: %s", cmd)
-			assert.True(t, len(result) > 100, "템플릿 결과가 너무 짧음: %s", cmd)
-		})
+	// 모든 서브커맨드가 포함되어야 함
+	subcommands := []string{"plan", "go", "fix", "map", "review", "secure", "stale", "sync", "why"}
+	for _, sub := range subcommands {
+		assert.Contains(t, result, sub, "서브커맨드 %q가 포함되어야 함", sub)
 	}
 }
 
@@ -136,13 +131,13 @@ func TestGeminiSkillTemplates_HasFrontmatter(t *testing.T) {
 func TestTemplates_FullModeConditionals(t *testing.T) {
 	t.Parallel()
 	e := tmpl.New()
-	liteRoot := templateRoot()
+	root := templateRoot()
 
 	liteCfg := config.DefaultLiteConfig("test")
 	fullCfg := config.DefaultFullConfig("test")
 
-	// plan 커맨드에서 Full 모드 조건부 블록 확인
-	tmplPath := filepath.Join(liteRoot, "claude", "commands", "plan.md.tmpl")
+	// 라우터 템플릿에서 Full 모드 조건부 블록 확인
+	tmplPath := filepath.Join(root, "claude", "commands", "auto-router.md.tmpl")
 
 	liteResult, err := e.RenderFile(tmplPath, liteCfg)
 	require.NoError(t, err)
@@ -150,7 +145,8 @@ func TestTemplates_FullModeConditionals(t *testing.T) {
 	fullResult, err := e.RenderFile(tmplPath, fullCfg)
 	require.NoError(t, err)
 
-	// Full 모드에만 있어야 하는 내용
-	assert.Contains(t, fullResult, "Full 모드 추가 기능")
-	assert.NotContains(t, liteResult, "Full 모드 추가 기능")
+	// Full 모드에서는 go/review/secure 서브커맨드의 스킬 참조가 포함됨
+	assert.Contains(t, fullResult, "tdd.md")
+	// Lite 모드에서는 Full 전용 안내 메시지가 표시됨
+	assert.Contains(t, liteResult, "Full 모드 전용")
 }
