@@ -1,0 +1,39 @@
+---
+name: auto-sync
+version: "1.0.0"
+description: 문서 동기화 — 구현 완료 후 SPEC, API 문서, 아키텍처를 동기화합니다
+platform: gemini-cli
+project: {{.ProjectName}}
+mode: {{.Mode}}
+triggers:
+  - "sync"
+  - "동기화"
+  - "문서"
+---
+
+# auto-sync — 문서 동기화
+
+**프로젝트**: {{.ProjectName}} | **모드**: {{.Mode}}
+
+## 설명
+
+구현 완료 후 코드와 문서를 동기화합니다.
+
+## 사용법
+
+```
+@auto-sync SPEC-ID
+@auto-sync
+```
+
+## 동기화 대상
+
+1. SPEC 상태 업데이트
+2. API 문서 갱신
+3. 아키텍처 다이어그램
+{{if .IsFullMode}}4. Lore 의사결정 기록
+5. CHANGELOG 갱신{{end}}
+
+## LSP 품질 게이트
+
+- 에러: 0 / 경고: 최대 10 / Clean LSP 필요

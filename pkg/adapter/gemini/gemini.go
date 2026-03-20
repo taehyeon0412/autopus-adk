@@ -1,0 +1,264 @@
+// Package gemini는 Gemini CLI 플랫폼 어댑터를 구현한다.
+package gemini
+
+import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"regexp"
+	"strings"
+
+	"github.com/insajin/autopus-adk/pkg/adapter"
+	"github.com/insajin/autopus-adk/pkg/config"
+	tmpl "github.com/insajin/autopus-adk/pkg/template"
+)
+
+const (
+	markerBegin = "<!-- AUTOPUS:BEGIN -->"
+	markerEnd   = "<!-- AUTOPUS:END -->"
+	adapterName = "gemini-cli"
+	cliBinary   = "gemini"
+	adapterVer  = "1.0.0"
+)
+
+// Adapter는 Gemini CLI 플랫폼 어댑터이다.
+type Adapter struct {
+	root   string
+	engine *tmpl.Engine
+}
+
+// New는 현재 디렉터리를 루트로 하는 어댑터를 생성한다.
+func New() *Adapter {
+	return &Adapter{root: ".", engine: tmpl.New()}
+}
+
+// NewWithRoot는 지정된 루트 경로로 어댑터를 생성한다.
+func NewWithRoot(root string) *Adapter {
+	return &Adapter{root: root, engine: tmpl.New()}
+}
+
+func (a *Adapter) Name() string      { return adapterName }
+func (a *Adapter) Version() string   { return adapterVer }
+func (a *Adapter) CLIBinary() string { return cliBinary }
+
+// SupportsHooks는 false를 반환한다. Gemini CLI는 훅을 지원하지 않는다.
+func (a *Adapter) SupportsHooks() bool { return false }
+
+// Detect는 PATH에서 gemini 바이너리 설치 여부를 확인한다.
+func (a *Adapter) Detect(_ context.Context) (bool, error) {
+	_, err := exec.LookPath(cliBinary)
+	return err == nil, nil
+}
+
+// Generate는 하네스 설정에 기반하여 Gemini CLI 파일을 생성한다.
+func (a *Adapter) Generate(_ context.Context, cfg *config.HarnessConfig) (*adapter.PlatformFiles, error) {
+	// .gemini/skills/autopus/ 디렉터리 생성
+	geminiSkillDir := filepath.Join(a.root, ".gemini", "skills", "autopus")
+	if err := os.MkdirAll(geminiSkillDir, 0755); err != nil {
+		return nil, fmt.Errorf(".gemini/skills/autopus 디렉터리 생성 실패: %w", err)
+	}
+
+	// .agents/skills/ 크로스플랫폼 앨리어스 디렉터리 생성
+	agentsSkillsDir := filepath.Join(a.root, ".agents", "skills")
+	if err := os.MkdirAll(agentsSkillsDir, 0755); err != nil {
+		return nil, fmt.Errorf(".agents/skills 디렉터리 생성 실패: %w", err)
+	}
+
+	var files []adapter.FileMapping
+
+	// GEMINI.md 생성 (마커 섹션 방식)
+	geminiMD, err := a.injectMarkerSection(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("GEMINI.md 마커 주입 실패: %w", err)
+	}
+
+	geminiMDPath := filepath.Join(a.root, "GEMINI.md")
+	if err := os.WriteFile(geminiMDPath, []byte(geminiMD), 0644); err != nil {
+		return nil, fmt.Errorf("GEMINI.md 쓰기 실패: %w", err)
+	}
+	files = append(files, adapter.FileMapping{
+		TargetPath:      "GEMINI.md",
+		OverwritePolicy: adapter.OverwriteMarker,
+		Checksum:        checksum(geminiMD),
+		Content:         []byte(geminiMD),
+	})
+
+	// .gemini/skills/autopus/SKILL.md 생성 (YAML frontmatter 포함)
+	skillMD, err := a.engine.RenderString(skillMDTemplate, cfg)
+	if err != nil {
+		return nil, fmt.Errorf("SKILL.md 템플릿 렌더링 실패: %w", err)
+	}
+
+	skillPath := filepath.Join(geminiSkillDir, "SKILL.md")
+	if err := os.WriteFile(skillPath, []byte(skillMD), 0644); err != nil {
+		return nil, fmt.Errorf("SKILL.md 쓰기 실패: %w", err)
+	}
+	files = append(files, adapter.FileMapping{
+		TargetPath:      filepath.Join(".gemini", "skills", "autopus", "SKILL.md"),
+		OverwritePolicy: adapter.OverwriteAlways,
+		Checksum:        checksum(skillMD),
+		Content:         []byte(skillMD),
+	})
+
+	return &adapter.PlatformFiles{
+		Files:    files,
+		Checksum: checksum(geminiMD),
+	}, nil
+}
+
+// Update는 기존 파일을 업데이트한다.
+func (a *Adapter) Update(ctx context.Context, cfg *config.HarnessConfig) (*adapter.PlatformFiles, error) {
+	return a.Generate(ctx, cfg)
+}
+
+// Validate는 설치된 파일의 유효성을 검증한다.
+func (a *Adapter) Validate(_ context.Context) ([]adapter.ValidationError, error) {
+	var errs []adapter.ValidationError
+
+	// GEMINI.md 확인
+	geminiMDPath := filepath.Join(a.root, "GEMINI.md")
+	data, err := os.ReadFile(geminiMDPath)
+	if err != nil {
+		errs = append(errs, adapter.ValidationError{
+			File:    "GEMINI.md",
+			Message: "GEMINI.md를 읽을 수 없음",
+			Level:   "error",
+		})
+		return errs, nil
+	}
+	if !strings.Contains(string(data), markerBegin) {
+		errs = append(errs, adapter.ValidationError{
+			File:    "GEMINI.md",
+			Message: "AUTOPUS 마커 섹션이 없음",
+			Level:   "warning",
+		})
+	}
+
+	// .gemini/skills/autopus/SKILL.md 확인
+	skillPath := filepath.Join(a.root, ".gemini", "skills", "autopus", "SKILL.md")
+	if _, err := os.Stat(skillPath); os.IsNotExist(err) {
+		errs = append(errs, adapter.ValidationError{
+			File:    skillPath,
+			Message: "SKILL.md가 없음",
+			Level:   "error",
+		})
+	}
+
+	// .agents/skills 확인
+	agentsPath := filepath.Join(a.root, ".agents", "skills")
+	if _, err := os.Stat(agentsPath); os.IsNotExist(err) {
+		errs = append(errs, adapter.ValidationError{
+			File:    ".agents/skills",
+			Message: ".agents/skills 디렉터리가 없음",
+			Level:   "warning",
+		})
+	}
+
+	return errs, nil
+}
+
+// Clean은 어댑터가 생성한 파일을 제거한다.
+func (a *Adapter) Clean(_ context.Context) error {
+	// .gemini/skills 디렉터리 제거
+	if err := os.RemoveAll(filepath.Join(a.root, ".gemini", "skills")); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf(".gemini/skills 제거 실패: %w", err)
+	}
+
+	// .agents/skills 디렉터리 제거
+	if err := os.RemoveAll(filepath.Join(a.root, ".agents", "skills")); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf(".agents/skills 제거 실패: %w", err)
+	}
+
+	// GEMINI.md에서 마커 섹션 제거
+	geminiPath := filepath.Join(a.root, "GEMINI.md")
+	data, err := os.ReadFile(geminiPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return fmt.Errorf("GEMINI.md 읽기 실패: %w", err)
+	}
+	cleaned := removeMarkerSection(string(data))
+	return os.WriteFile(geminiPath, []byte(cleaned), 0644)
+}
+
+// InstallHooks는 Gemini CLI에서 no-op이다 (SupportsHooks=false).
+func (a *Adapter) InstallHooks(_ context.Context, _ []adapter.HookConfig) error {
+	return nil
+}
+
+// injectMarkerSection은 GEMINI.md의 AUTOPUS 마커 섹션을 생성하거나 업데이트한다.
+func (a *Adapter) injectMarkerSection(cfg *config.HarnessConfig) (string, error) {
+	geminiMDPath := filepath.Join(a.root, "GEMINI.md")
+
+	var existing string
+	if data, err := os.ReadFile(geminiMDPath); err == nil {
+		existing = string(data)
+	}
+
+	sectionContent, err := a.engine.RenderString(geminiMDTemplate, cfg)
+	if err != nil {
+		return "", fmt.Errorf("GEMINI.md 템플릿 렌더링 실패: %w", err)
+	}
+
+	newSection := markerBegin + "\n" + sectionContent + "\n" + markerEnd
+
+	if strings.Contains(existing, markerBegin) && strings.Contains(existing, markerEnd) {
+		return replaceMarkerSection(existing, newSection), nil
+	}
+
+	if existing == "" {
+		return newSection + "\n", nil
+	}
+	return existing + "\n\n" + newSection + "\n", nil
+}
+
+var markerRe = regexp.MustCompile(`(?s)` + regexp.QuoteMeta(markerBegin) + `.*?` + regexp.QuoteMeta(markerEnd))
+
+func replaceMarkerSection(content, newSection string) string {
+	return markerRe.ReplaceAllString(content, newSection)
+}
+
+func removeMarkerSection(content string) string {
+	return strings.TrimSpace(markerRe.ReplaceAllString(content, "")) + "\n"
+}
+
+func checksum(s string) string {
+	h := sha256.Sum256([]byte(s))
+	return hex.EncodeToString(h[:])
+}
+
+// geminiMDTemplate은 GEMINI.md AUTOPUS 섹션 템플릿이다.
+const geminiMDTemplate = `# Autopus-ADK Harness
+
+> 이 섹션은 Autopus-ADK에 의해 자동 생성됩니다. 수동으로 편집하지 마세요.
+
+- **프로젝트**: {{.ProjectName}}
+- **모드**: {{.Mode}}
+
+## 스킬 디렉터리
+
+- Gemini Skills: .gemini/skills/
+- Cross-platform: .agents/skills/
+`
+
+// skillMDTemplate은 SKILL.md YAML frontmatter 포함 템플릿이다.
+const skillMDTemplate = `---
+name: autopus
+version: "1.0.0"
+description: Autopus-ADK harness skill for {{.ProjectName}}
+platform: gemini-cli
+mode: {{.Mode}}
+---
+
+# Autopus Skill
+
+이 스킬은 Autopus-ADK에 의해 자동 생성되었습니다.
+
+- **프로젝트**: {{.ProjectName}}
+- **모드**: {{.Mode}}
+`

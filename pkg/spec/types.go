@@ -1,0 +1,50 @@
+// Package spec는 SPEC 문서 관리 및 EARS 요구사항 파싱을 제공한다.
+// EARS: Easy Approach to Requirements Syntax (Mavin et al., 2009, IEEE RE Conference)
+package spec
+
+// EARSType은 EARS 패턴 유형이다.
+type EARSType string
+
+const (
+	EARSUbiquitous  EARSType = "Ubiquitous"  // 시스템은 항상 SHALL
+	EARSEventDriven EARSType = "EventDriven" // WHEN...THEN
+	EARSStateDriven EARSType = "StateDriven" // WHERE...THEN
+	EARSUnwanted    EARSType = "Unwanted"    // IF...THEN (비정상 상황)
+	EARSOptional    EARSType = "Optional"    // WHEN...IF...THEN (복합)
+)
+
+// Requirement는 단일 요구사항이다.
+type Requirement struct {
+	ID          string   // 요구사항 ID (예: REQ-001)
+	Type        EARSType // EARS 유형
+	Description string   // 요구사항 설명
+	TracesTo    string   // 추적 대상 (예: SPEC-001, UC-001)
+}
+
+// Criterion은 인수 기준이다.
+type Criterion struct {
+	ID          string // 기준 ID
+	Description string // 기준 설명
+	TracesTo    string // 추적 대상
+}
+
+// SpecDocument는 SPEC 문서이다.
+type SpecDocument struct {
+	ID                 string        // SPEC ID (예: SPEC-AUTH-001)
+	Title              string        // 제목
+	Version            string        // 버전
+	Status             string        // 상태 (draft, review, approved, done)
+	Requirements       []Requirement // 요구사항 목록
+	AcceptanceCriteria []Criterion   // 인수 기준 목록
+}
+
+// ValidationError는 검증 오류이다.
+type ValidationError struct {
+	Field   string // 오류 필드
+	Message string // 오류 메시지
+	Level   string // 오류 수준: error, warning
+}
+
+func (e ValidationError) Error() string {
+	return e.Message
+}

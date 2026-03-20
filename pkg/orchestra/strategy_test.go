@@ -1,0 +1,144 @@
+package orchestra
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+func makeResponse(provider, output string) ProviderResponse {
+	return ProviderResponse{
+		Provider: provider,
+		Output:   output,
+		Duration: 100 * time.Millisecond,
+		ExitCode: 0,
+	}
+}
+
+func TestGetStrategyFunc_Valid(t *testing.T) {
+	t.Parallel()
+	for _, s := range ValidStrategies {
+		s := s
+		t.Run(string(s), func(t *testing.T) {
+			t.Parallel()
+			fn, err := GetStrategyFunc(s)
+			require.NoError(t, err)
+			assert.NotNil(t, fn)
+		})
+	}
+}
+
+func TestGetStrategyFunc_Invalid(t *testing.T) {
+	t.Parallel()
+	_, err := GetStrategyFunc(Strategy("unknown"))
+	assert.Error(t, err)
+}
+
+func TestHandleConsensus_ThreeResponses(t *testing.T) {
+	t.Parallel()
+	responses := []ProviderResponse{
+		makeResponse("p1", "golang is great\npython is popular"),
+		makeResponse("p2", "golang is great\nrust is fast"),
+		makeResponse("p3", "golang is great\njavascript is everywhere"),
+	}
+
+	cfg := OrchestraConfig{Strategy: StrategyConsensus}
+	merged, summary, err := handleConsensus(context.Background(), responses, cfg)
+	require.NoError(t, err)
+	// "golang is great"는 3/3이므로 합의 항목
+	assert.Contains(t, merged, "golang is great")
+	assert.Contains(t, summary, "합의율")
+}
+
+func TestHandleConsensus_NoResponses(t *testing.T) {
+	t.Parallel()
+	merged, summary, err := handleConsensus(context.Background(), nil, OrchestraConfig{})
+	require.NoError(t, err)
+	assert.Empty(t, merged)
+	assert.Contains(t, summary, "응답 없음")
+}
+
+func TestHandlePipeline_MultipleStages(t *testing.T) {
+	t.Parallel()
+	responses := []ProviderResponse{
+		makeResponse("designer", "## Design\nuse hexagonal architecture"),
+		makeResponse("coder", "## Implementation\npackage main"),
+		makeResponse("reviewer", "## Review\nlooks good"),
+	}
+
+	cfg := OrchestraConfig{Strategy: StrategyPipeline}
+	merged, summary, err := handlePipeline(context.Background(), responses, cfg)
+	require.NoError(t, err)
+	assert.Contains(t, merged, "Stage 1")
+	assert.Contains(t, merged, "Stage 2")
+	assert.Contains(t, merged, "Stage 3")
+	assert.Contains(t, summary, "3단계")
+}
+
+func TestHandleDebate_TwoResponses(t *testing.T) {
+	t.Parallel()
+	responses := []ProviderResponse{
+		makeResponse("claude", "use microservices\ndecouple everything"),
+		makeResponse("codex", "use monolith\ndecouple everything"),
+	}
+
+	cfg := OrchestraConfig{Strategy: StrategyDebate, JudgeProvider: "gemini"}
+	merged, summary, err := handleDebate(context.Background(), responses, cfg)
+	require.NoError(t, err)
+	assert.Contains(t, merged, "claude의 의견")
+	assert.Contains(t, merged, "codex의 의견")
+	assert.Contains(t, summary, "판정: gemini")
+}
+
+func TestHandleDebate_NoJudge(t *testing.T) {
+	t.Parallel()
+	responses := []ProviderResponse{
+		makeResponse("p1", "option a"),
+		makeResponse("p2", "option b"),
+	}
+
+	cfg := OrchestraConfig{Strategy: StrategyDebate, JudgeProvider: ""}
+	_, summary, err := handleDebate(context.Background(), responses, cfg)
+	require.NoError(t, err)
+	assert.Contains(t, summary, "판정: 없음")
+}
+
+func TestHandleFastest_SingleResponse(t *testing.T) {
+	t.Parallel()
+	responses := []ProviderResponse{
+		makeResponse("speedster", "quick answer"),
+	}
+
+	cfg := OrchestraConfig{Strategy: StrategyFastest}
+	merged, summary, err := handleFastest(context.Background(), responses, cfg)
+	require.NoError(t, err)
+	assert.Equal(t, "quick answer", merged)
+	assert.Contains(t, summary, "최속 응답: speedster")
+}
+
+func TestHandleFastest_NoResponses(t *testing.T) {
+	t.Parallel()
+	_, _, err := handleFastest(context.Background(), nil, OrchestraConfig{})
+	assert.Error(t, err)
+}
+
+func TestHandleConsensus_BelowThreshold(t *testing.T) {
+	t.Parallel()
+	// 각 응답이 완전히 다른 내용을 가질 때 합의율이 낮아야 한다
+	responses := []ProviderResponse{
+		makeResponse("p1", "golang"),
+		makeResponse("p2", "python"),
+		makeResponse("p3", "rust"),
+	}
+
+	cfg := OrchestraConfig{Strategy: StrategyConsensus}
+	merged, summary, err := handleConsensus(context.Background(), responses, cfg)
+	require.NoError(t, err)
+	// 합의된 항목이 없으므로 이견 섹션이 있어야 한다
+	assert.Contains(t, merged, "이견")
+	assert.Contains(t, summary, "합의율")
+	_ = merged
+}

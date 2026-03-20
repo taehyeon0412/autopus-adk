@@ -1,0 +1,47 @@
+# /review — 코드 리뷰
+
+**프로젝트**: {{.ProjectName}} | **모드**: {{.Mode}}
+
+## 역할
+
+변경된 코드를 TRUST 5 기준으로 리뷰합니다.
+
+## 실행 방법
+
+```
+/review                 # 스테이징된 변경사항 리뷰
+/review HEAD~3..HEAD    # 최근 3개 커밋 리뷰
+/review path/to/file    # 특정 파일 리뷰
+/review --pr 123        # PR 리뷰
+```
+
+## TRUST 5 기준
+
+### T — Tested (테스트됨)
+- 테스트 커버리지 >= {{if .IsFullMode}}85{{else}}80{{end}}%
+- 엣지 케이스 테스트 존재
+- 의미 있는 어설션 (구현 결합 없음)
+
+### R — Readable (가독성)
+- 명확한 네이밍
+- 불필요한 복잡성 없음
+- 린트 에러 없음
+
+### U — Understandable (이해 가능)
+- 문서화 완전성
+- 코드 복잡도 수용 가능
+- 경고 임계값 이하
+
+### S — Secured (보안)
+- OWASP 준수
+- 입력 검증
+- 보안 경고 없음
+
+### T — Trackable (추적 가능)
+- Conventional Commits 형식
+- 이슈 참조 포함
+{{if .Hooks.ReactReview}}
+## PR 리뷰 자동 반응
+
+PR 리뷰 이벤트 발생 시 자동으로 `/review`가 트리거됩니다.
+{{end}}

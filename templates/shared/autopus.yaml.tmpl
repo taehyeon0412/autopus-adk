@@ -1,0 +1,66 @@
+# autopus.yaml — {{.ProjectName}}
+# Autopus-ADK 하네스 설정 파일
+# 이 파일을 수정하여 프로젝트에 맞게 커스터마이징하세요.
+
+mode: {{.Mode}}
+project_name: {{.ProjectName}}
+platforms:
+{{range .Platforms}}  - {{.}}
+{{end}}
+architecture:
+  auto_generate: {{.Architecture.AutoGenerate}}
+  enforce: {{.Architecture.Enforce}}
+{{if .Architecture.Layers}}  layers:
+{{range .Architecture.Layers}}    - {{.}}
+{{end}}{{end}}
+lore:
+  enabled: {{.Lore.Enabled}}
+  auto_inject: {{.Lore.AutoInject}}
+  stale_threshold_days: {{.Lore.StaleThresholdDays}}
+{{if .Lore.RequiredTrailers}}  required_trailers:
+{{range .Lore.RequiredTrailers}}    - {{.}}
+{{end}}{{end}}
+spec:
+  id_format: "{{.Spec.IDFormat}}"
+{{if .Spec.EARSTypes}}  ears_types:
+{{range .Spec.EARSTypes}}    - {{.}}
+{{end}}{{end}}
+{{if .IsFullMode}}
+methodology:
+  mode: {{.Methodology.Mode}}
+  enforce: {{.Methodology.Enforce}}
+  review_gate: {{.Methodology.ReviewGate}}
+
+router:
+  strategy: {{.Router.Strategy}}
+  intent_gate: {{.Router.IntentGate}}
+{{if .Router.Tiers}}  tiers:
+{{range $k, $v := .Router.Tiers}}    {{$k}}: {{$v}}
+{{end}}{{end}}
+{{if .Router.Categories}}  categories:
+{{range $k, $v := .Router.Categories}}    {{$k}}: {{$v}}
+{{end}}{{end}}
+session:
+  handoff_enabled: {{.Session.HandoffEnabled}}
+  continue_file: "{{.Session.ContinueFile}}"
+  max_context_tokens: {{.Session.MaxContextTokens}}
+{{end}}
+hooks:
+  pre_commit_arch: {{.Hooks.PreCommitArch}}
+  pre_commit_lore: {{.Hooks.PreCommitLore}}
+  react_ci_failure: {{.Hooks.ReactCIFailure}}
+  react_review: {{.Hooks.ReactReview}}
+{{if .IsFullMode}}
+orchestra:
+  enabled: {{.Orchestra.Enabled}}
+  default_strategy: {{.Orchestra.DefaultStrategy}}
+  timeout_seconds: {{.Orchestra.TimeoutSeconds}}
+{{if .Orchestra.Providers}}  providers:
+{{range $k, $v := .Orchestra.Providers}}    {{$k}}:
+      binary: {{$v.Binary}}
+{{if $v.Args}}      args: [{{range $i, $a := $v.Args}}{{if $i}}, {{end}}"{{$a}}"{{end}}]
+{{end}}{{end}}{{end}}{{if .Orchestra.Commands}}  commands:
+{{range $k, $v := .Orchestra.Commands}}    {{$k}}:
+      strategy: {{$v.Strategy}}
+      providers: [{{range $i, $p := $v.Providers}}{{if $i}}, {{end}}{{$p}}{{end}}]
+{{end}}{{end}}{{end}}

@@ -1,0 +1,28 @@
+name: tdd
+review_gate: true
+enforce_rules:
+  - "테스트 없이 코드 작성 금지"
+  - "RED → GREEN → REFACTOR 순서 준수"
+  - "테스트 커버리지 85% 이상 유지"
+stages:
+  - name: red
+    description: 실패하는 테스트를 먼저 작성한다
+    rules:
+      - "테스트 전 코드 작성 시 거부"
+      - "테스트는 단일 동작만 검증"
+      - "Table-driven test 패턴 사용"
+    required_before: ""
+  - name: green
+    description: 테스트를 통과하는 최소한의 코드를 작성한다
+    rules:
+      - "과도한 최적화 금지"
+      - "테스트 통과만을 목표로"
+      - "중복 허용 (REFACTOR에서 제거)"
+    required_before: red
+  - name: refactor
+    description: 중복을 제거하고 코드 품질을 개선한다
+    rules:
+      - "기능 변경 없이 구조만 개선"
+      - "테스트는 항상 GREEN 유지"
+      - "리팩토링과 기능 추가 분리"
+    required_before: green

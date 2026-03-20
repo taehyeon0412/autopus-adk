@@ -1,0 +1,46 @@
+# /go — SPEC 구현
+
+**프로젝트**: {{.ProjectName}} | **모드**: {{.Mode}}
+
+## 역할
+
+SPEC 문서를 기반으로 코드를 구현합니다.{{if .IsFullMode}} {{.Methodology.Mode | upper}} 방법론을 따릅니다.{{end}}
+
+## 실행 방법
+
+```
+/go SPEC-ID
+/go SPEC-ID --continue   # 중단된 구현 재개
+```
+
+## 구현 절차
+
+{{if .IsFullMode}}{{if eq .Methodology.Mode "tdd"}}
+### TDD 사이클 (RED → GREEN → REFACTOR)
+
+1. **RED**: SPEC 요구사항을 검증하는 실패 테스트 작성
+2. **GREEN**: 테스트를 통과하는 최소한의 구현
+3. **REFACTOR**: 동작을 유지하며 코드 개선
+
+최소 커버리지: {{.Methodology.ReviewGate | printf "%v"}} (리뷰 게이트 활성화)
+{{else}}
+### DDD 사이클 (ANALYZE → TRANSFORM → IMPROVE)
+
+1. **ANALYZE**: 기존 동작 스냅샷 및 특성 테스트 작성
+2. **TRANSFORM**: 안전한 구조 변경 (최대 small 단위)
+3. **IMPROVE**: 점진적 기능 추가
+{{end}}{{else}}
+1. SPEC 요구사항 확인
+2. 파일별 구현
+3. 기본 테스트 작성
+{{end}}
+
+## 품질 게이트
+
+- LSP 에러: 0
+- LSP 타입 에러: 0
+- LSP 린트 에러: 0
+
+## 완료 후
+
+구현이 완료되면 `/sync SPEC-ID`로 문서를 동기화하세요.

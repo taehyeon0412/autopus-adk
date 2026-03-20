@@ -1,0 +1,117 @@
+# auto-plan — SPEC 작성 스킬
+
+**프로젝트**: {{.ProjectName}} | **모드**: {{.Mode}}
+
+## 설명
+
+단순 템플릿 생성이 아닌, 실제 코드베이스를 분석하고 컨텍스트를 수집한 후 SPEC 문서를 생성합니다.
+요구사항을 EARS 형식으로 분해하고 기술 설계를 수행합니다.
+
+## 사용법
+
+```
+@auto-plan "기능 설명"
+```
+
+## 출력
+
+`.autopus/specs/SPEC-{DOMAIN}-{NUMBER}/` 디렉터리에 4개 파일 저장:
+- `spec.md` — 메인 SPEC (요구사항 포함)
+- `plan.md` — 구현 계획
+- `acceptance.md` — 인수 기준
+- `research.md` — 리서치 결과 (세션 간 지속)
+
+## SPEC ID 형식
+
+`{{.Spec.IDFormat}}`
+
+## 요구사항 형식 (EARS)
+
+지원 타입: {{join ", " .Spec.EARSTypes}}
+
+## 7단계 워크플로우
+
+### Step 1: 코드베이스 스캔
+
+대상 코드 영역을 분석합니다.
+
+1. 관련 파일과 함수를 탐색합니다
+2. 기존 패턴, 의존성, 데이터 흐름을 파악합니다
+3. 유사한 기존 구현(reference implementation)을 찾습니다
+4. 발견 내용을 기록합니다 (이후 단계에서 참조)
+
+{{if .IsFullMode}}
+### Step 2: Lore 컨텍스트 확인
+
+```bash
+auto lore context <target-path>
+```
+
+확인 사항:
+- **Rejected 트레일러**: 거부된 접근 방식 → 동일 방식 재시도 금지
+- **Constraint 트레일러**: 활성 제약 조건 → 반드시 준수
+- **90일+ 의사결정**: 스탤(stale) 여부 검토
+
+### Step 3: 아키텍처 검증
+
+```bash
+auto arch enforce
+```
+
+확인 사항:
+- 대상 영역의 의존성 위반 여부
+- 새 기능이 준수해야 할 레이어 경계
+- 현재 아키텍처 위반이 있다면 SPEC에 명시
+
+{{end}}
+### Step {{if .IsFullMode}}4{{else}}2{{end}}: EARS 요구사항 작성
+
+Step 1에서 발견한 실제 코드 엔티티를 기반으로 요구사항을 작성합니다.
+
+**EARS 형식**:
+- `The system shall [action]` — 항상 적용 (Ubiquitous)
+- `WHEN [trigger] THEN the system shall [action]` — 트리거 기반 (Event-driven)
+- `WHILE [state] the system shall [action]` — 상태 의존 (State-driven)
+- `IF [condition] THEN the system shall [response]` — 실패 처리 (Unwanted)
+- `WHERE [feature] is enabled the system shall [action]` — 선택적 (Optional)
+
+### Step {{if .IsFullMode}}5{{else}}3{{end}}: 구현 계획 (plan.md)
+
+`.autopus/specs/SPEC-{ID}/plan.md` 파일을 생성합니다:
+- 파일 영향 분석 (생성/수정/삭제될 파일 목록)
+- 아키텍처 레이어 정렬
+- 위험도 평가 및 완화 방안
+- 의존성 목록 (선행 작업, 외부 의존성)
+
+### Step {{if .IsFullMode}}6{{else}}4{{end}}: 인수 기준 (acceptance.md)
+
+`.autopus/specs/SPEC-{ID}/acceptance.md` 파일을 생성합니다.
+
+Step 1에서 발견한 실제 코드 동작을 기반으로 작성합니다:
+```
+Given [실제 초기 상태]
+When  [트리거 이벤트]
+Then  [예상 결과]
+```
+
+포함 항목:
+- 정상 경로(Happy Path) 시나리오
+- 엣지 케이스 및 경계 조건
+- 에러 시나리오
+- 품질 게이트 기준 (커버리지 목표: 85%+)
+
+### Step {{if .IsFullMode}}7{{else}}5{{end}}: 리서치 결과 저장 (research.md)
+
+`.autopus/specs/SPEC-{ID}/research.md` 파일을 생성합니다.
+
+Steps 1{{if .IsFullMode}}-3{{end}}에서 발견한 모든 내용을 저장합니다.
+이 파일은 세션 간 컨텍스트를 유지하는 핵심 아티팩트입니다.
+
+{{if .IsFullMode}}
+## Full 모드 추가 항목
+
+- 아키텍처 레이어 영향 분석
+- 방법론({{.Methodology.Mode}}) 기반 구현 계획
+- Lore 의사결정 이력 연계
+- 예상 테스트 커버리지 목표: 85%+
+{{end}}
