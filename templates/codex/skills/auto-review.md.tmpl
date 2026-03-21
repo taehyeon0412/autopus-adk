@@ -20,3 +20,24 @@
 - **U**nderstandable: 문서화, 복잡도 수용
 - **S**ecured: OWASP 준수, 입력 검증
 - **T**rackable: Conventional Commits, 이슈 참조
+
+## Branding Formats
+
+### Agent Result Format (use for reviewer subagent result)
+
+```
+🐙 reviewer ─────────────────────────
+  Verdict: {APPROVE|REQUEST_CHANGES} | Issues: {N}개 | 심각도: {low|medium|high}
+  다음: {verdict-based guidance}
+```
+
+### Next Step Auto-Detection (show after review completes)
+
+```
+다음 단계: {recommendation}
+```
+
+Detection order:
+1. Verdict `APPROVE` + SPEC status `implemented` → `✓ 구현 완료 → /auto sync {SPEC-ID}`
+2. Verdict `REQUEST_CHANGES` → recommend `/auto go {SPEC-ID} --continue` to address issues
+3. SPEC status `completed` → `🐙 {SPEC-ID} 완료. 다음 기능: /auto plan "기능 설명"`

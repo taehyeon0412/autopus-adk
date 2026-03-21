@@ -1,0 +1,175 @@
+// Package cli implements the status command for SPEC dashboard display.
+package cli
+
+import (
+	"bufio"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/spf13/cobra"
+
+	"github.com/insajin/autopus-adk/internal/cli/tui"
+)
+
+// specEntry holds parsed data for a single SPEC.
+type specEntry struct {
+	id     string
+	status string
+	title  string
+}
+
+// statusIcon returns the display icon for a given SPEC status.
+func statusIcon(status string) string {
+	switch strings.ToLower(status) {
+	case "done", "completed", "implemented":
+		return "✓"
+	case "approved", "in-progress":
+		return "→"
+	default:
+		return "○"
+	}
+}
+
+// parseSpecFile reads a spec.md file and extracts status and title.
+// Returns empty strings on parse failure (graceful degradation).
+func parseSpecFile(path string) (status, title string) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", ""
+	}
+	defer f.Close() //nolint:errcheck
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		// Extract title from H1 heading: "# SPEC-ID: Title"
+		if title == "" && strings.HasPrefix(line, "# ") {
+			parts := strings.SplitN(line[2:], ":", 2)
+			if len(parts) == 2 {
+				title = strings.TrimSpace(parts[1])
+			}
+		}
+
+		// Extract status from bold markdown: "**Status**: value"
+		if status == "" {
+			lower := strings.ToLower(line)
+			if strings.Contains(lower, "**status**") || strings.Contains(lower, "**status**: ") {
+				// Match patterns like: **Status**: draft
+				idx := strings.Index(lower, "**status**")
+				if idx >= 0 {
+					rest := line[idx+len("**status**"):]
+					rest = strings.TrimLeft(rest, " *:") // strip ": " or ":"
+					rest = strings.TrimSpace(rest)
+					// Take first word as status value
+					fields := strings.Fields(rest)
+					if len(fields) > 0 {
+						status = fields[0]
+					}
+				}
+			}
+		}
+
+		// Stop scanning once both fields are found
+		if status != "" && title != "" {
+			break
+		}
+	}
+
+	return status, title
+}
+
+// scanSpecs reads all SPEC directories under specsDir and returns parsed entries.
+func scanSpecs(specsDir string) ([]specEntry, error) {
+	entries, err := os.ReadDir(specsDir)
+	if err != nil {
+		return nil, err
+	}
+
+	var specs []specEntry
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		name := e.Name()
+		if !strings.HasPrefix(name, "SPEC-") {
+			continue
+		}
+
+		specFile := filepath.Join(specsDir, name, "spec.md")
+		status, title := parseSpecFile(specFile)
+		if status == "" {
+			status = "draft"
+		}
+
+		specs = append(specs, specEntry{
+			id:     name,
+			status: status,
+			title:  title,
+		})
+	}
+
+	return specs, nil
+}
+
+func newStatusCmd() *cobra.Command {
+	var dir string
+
+	cmd := &cobra.Command{
+		Use:   "status",
+		Short: "Show SPEC dashboard",
+		Long:  "SPEC 디렉터리를 스캔하여 모든 SPEC의 상태를 표시합니다.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if dir == "" {
+				var err error
+				dir, err = os.Getwd()
+				if err != nil {
+					return fmt.Errorf("현재 디렉터리를 가져올 수 없음: %w", err)
+				}
+			}
+
+			out := cmd.OutOrStdout()
+			specsDir := filepath.Join(dir, ".autopus", "specs")
+
+			specs, err := scanSpecs(specsDir)
+			if err != nil || len(specs) == 0 {
+				_, _ = fmt.Fprintln(out, "SPEC이 없습니다. `/auto plan`으로 시작하세요.")
+				return nil
+			}
+
+			tui.BannerWithInfo(out, "Project Status", "specs")
+
+			doneCount := 0
+			for _, s := range specs {
+				icon := statusIcon(s.status)
+
+				// Style icon based on status
+				var iconStyled string
+				switch icon {
+				case "✓":
+					iconStyled = tui.SuccessLabelStyle.Render(icon)
+					doneCount++
+				case "→":
+					iconStyled = tui.BrandStyle.Render(icon)
+				default:
+					iconStyled = tui.MutedStyle.Render(icon)
+				}
+
+				statusStyled := tui.MutedStyle.Render(fmt.Sprintf("%-8s", s.status))
+				idStyled := tui.BoldStyle.Render(fmt.Sprintf("%-14s", s.id))
+				_, _ = fmt.Fprintf(out, "  %s %s %s  %s\n", idStyled, iconStyled, statusStyled, s.title)
+			}
+
+			_, _ = fmt.Fprintln(out)
+			summary := fmt.Sprintf("전체: %d/%d 완료", doneCount, len(specs))
+			_, _ = fmt.Fprintf(out, "  %s\n", tui.MutedStyle.Render(summary))
+
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&dir, "dir", "", "프로젝트 루트 디렉터리 (기본값: 현재 디렉터리)")
+	return cmd
+}

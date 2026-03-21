@@ -78,6 +78,7 @@ cmd/auto/main.go
 | Factory | `pkg/config/defaults.go` | DefaultFullConfig / DefaultLiteConfig (includes quality presets) |
 | Marker Update | `pkg/adapter/manifest.go` | AUTOPUS:BEGIN/END for partial file updates |
 | Agent Pipeline | `.claude/skills/autopus/agent-pipeline.md` | 5-Phase multi-agent orchestration (planner→executor→validator→tester→reviewer) |
+| Shared Templates | `templates/shared/` | Cross-platform branding & UX format fragments |
 
 ## Architecture Rules
 

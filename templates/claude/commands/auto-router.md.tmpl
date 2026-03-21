@@ -51,23 +51,46 @@ No project context documents found. Run `/auto setup` to initialize.
 
 ### Subcommand List
 
-| Subcommand | Description | Mode |
-|-----------|-------------|------|
-| setup | Generate/update project context documents | all |
-| plan | Write a SPEC | all |
-| go | Implement a SPEC | full |
-| fix | Fix a bug | all |
-| map | Analyze codebase structure | all |
-| review | Code review | full |
-| spec review | SPEC multi-provider review | full |
-| secure | Security audit | full |
-| stale | Detect stale decisions | all |
-| sync | Synchronize documentation | all |
-| why | Query decision rationale | all |
-| init | Initialize harness | all |
-| update | Update harness | all |
-| doctor | Health diagnostics | all |
-| platform | Platform management | all |
+When displaying the subcommand list (empty `/auto` invocation), use the categorized format below.
+
+**개발 워크플로우**
+
+| Subcommand | Description |
+|-----------|-------------|
+| plan | Write a SPEC |
+| go | Implement a SPEC |
+| sync | Synchronize documentation |
+| fix | Fix a bug |
+| dev | Full cycle: plan → go → sync |
+
+**품질 & 리뷰**
+
+| Subcommand | Description |
+|-----------|-------------|
+| review | Code review |
+| spec review | SPEC multi-provider review |
+| secure | Security audit |
+| stale | Detect stale decisions |
+
+**탐색 & 분석**
+
+| Subcommand | Description |
+|-----------|-------------|
+| map | Analyze codebase structure |
+| why | Query decision rationale |
+| status | SPEC dashboard |
+
+**관리**
+
+| Subcommand | Description |
+|-----------|-------------|
+| setup | Generate project context |
+| init | Initialize harness |
+| update | Update harness |
+| doctor | Health diagnostics |
+| platform | Platform management |
+
+> 자연어로 기능을 설명하면 자동으로 plan 워크플로우가 시작됩니다.
 
 ---
 
@@ -184,19 +207,34 @@ auto spec review {SPEC-ID} --strategy {STRATEGY}
 
 #### Step 5: Completion Guidance
 
-Guide the next step based on review outcome:
+Display the workflow lifecycle bar:
+
+```
+🐙 Workflow: {SPEC-ID}
+  ● plan  →  ○ go  →  ○ sync
+```
+
+Then show state-aware next step guidance:
 
 - If Status is `approved`:
   ```
   ✓ SPEC {SPEC-ID} approved
-  Next step: /auto go {SPEC-ID}
+  다음 단계: /auto go {SPEC-ID}
   ```
 - If Status is `draft` (review skipped or not run):
   ```
-  SPEC {SPEC-ID} created (status: draft)
-  Next step: /auto go {SPEC-ID}
-  Run review: /auto spec review {SPEC-ID}
+  SPEC {SPEC-ID} 생성됨 (status: draft)
+  다음 단계: /auto go {SPEC-ID}
+  리뷰 실행: /auto spec review {SPEC-ID}
   ```
+
+After displaying, also show agent result summary:
+
+```
+🐙 spec-writer ──────────────────────
+  SPEC: {SPEC-ID} | 파일: 4개 | 요구사항: {N}개
+  다음: /auto go {SPEC-ID}
+```
 
 ---
 
@@ -232,6 +270,21 @@ Phase 4: Review          → reviewer    (sonnet, plan)  — delegate fixes up t
 
 > Model assignments above are for Balanced mode. In Ultra mode, all agents run on opus.
 
+**Pipeline Progress Display:**
+
+At the start of `--team` mode and after each Phase transition, display the progress bar:
+
+```
+🐙 Pipeline ─────────────────────────
+  ✓ Phase 1: Planning
+  → Phase 2: Implementation [N/M tasks]
+  ○ Phase 3: Testing
+  ○ Phase 4: Review
+```
+
+Use `✓` for completed phases, `→` for the current phase, `○` for pending phases.
+Replace `[N/M tasks]` with actual counts (e.g., `[3/7 tasks]`) for Phase 2.
+
 **Execution procedure:**
 
 0. **Determine quality mode** using this priority order:
@@ -246,6 +299,33 @@ Phase 4: Review          → reviewer    (sonnet, plan)  — delegate fixes up t
 5. **Spawn tester**: Analyze coverage gaps and strengthen tests
 6. **Spawn reviewer**: TRUST 5 review → on APPROVE done, on REQUEST_CHANGES delegate fixes
 
+After each agent completes, display the agent result summary:
+
+- executor:
+  ```
+  🐙 executor ─────────────────────────
+    파일: {N}개 수정 | 테스트: {N}개 추가 | 커버리지: {N}%
+    다음: 검증 단계로 진행
+  ```
+- validator:
+  ```
+  🐙 validator ────────────────────────
+    Verdict: {PASS|FAIL} | 검사 항목: {N}개 | 이슈: {N}개
+    다음: {pass → 테스트 단계 | fail → 수정 후 재검증}
+  ```
+- tester:
+  ```
+  🐙 tester ───────────────────────────
+    테스트: {N}개 추가 | 커버리지: {before}% → {after}% | 통과: {N}/{N}
+    다음: 리뷰 단계로 진행
+  ```
+- reviewer:
+  ```
+  🐙 reviewer ─────────────────────────
+    Verdict: {APPROVE|REQUEST_CHANGES} | Issues: {N}개 | 심각도: {low|medium|high}
+    다음: {verdict-based guidance}
+  ```
+
 **Parallel execution rules:**
 - Only parallelize tasks whose Mode is "parallel" in the planner's agent assignment table
 - Tasks that modify the same file are automatically serialized
@@ -254,6 +334,34 @@ Phase 4: Review          → reviewer    (sonnet, plan)  — delegate fixes up t
 **Retry limits:**
 - Validation: up to 3× → stop on exceeded, guide user to resume with `--continue`
 - Review: up to 2× → stop on exceeded, request user intervention
+
+**Error Recovery:**
+
+When a Phase fails, display the recovery guide:
+
+Validation failure (Gate 2):
+```
+✗ Validation 실패: {N}개 이슈 발견
+  복구 옵션:
+  1. /auto go {SPEC-ID} --continue  (중단점에서 재개)
+  2. /auto fix "{specific issue}"   (개별 이슈 수정)
+```
+
+Review failure (Gate 3 — REQUEST_CHANGES, retries exceeded):
+```
+✗ Review 실패: {N}개 변경 요청 (재시도 초과)
+  복구 옵션:
+  1. /auto go {SPEC-ID} --continue  (수정 후 재개)
+  2. /auto review                   (변경사항 직접 검토)
+```
+
+Subagent failure:
+```
+✗ {agent-name} 실패: {error description}
+  복구 옵션:
+  1. /auto go {SPEC-ID} --continue  (파이프라인 재개)
+  2. {manual fallback instruction}  (수동 처리)
+```
 
 **Fallback:** If a subagent fails, handle in the main session directly.
 
@@ -313,11 +421,22 @@ If all tasks modify only `.md` files:
 
 ### Completion Guidance
 
-After go completes, always output:
+After go completes, display the workflow lifecycle bar:
 
 ```
-Next step: /auto sync {SPEC-ID}
+🐙 Workflow: {SPEC-ID}
+  ✓ plan  →  ● go  →  ○ sync
 ```
+
+Then show state-aware next step guidance:
+
+```
+다음 단계: /auto sync {SPEC-ID}
+```
+
+If the SPEC status is now `implemented`, also check project state:
+- SPEC status `implemented` → suggest `/auto sync {SPEC-ID}`
+- No project docs found → suggest `/auto setup` before sync
 {{end}}
 
 ---
@@ -481,10 +600,35 @@ Decision: 변경 감지된 문서만 선별 갱신
 {{end}}
 ### Completion Guidance
 
-After sync completes, always output:
+After sync completes, display the workflow lifecycle bar:
 
 ```
-Pipeline complete: plan -> go -> sync full cycle done.
+🐙 Workflow: {SPEC-ID}
+  ✓ plan  →  ✓ go  →  ● sync
+```
+
+Then display the milestone celebration ResultBox for a completed full cycle:
+
+```
+╭────────────────────────────────────╮
+│ 🐙 파이프라인 완료!                 │
+│ {SPEC-ID}: {title}                 │
+│ 태스크: N/N | 커버리지: N%          │
+│ 리뷰: {verdict}                    │
+╰────────────────────────────────────╯
+```
+
+**Field mappings:**
+- `{SPEC-ID}` — e.g., `SPEC-UX-001`
+- `{title}` — SPEC title from spec.md
+- `N/N` — completed tasks / total tasks from plan.md
+- `N%` — final test coverage (use `N/A` if not applicable or harness-only)
+- `{verdict}` — reviewer verdict (`APPROVE` or `N/A` if review was skipped)
+
+Then show state-aware next step guidance:
+
+```
+다음 단계: 다음 기능을 시작하려면 /auto plan "기능 설명" 을 실행하세요.
 ```
 
 ---
@@ -500,6 +644,77 @@ Query methods:
 - Link to related SPEC documents
 
 Usage: `/auto why "why was this pattern used?"`, `/auto why path/to/file.go`
+
+---
+
+## status — SPEC Dashboard
+
+Display the current status of all SPECs in the project.
+
+### Output
+
+Scan `.autopus/specs/` for all SPEC directories and display:
+
+```
+🐙 SPEC Dashboard ───────────────────
+  SPEC-XXX-001  [approved]    Feature Title
+  SPEC-XXX-002  [draft]       Feature Title
+  SPEC-XXX-003  [implemented] Feature Title
+  SPEC-XXX-004  [completed]   Feature Title
+```
+
+Show a summary line at the bottom:
+
+```
+총 {N}개 | draft: {N} | approved: {N} | implemented: {N} | completed: {N}
+```
+
+Usage: `/auto status`
+
+---
+
+## dev — Full Development Cycle
+{{if not .IsFullMode}}
+> dev is Full mode only. Upgrade with `auto init --full`.
+{{else}}
+Execute the complete plan → go → sync cycle in one command.
+
+### Pipeline
+
+1. Run `plan` with the feature description → get SPEC-ID
+2. Run `go SPEC-ID --auto --loop` → implement
+3. Run `sync SPEC-ID` → synchronize documentation
+
+Display the workflow lifecycle bar between each stage:
+
+After plan:
+```
+🐙 Workflow: {SPEC-ID}
+  ● plan  →  ○ go  →  ○ sync
+```
+
+After go:
+```
+🐙 Workflow: {SPEC-ID}
+  ✓ plan  →  ● go  →  ○ sync
+```
+
+After sync:
+```
+🐙 Workflow: {SPEC-ID}
+  ✓ plan  →  ✓ go  →  ● sync
+```
+
+### Flags
+
+| Flag | Description |
+|------|-------------|
+| `--team` | Run `go` in multi-agent pipeline mode |
+| `--quality` | Quality mode for `--team`: ultra or balanced |
+| `--multi` | Enable multi-provider review in all stages |
+
+Usage: `/auto dev "feature description"`, `/auto dev "feature description" --team`, `/auto dev "feature description" --team --quality ultra`
+{{end}}
 
 ---
 

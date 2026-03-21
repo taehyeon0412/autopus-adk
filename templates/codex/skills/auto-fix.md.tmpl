@@ -25,3 +25,25 @@
 
 - 재현 테스트 없이 수정하지 않음
 - 버그 범위 외 코드 변경 금지
+
+## Branding Formats
+
+### Error Recovery (show on fix failures)
+
+```
+✗ {subcommand} 실패: {error description}
+  복구 옵션:
+  1. 오류 내용을 확인하고 재시도: /auto fix {args}
+  2. /auto doctor  (시스템 상태 진단)
+```
+
+### Next Step Auto-Detection (show after fix completes)
+
+```
+다음 단계: {recommendation}
+```
+
+Detection order:
+1. SPEC status `implemented` → `✓ 구현 완료 → /auto sync {SPEC-ID}`
+2. SPEC status `approved` → `✓ SPEC {SPEC-ID} 승인됨 → /auto go {SPEC-ID}`
+3. No SPEC context → recommend running `/auto review` to verify the fix

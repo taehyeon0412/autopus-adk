@@ -1,0 +1,135 @@
+# Autopus Branding Formats
+
+> Format specifications for Autopus visual feedback and progress displays.
+> These formats MUST be used by all agents as defined per subcommand context.
+
+---
+
+## A1: Pipeline Progress Format
+
+Display at the start of `--team` mode and after each Phase transition in the `go` subcommand.
+
+```
+🐙 Pipeline ─────────────────────────
+  ✓ Phase 1: Planning
+  → Phase 2: Implementation [N/M tasks]
+  ○ Phase 3: Testing
+  ○ Phase 4: Review
+```
+
+**Status symbols:**
+- `✓` — Phase completed successfully
+- `→` — Current active phase
+- `○` — Phase pending
+
+**Rules:**
+- Replace `[N/M tasks]` with actual completed/total task counts (e.g., `[3/7 tasks]`)
+- Update the display after each phase transition
+- Always show all 4 phases regardless of current position
+
+---
+
+## A2: Workflow Lifecycle Format
+
+Display after each subcommand (plan, go, sync) completes to show position in the full cycle.
+
+```
+🐙 Workflow: {SPEC-ID}
+  ✓ plan  →  ● go  →  ○ sync
+```
+
+**Status symbols:**
+- `✓` — Stage completed
+- `●` — Current stage (just completed)
+- `○` — Stage pending
+
+**Stage combinations:**
+
+After `plan` completes:
+```
+🐙 Workflow: {SPEC-ID}
+  ● plan  →  ○ go  →  ○ sync
+```
+
+After `go` completes:
+```
+🐙 Workflow: {SPEC-ID}
+  ✓ plan  →  ● go  →  ○ sync
+```
+
+After `sync` completes:
+```
+🐙 Workflow: {SPEC-ID}
+  ✓ plan  →  ✓ go  →  ● sync
+```
+
+---
+
+## A3: Agent Result Format
+
+Standardized result summary displayed after each subagent completes its work.
+
+```
+🐙 {agent-name} ─────────────────────
+  {key metric 1} | {key metric 2} | {key metric 3}
+  다음: {next step guidance}
+```
+
+**Per-agent templates:**
+
+spec-writer:
+```
+🐙 spec-writer ──────────────────────
+  SPEC: {SPEC-ID} | 파일: 4개 | 요구사항: {N}개
+  다음: /auto go {SPEC-ID}
+```
+
+executor:
+```
+🐙 executor ─────────────────────────
+  파일: {N}개 수정 | 테스트: {N}개 추가 | 커버리지: {N}%
+  다음: 검증 단계로 진행
+```
+
+reviewer:
+```
+🐙 reviewer ─────────────────────────
+  Verdict: {APPROVE|REQUEST_CHANGES} | Issues: {N}개 | 심각도: {low|medium|high}
+  다음: {verdict-based guidance}
+```
+
+tester:
+```
+🐙 tester ───────────────────────────
+  테스트: {N}개 추가 | 커버리지: {before}% → {after}% | 통과: {N}/{N}
+  다음: 리뷰 단계로 진행
+```
+
+validator:
+```
+🐙 validator ────────────────────────
+  Verdict: {PASS|FAIL} | 검사 항목: {N}개 | 이슈: {N}개
+  다음: {pass → 테스트 단계 | fail → 수정 후 재검증}
+```
+
+---
+
+## A4: Milestone Celebration Format
+
+Display when a full pipeline cycle (plan → go → sync) completes successfully.
+
+```
+╭────────────────────────────────────╮
+│ 🐙 파이프라인 완료!                 │
+│ {SPEC-ID}: {title}                 │
+│ 태스크: N/N | 커버리지: N%          │
+│ 리뷰: {verdict}                    │
+╰────────────────────────────────────╯
+```
+
+**Field mappings:**
+- `{SPEC-ID}` — e.g., `SPEC-UX-001`
+- `{title}` — SPEC title from spec.md (truncate to fit if needed)
+- `N/N` in 태스크 — completed tasks / total tasks from plan.md
+- `N%` in 커버리지 — final test coverage percentage (use `N/A` if not applicable)
+- `{verdict}` — final reviewer verdict: `APPROVE` or `N/A` (if review skipped)

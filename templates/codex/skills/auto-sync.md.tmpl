@@ -34,3 +34,35 @@
 - 구현 코드 포함 시 SPEC 주요 타입(feat, fix 등) 사용
 - 변경 사항 없으면 커밋 생략
 {{end}}
+
+## Branding Formats
+
+### Workflow Lifecycle (show after sync completes)
+
+```
+🐙 Workflow: {SPEC-ID}
+  ✓ plan  →  ✓ go  →  ● sync
+```
+
+### Milestone Celebration (show when full pipeline completes)
+
+```
+╭────────────────────────────────────╮
+│ 🐙 파이프라인 완료!                 │
+│ {SPEC-ID}: {title}                 │
+│ 태스크: N/N | 커버리지: N%          │
+│ 리뷰: {verdict}                    │
+╰────────────────────────────────────╯
+```
+
+Field mappings: `{title}` from spec.md, `N/N` = completed/total tasks, `{verdict}` = `APPROVE` or `N/A`.
+
+### Next Step Auto-Detection (show after sync completes)
+
+```
+다음 단계: {recommendation}
+```
+
+Detection order:
+1. SPEC status `completed` → `🐙 {SPEC-ID} 완료. 다음 기능: /auto plan "기능 설명"`
+2. Other pending SPECs exist → recommend next SPEC to implement

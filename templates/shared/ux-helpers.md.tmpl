@@ -1,0 +1,142 @@
+# Autopus UX Helpers
+
+> UX helper format specifications for categorized help, next-step detection, and error recovery.
+> Agents MUST apply these formats in the described contexts.
+
+---
+
+## B1: Categorized Help Format
+
+Use this categorized layout when displaying the subcommand list (e.g., on empty `/auto` invocation).
+
+**개발 워크플로우**
+
+| Subcommand | Description |
+|-----------|-------------|
+| plan | Write a SPEC |
+| go | Implement a SPEC |
+| sync | Synchronize documentation |
+| fix | Fix a bug |
+| dev | Full cycle: plan → go → sync |
+
+**품질 & 리뷰**
+
+| Subcommand | Description |
+|-----------|-------------|
+| review | Code review |
+| spec review | SPEC multi-provider review |
+| secure | Security audit |
+| stale | Detect stale decisions |
+
+**탐색 & 분석**
+
+| Subcommand | Description |
+|-----------|-------------|
+| map | Analyze codebase structure |
+| why | Query decision rationale |
+| status | SPEC dashboard |
+
+**관리**
+
+| Subcommand | Description |
+|-----------|-------------|
+| setup | Generate project context |
+| init | Initialize harness |
+| update | Update harness |
+| doctor | Health diagnostics |
+| platform | Platform management |
+
+**Natural language hint:**
+
+> 자연어로 기능을 설명하면 자동으로 plan 워크플로우가 시작됩니다.
+
+---
+
+## B2: Next Step Auto-Detection Logic
+
+After each subcommand completes, detect project state and recommend the next action.
+
+**Detection rules (apply in order):**
+
+1. **No project docs** (`ARCHITECTURE.md` and `.autopus/project/` missing)
+   → Recommend: `📁 프로젝트 컨텍스트가 없습니다. /auto setup 을 실행하세요.`
+
+2. **No SPECs** (`.autopus/specs/` directory empty or missing)
+   → Recommend: `📝 SPEC이 없습니다. /auto plan "기능 설명" 으로 시작하세요.`
+
+3. **SPEC status is `draft`**
+   → Recommend:
+   ```
+   SPEC {SPEC-ID} 상태: draft
+   옵션:
+   - 리뷰 후 승인: /auto spec review {SPEC-ID}
+   - 바로 구현: /auto go {SPEC-ID}
+   ```
+
+4. **SPEC status is `approved`**
+   → Recommend: `✓ SPEC {SPEC-ID} 승인됨 → /auto go {SPEC-ID}`
+
+5. **SPEC status is `implemented`**
+   → Recommend: `✓ 구현 완료 → /auto sync {SPEC-ID}`
+
+6. **SPEC status is `completed`** (sync done)
+   → Recommend: `🐙 {SPEC-ID} 완료. 다음 기능: /auto plan "기능 설명"`
+
+**Display format:**
+
+```
+다음 단계: {recommendation}
+```
+
+---
+
+## B3: Error Recovery Guide Format
+
+Display when a Phase or subcommand fails.
+
+```
+✗ {Phase/subcommand} 실패: {error description}
+  복구 옵션:
+  1. {recovery command 1}
+  2. {recovery command 2}
+```
+
+**Per-context templates:**
+
+Validation failure (Gate 2):
+```
+✗ Validation 실패: {N}개 이슈 발견
+  복구 옵션:
+  1. /auto go {SPEC-ID} --continue  (중단점에서 재개)
+  2. /auto fix "{specific issue}"   (개별 이슈 수정)
+```
+
+Review failure (Gate 3 — REQUEST_CHANGES):
+```
+✗ Review 실패: {N}개 변경 요청
+  복구 옵션:
+  1. /auto go {SPEC-ID} --continue  (수정 후 재개)
+  2. /auto review                   (변경사항 직접 검토)
+```
+
+Subagent failure (executor/tester crash):
+```
+✗ {agent-name} 실패: {error description}
+  복구 옵션:
+  1. /auto go {SPEC-ID} --continue  (파이프라인 재개)
+  2. {manual fallback instruction}  (수동 처리)
+```
+
+General subcommand failure:
+```
+✗ {subcommand} 실패: {error description}
+  복구 옵션:
+  1. 오류 내용을 확인하고 재시도: /auto {subcommand} {args}
+  2. /auto doctor  (시스템 상태 진단)
+```
+
+**Rules:**
+- Always show exactly 2 recovery options
+- First option: retry/continue command
+- Second option: alternative approach or diagnostic
+- Keep error description concise (one line)

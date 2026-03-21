@@ -46,6 +46,7 @@ func NewRootCmd() *cobra.Command {
 	root.AddCommand(newSkillCmd())
 	root.AddCommand(newOrchestraCmd())
 	root.AddCommand(newSetupCmd())
+	root.AddCommand(newStatusCmd())
 
 	return root
 }

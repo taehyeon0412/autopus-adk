@@ -126,3 +126,33 @@ Steps 1{{if .IsFullMode}}-3{{end}}에서 발견한 모든 내용을 저장합니
 - Lore 의사결정 이력 연계
 - 예상 테스트 커버리지 목표: 85%+
 {{end}}
+
+## Branding Formats
+
+### Workflow Lifecycle (show after plan completes)
+
+```
+🐙 Workflow: {SPEC-ID}
+  ● plan  →  ○ go  →  ○ sync
+```
+
+Status symbols: `●` current stage, `✓` completed, `○` pending.
+
+### Agent Result Format (use for spec-writer subagent result)
+
+```
+🐙 spec-writer ──────────────────────
+  SPEC: {SPEC-ID} | 파일: 4개 | 요구사항: {N}개
+  다음: /auto go {SPEC-ID}
+```
+
+### Next Step Auto-Detection (show after completion)
+
+```
+다음 단계: {recommendation}
+```
+
+Detection order:
+1. No project docs → `📁 프로젝트 컨텍스트가 없습니다. /auto setup 을 실행하세요.`
+2. SPEC status `draft` → recommend `/auto spec review {SPEC-ID}` or `/auto go {SPEC-ID}`
+3. SPEC status `approved` → `✓ SPEC {SPEC-ID} 승인됨 → /auto go {SPEC-ID}`
