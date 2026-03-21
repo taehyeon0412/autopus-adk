@@ -148,5 +148,5 @@ func TestTemplates_FullModeConditionals(t *testing.T) {
 	// Full 모드에서는 go/review/secure 서브커맨드의 스킬 참조가 포함됨
 	assert.Contains(t, fullResult, "tdd.md")
 	// Lite 모드에서는 Full 전용 안내 메시지가 표시됨
-	assert.Contains(t, liteResult, "Full 모드 전용")
+	assert.Contains(t, liteResult, "Full mode only")
 }
