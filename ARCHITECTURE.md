@@ -12,7 +12,7 @@ Autopus-ADK (Agentic Development Kit) is a Go CLI tool that installs the Autopus
 |--------|---------|---------------|
 | CLI | `internal/cli` | Cobra command definitions, flag parsing, command routing |
 | Adapter | `pkg/adapter` | Platform abstraction layer (Claude, Codex, Gemini, OpenCode, Cursor) |
-| Config | `pkg/config` | Configuration schema, YAML loading, defaults (Full/Lite modes) |
+| Config | `pkg/config` | Configuration schema, YAML loading, defaults (Full/Lite modes), quality presets |
 | Content | `pkg/content` | Content generation: agents, skills, hooks, methodology, routing |
 | Setup | `pkg/setup` | Project documentation scanning, generation, validation |
 | Architecture | `pkg/arch` | Code structure analysis, ARCHITECTURE.md generation, rule linting |
@@ -75,7 +75,7 @@ cmd/auto/main.go
 | Debate | `pkg/orchestra/debate.go` | Two-phase debate with judge verdict |
 | Consensus | `pkg/orchestra/consensus.go` | Structured key-based consensus with line-based fallback |
 | Template | `pkg/template/engine.go` | Go template rendering with custom functions |
-| Factory | `pkg/config/defaults.go` | DefaultFullConfig / DefaultLiteConfig |
+| Factory | `pkg/config/defaults.go` | DefaultFullConfig / DefaultLiteConfig (includes quality presets) |
 | Marker Update | `pkg/adapter/manifest.go` | AUTOPUS:BEGIN/END for partial file updates |
 | Agent Pipeline | `.claude/skills/autopus/agent-pipeline.md` | 5-Phase multi-agent orchestration (planner→executor→validator→tester→reviewer) |
 

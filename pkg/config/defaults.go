@@ -73,6 +73,32 @@ func DefaultFullConfig(projectName string) *HarnessConfig {
 				"secure": {Strategy: "consensus", Providers: []string{"claude", "gemini"}},
 			},
 		},
+		// Quality presets map agent roles to model tiers.
+		// "ultra" uses Opus for all agents; "balanced" is the cost-effective default.
+		Quality: QualityConf{
+			Default: "balanced",
+			Presets: map[string]QualityPreset{
+				"ultra": {
+					Description: "모든 에이전트를 Opus로 실행. 최고 품질.",
+					Agents: map[string]string{
+						"planner": "opus", "executor": "opus", "validator": "opus",
+						"tester": "opus", "reviewer": "opus", "architect": "opus",
+						"spec-writer": "opus", "security-auditor": "opus",
+						"debugger": "opus", "explorer": "opus", "devops": "opus",
+					},
+				},
+				"balanced": {
+					Description: "핵심 분석은 Opus, 구현은 Sonnet, 검증은 Haiku. 가성비 최적.",
+					Agents: map[string]string{
+						"planner": "opus", "architect": "opus",
+						"spec-writer": "opus", "security-auditor": "opus",
+						"executor": "sonnet", "tester": "sonnet",
+						"reviewer": "sonnet", "debugger": "sonnet", "devops": "sonnet",
+						"validator": "haiku", "explorer": "haiku",
+					},
+				},
+			},
+		},
 	}
 }
 

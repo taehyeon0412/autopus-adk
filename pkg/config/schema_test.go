@@ -88,6 +88,78 @@ func TestHarnessConfig_ModeHelpers(t *testing.T) {
 	assert.True(t, lite.IsLiteMode())
 }
 
+func TestHarnessConfig_Validate_QualityDefaultExists(t *testing.T) {
+	t.Parallel()
+	// When Quality.Default is non-empty and the named preset exists, Validate should pass.
+	cfg := HarnessConfig{
+		Mode:        ModeFull,
+		ProjectName: "test-project",
+		Platforms:   []string{"claude-code"},
+		Quality: QualityConf{
+			Default: "fast",
+			Presets: map[string]QualityPreset{
+				"fast": {Agents: map[string]string{"planner": "haiku"}},
+			},
+		},
+	}
+	err := cfg.Validate()
+	require.NoError(t, err)
+}
+
+func TestHarnessConfig_Validate_QualityDefaultNotInPresets(t *testing.T) {
+	t.Parallel()
+	// When Quality.Default names a preset that does not exist, Validate should return an error.
+	cfg := HarnessConfig{
+		Mode:        ModeFull,
+		ProjectName: "test-project",
+		Platforms:   []string{"claude-code"},
+		Quality: QualityConf{
+			Default: "nonexistent",
+			Presets: map[string]QualityPreset{
+				"fast": {Agents: map[string]string{"planner": "haiku"}},
+			},
+		},
+	}
+	err := cfg.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "quality.default")
+}
+
+func TestHarnessConfig_Validate_QualityDefaultEmpty(t *testing.T) {
+	t.Parallel()
+	// Zero-value Quality (empty Default, nil Presets) should be valid — no preset lookup occurs.
+	cfg := HarnessConfig{
+		Mode:        ModeFull,
+		ProjectName: "test-project",
+		Platforms:   []string{"claude-code"},
+		Quality:     QualityConf{},
+	}
+	err := cfg.Validate()
+	require.NoError(t, err)
+}
+
+func TestHarnessConfig_Validate_QualityInvalidModelTier(t *testing.T) {
+	t.Parallel()
+	// When a preset agent is mapped to an unknown model tier, Validate should return an error.
+	cfg := HarnessConfig{
+		Mode:        ModeFull,
+		ProjectName: "test-project",
+		Platforms:   []string{"claude-code"},
+		Quality: QualityConf{
+			Default: "fast",
+			Presets: map[string]QualityPreset{
+				"fast": {Agents: map[string]string{
+					"planner":  "haiku",
+					"executor": "invalid-tier",
+				}},
+			},
+		},
+	}
+	err := cfg.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown model tier")
+}
+
 func TestProviderEntry_PromptViaArgs(t *testing.T) {
 	t.Parallel()
 

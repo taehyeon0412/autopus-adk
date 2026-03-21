@@ -18,6 +18,18 @@ type LanguageConf struct {
 	AIResponses string `yaml:"ai_responses"` // AI 응답 언어
 }
 
+// QualityPreset defines a named quality configuration with agent mappings.
+type QualityPreset struct {
+	Description string            `yaml:"description,omitempty"`
+	Agents      map[string]string `yaml:"agents,omitempty"`
+}
+
+// QualityConf holds quality preset definitions and the default preset name.
+type QualityConf struct {
+	Default string                   `yaml:"default,omitempty"`
+	Presets map[string]QualityPreset `yaml:"presets,omitempty"`
+}
+
 // HarnessConfig는 autopus.yaml의 최상위 설정 구조이다.
 type HarnessConfig struct {
 	Mode          Mode              `yaml:"mode"`
@@ -33,6 +45,7 @@ type HarnessConfig struct {
 	Hooks         HooksConf         `yaml:"hooks"`
 	Session       SessionConf       `yaml:"session,omitempty"`
 	Orchestra     OrchestraConf     `yaml:"orchestra,omitempty"`
+	Quality       QualityConf       `yaml:"quality,omitempty"`
 }
 
 // OrchestraConf는 다중 모델 오케스트레이션 설정이다 (Full 전용).
@@ -134,6 +147,20 @@ func (c *HarnessConfig) Validate() error {
 	for _, p := range c.Platforms {
 		if !isValidPlatform(p) {
 			return fmt.Errorf("invalid platform %q", p)
+		}
+	}
+	if c.Quality.Default != "" {
+		if _, ok := c.Quality.Presets[c.Quality.Default]; !ok {
+			return fmt.Errorf("quality.default %q is not defined in quality.presets", c.Quality.Default)
+		}
+	}
+	// Validate that each agent model value in quality presets is a known tier.
+	validModelTiers := map[string]bool{"opus": true, "sonnet": true, "haiku": true}
+	for presetName, preset := range c.Quality.Presets {
+		for agentName, tier := range preset.Agents {
+			if !validModelTiers[tier] {
+				return fmt.Errorf("quality.presets[%s].agents[%s]: unknown model tier %q", presetName, agentName, tier)
+			}
 		}
 	}
 	return nil
