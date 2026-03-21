@@ -41,30 +41,7 @@ func handlePipeline(_ context.Context, responses []ProviderResponse, _ Orchestra
 
 // handleDebate는 토론 전략 후처리이다.
 func handleDebate(_ context.Context, responses []ProviderResponse, cfg OrchestraConfig) (string, string, error) {
-	merged := FormatDebate(responses)
-
-	judgeLabel := cfg.JudgeProvider
-	if judgeLabel == "" {
-		judgeLabel = "없음"
-	}
-
-	// 불일치 건수 계산
-	var agreedCount, disputedCount int
-	if len(responses) >= 2 {
-		diffs := findDifferences(responses)
-		disputedCount = len(diffs)
-		// 전체 줄 수에서 불일치를 빼면 대략적인 합의 건수
-		totalLines := 0
-		for _, r := range responses {
-			totalLines += len(splitLines(r.Output))
-		}
-		agreedCount = totalLines - disputedCount
-		if agreedCount < 0 {
-			agreedCount = 0
-		}
-	}
-
-	summary := fmt.Sprintf("합의: %d건, 분쟁: %d건, 판정: %s", agreedCount, disputedCount, judgeLabel)
+	merged, summary := buildDebateMerged(responses, cfg)
 	return merged, summary, nil
 }
 

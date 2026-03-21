@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"strings"
 	"sync"
 	"time"
 
@@ -39,6 +40,7 @@ func RunOrchestra(ctx context.Context, cfg OrchestraConfig) (*OrchestraResult, e
 
 	start := time.Now()
 	var responses []ProviderResponse
+	var failed []FailedProvider
 	var err error
 
 	switch cfg.Strategy {
@@ -46,9 +48,13 @@ func RunOrchestra(ctx context.Context, cfg OrchestraConfig) (*OrchestraResult, e
 		responses, err = runPipeline(timeoutCtx, cfg)
 	case StrategyFastest:
 		responses, err = runFastest(timeoutCtx, cfg)
+	case StrategyDebate:
+		responses, err = runDebate(timeoutCtx, cfg)
 	default:
-		// consensus, debate: 병렬 실행
-		responses, err = runParallel(timeoutCtx, cfg)
+		// consensus: prepend structured prompt prefix, then run parallel with graceful degradation
+		consensusCfg := cfg
+		consensusCfg.Prompt = buildStructuredPromptPrefix() + cfg.Prompt
+		responses, failed, err = runParallel(timeoutCtx, consensusCfg)
 	}
 	if err != nil {
 		return nil, err
@@ -65,12 +71,7 @@ func RunOrchestra(ctx context.Context, cfg OrchestraConfig) (*OrchestraResult, e
 		merged = FormatPipeline(responses)
 		summary = fmt.Sprintf("파이프라인: %d단계 완료", len(responses))
 	case StrategyDebate:
-		merged = FormatDebate(responses)
-		judgeLabel := cfg.JudgeProvider
-		if judgeLabel == "" {
-			judgeLabel = "없음"
-		}
-		summary = fmt.Sprintf("토론 완료, 판정: %s", judgeLabel)
+		merged, summary = buildDebateMerged(responses, cfg)
 	case StrategyFastest:
 		if len(responses) > 0 {
 			merged = responses[0].Output
@@ -78,21 +79,38 @@ func RunOrchestra(ctx context.Context, cfg OrchestraConfig) (*OrchestraResult, e
 		}
 	}
 
+	// Append failed provider info to summary if any
+	if len(failed) > 0 {
+		var names []string
+		for _, f := range failed {
+			names = append(names, f.Name)
+		}
+		summary = fmt.Sprintf("%s (실패: %s)", summary, strings.Join(names, ", "))
+	}
+
 	return &OrchestraResult{
-		Strategy:  cfg.Strategy,
-		Responses: responses,
-		Merged:    merged,
-		Duration:  total,
-		Summary:   summary,
+		Strategy:        cfg.Strategy,
+		Responses:       responses,
+		Merged:          merged,
+		Duration:        total,
+		Summary:         summary,
+		FailedProviders: failed,
 	}, nil
 }
 
-// runParallel은 모든 프로바이더를 병렬로 실행한다.
-func runParallel(ctx context.Context, cfg OrchestraConfig) ([]ProviderResponse, error) {
-	responses := make([]ProviderResponse, len(cfg.Providers))
+// providerResult holds the result of a single provider execution.
+type providerResult struct {
+	resp ProviderResponse
+	err  error
+	idx  int
+}
+
+// runParallel executes all providers in parallel with graceful degradation.
+// It collects all successful responses and failed provider info.
+// Returns (responses, failed, error). Error is non-nil only when ALL providers fail.
+func runParallel(ctx context.Context, cfg OrchestraConfig) ([]ProviderResponse, []FailedProvider, error) {
+	results := make([]providerResult, len(cfg.Providers))
 	var wg sync.WaitGroup
-	var mu sync.Mutex
-	var firstErr error
 
 	for i, p := range cfg.Providers {
 		wg.Add(1)
@@ -100,22 +118,41 @@ func runParallel(ctx context.Context, cfg OrchestraConfig) ([]ProviderResponse, 
 			defer wg.Done()
 			resp, err := runProvider(ctx, provider, cfg.Prompt)
 			if err != nil {
-				mu.Lock()
-				if firstErr == nil {
-					firstErr = err
-				}
-				mu.Unlock()
+				results[idx] = providerResult{err: err, idx: idx}
 				return
 			}
-			responses[idx] = *resp
+			results[idx] = providerResult{resp: *resp, idx: idx}
 		}(i, p)
 	}
 	wg.Wait()
 
-	if firstErr != nil {
-		return nil, firstErr
+	var responses []ProviderResponse
+	var failed []FailedProvider
+
+	for _, r := range results {
+		if r.err != nil {
+			failed = append(failed, FailedProvider{
+				Name:  cfg.Providers[r.idx].Name,
+				Error: r.err.Error(),
+			})
+		} else {
+			responses = append(responses, r.resp)
+		}
 	}
-	return responses, nil
+
+	if len(responses) == 0 {
+		// All failed: return first error
+		return nil, failed, results[0].err
+	}
+	return responses, failed, nil
+}
+
+// runParallelWithPrompt executes all providers in parallel using the given prompt.
+// Used internally by debate flow.
+func runParallelWithPrompt(ctx context.Context, cfg OrchestraConfig, prompt string) ([]ProviderResponse, []FailedProvider, error) {
+	modified := cfg
+	modified.Prompt = prompt
+	return runParallel(ctx, modified)
 }
 
 // runPipeline은 프로바이더를 순차적으로 실행하며 이전 출력을 다음 입력에 추가한다.

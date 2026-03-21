@@ -14,6 +14,11 @@ func MergeConsensus(responses []ProviderResponse, threshold float64) (string, st
 		return "", "응답 없음"
 	}
 
+	// Try structured parsing first
+	if merged, summary := MergeStructuredConsensus(responses, threshold); merged != "" {
+		return merged, summary
+	}
+
 	// 각 응답을 줄 단위로 분리
 	linesByProvider := make([][]string, len(responses))
 	for i, r := range responses {

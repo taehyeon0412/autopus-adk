@@ -44,13 +44,20 @@ type ProviderResponse struct {
 	TimedOut bool          // 타임아웃 여부
 }
 
+// FailedProvider records a provider that failed during execution.
+type FailedProvider struct {
+	Name  string // Provider name
+	Error string // Error message
+}
+
 // OrchestraResult는 오케스트레이션 최종 결과이다.
 type OrchestraResult struct {
-	Strategy  Strategy           // 사용된 전략
-	Responses []ProviderResponse // 개별 프로바이더 응답
-	Merged    string             // 병합된 최종 결과
-	Duration  time.Duration      // 전체 실행 시간
-	Summary   string             // 전략별 요약 (합의율, 파이프라인 단계 등)
+	Strategy        Strategy           // 사용된 전략
+	Responses       []ProviderResponse // 개별 프로바이더 응답
+	Merged          string             // 병합된 최종 결과
+	Duration        time.Duration      // 전체 실행 시간
+	Summary         string             // 전략별 요약 (합의율, 파이프라인 단계 등)
+	FailedProviders []FailedProvider   // Providers that failed during execution
 }
 
 // OrchestraConfig는 오케스트레이션 실행 설정이다.
@@ -60,4 +67,5 @@ type OrchestraConfig struct {
 	Prompt         string           // 전달할 프롬프트
 	TimeoutSeconds int              // 타임아웃 (초)
 	JudgeProvider  string           // debate 전략에서 최종 판정 프로바이더
+	DebateRounds   int              // Number of debate rounds (1=no rebuttal, 2=with rebuttal). 0 defaults to 1.
 }
