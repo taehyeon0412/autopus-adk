@@ -73,8 +73,20 @@ type LoreConf struct {
 
 // SpecConf는 SPEC 엔진 설정이다.
 type SpecConf struct {
-	IDFormat  string   `yaml:"id_format"`
-	EARSTypes []string `yaml:"ears_types"`
+	IDFormat   string         `yaml:"id_format"`
+	EARSTypes  []string       `yaml:"ears_types"`
+	ReviewGate ReviewGateConf `yaml:"review_gate,omitempty"`
+}
+
+// ReviewGateConf는 멀티-프로바이더 SPEC 리뷰 게이트 설정이다.
+type ReviewGateConf struct {
+	Enabled            bool     `yaml:"enabled"`
+	Strategy           string   `yaml:"strategy"`
+	Providers          []string `yaml:"providers,flow"`
+	Judge              string   `yaml:"judge"`
+	MaxRevisions       int      `yaml:"max_revisions"`
+	AutoCollectContext bool     `yaml:"auto_collect_context"`
+	ContextMaxLines    int      `yaml:"context_max_lines"`
 }
 
 // MethodologyConf는 방법론 설정이다 (Full 전용).

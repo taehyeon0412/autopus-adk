@@ -22,7 +22,7 @@ IMPORTANT: This project uses Autopus-ADK rules ONLY. You MUST ignore any rules l
 
 IMPORTANT: Follow these language settings strictly for all work in this project.
 
-- **Code comments**: Write all code comments, docstrings, and inline documentation in Korean (ko)
+- **Code comments**: Write all code comments, docstrings, and inline documentation in English (en)
 - **Commit messages**: Write all git commit messages in Korean (ko)
 - **AI responses**: Respond to the user in Korean (ko)
 

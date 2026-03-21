@@ -48,3 +48,28 @@ type ValidationError struct {
 func (e ValidationError) Error() string {
 	return e.Message
 }
+
+// ReviewVerdict is the outcome of a multi-provider SPEC review.
+type ReviewVerdict string
+
+const (
+	VerdictPass   ReviewVerdict = "PASS"
+	VerdictRevise ReviewVerdict = "REVISE"
+	VerdictReject ReviewVerdict = "REJECT"
+)
+
+// ReviewFinding is a single issue found during review.
+type ReviewFinding struct {
+	Provider    string // provider that found the issue
+	Severity    string // critical, major, minor, suggestion
+	Description string // finding description
+}
+
+// ReviewResult is the aggregated result of a multi-provider review.
+type ReviewResult struct {
+	SpecID    string          // target SPEC ID
+	Verdict   ReviewVerdict   // final verdict
+	Findings  []ReviewFinding // all findings from all providers
+	Responses []string        // raw provider responses
+	Revision  int             // revision iteration (0 = first review)
+}

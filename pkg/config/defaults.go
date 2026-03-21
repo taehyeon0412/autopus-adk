@@ -18,6 +18,15 @@ func DefaultFullConfig(projectName string) *HarnessConfig {
 		Spec: SpecConf{
 			IDFormat:  "SPEC-{DOMAIN}-{NUMBER}",
 			EARSTypes: []string{"ubiquitous", "event-driven", "unwanted", "optional", "complex"},
+			ReviewGate: ReviewGateConf{
+				Enabled:            true,
+				Strategy:           "debate",
+				Providers:          []string{"claude", "gemini"},
+				Judge:              "claude",
+				MaxRevisions:       2,
+				AutoCollectContext: true,
+				ContextMaxLines:    500,
+			},
 		},
 		Methodology: MethodologyConf{
 			Mode:       "tdd",
