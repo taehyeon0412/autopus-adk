@@ -29,16 +29,25 @@ ARGUMENTS: $ARGUMENTS
 
 ## 서브커맨드 라우팅
 
-$ARGUMENTS의 첫 번째 단어로 서브커맨드를 결정하고, 나머지를 해당 워크플로우에 전달합니다.
-
-알 수 없는 서브커맨드이거나 인자가 없으면 아래 서브커맨드 목록을 표시하세요.
+$ARGUMENTS에서 **글로벌 플래그를 먼저 분리**한 뒤, 남은 텍스트의 첫 번째 단어로 서브커맨드를 결정합니다.
 {{if .IsFullMode}}
 ### 글로벌 플래그
 
 | 플래그 | 설명 |
 |--------|------|
 | `--think` | Sequential Thinking MCP 활성화. 심층 분석 모드. ToolSearch로 `mcp__sequential-thinking__sequentialthinking` 도구를 로드한 후 단계별 사고를 수행합니다. |
+| `--ultrathink` | `--think`와 동일하게 Sequential Thinking MCP를 활성화하되, 더 높은 reasoning effort로 사고합니다. |
 {{end}}
+### 라우팅 규칙
+
+1. **글로벌 플래그 스트리핑**: `--think`, `--ultrathink` 등 글로벌 플래그를 $ARGUMENTS에서 분리
+2. **서브커맨드 매칭**: 남은 텍스트의 첫 번째 단어로 서브커맨드 결정
+3. **스마트 라우팅 (자연어 → plan 자동 발동)**:
+   - 첫 번째 단어가 알려진 서브커맨드와 **매칭되지 않고**, 남은 텍스트가 2단어 이상이면:
+   - **자연어 기능/개발 요청**으로 판단하여 **`plan` 워크플로우를 자동 실행**
+   - 전체 텍스트를 기능 설명으로 `spec-writer` 에이전트에 전달
+   - SPEC 생성 완료 후 `/auto go {SPEC-ID}` 안내
+4. **인자가 비어있는 경우**: 서브커맨드 목록 표시
 
 ### 서브커맨드 목록
 
@@ -142,17 +151,69 @@ plan 완료 시 반드시 다음 안내를 출력하세요:
 > go는 Full 모드 전용입니다. `auto init --full`로 업그레이드하세요.
 {{else}}
 @.claude/skills/autopus/tdd.md 참조
+@.claude/skills/autopus/agent-pipeline.md 참조
 
-SPEC 문서를 기반으로 코드를 구현합니다. {{.Methodology.Mode | upper}} 방법론을 따릅니다.
+SPEC 문서를 기반으로 코드를 구현합니다. TDD 방법론을 따릅니다.
 
-### Pipeline
+### Pipeline (기본 모드: 단일 세션)
 
 1. **SPEC Load**: `.autopus/specs/SPEC-{ID}/spec.md` 로드 + status 확인
 2. **Draft Guard**: status가 "draft"이고 review_gate가 활성화되어 있으면 구현 거부, 리뷰 먼저 안내
 3. **TDD Implementation**: plan.md의 태스크를 기반으로 RED → GREEN → REFACTOR
 4. **Post-Implementation**: acceptance.md 기준 검증 + status: done 갱신
 
-사용법: `/auto go SPEC-ID`, `/auto go SPEC-ID --continue`
+### Pipeline (--team 모드: 멀티에이전트)
+
+`--team` 플래그 지정 시 서브에이전트 파이프라인으로 전환합니다:
+
+```
+Phase 1: Planning        → planner     (모델: 품질 모드에 따름, plan)
+Gate 1:  Approval        → --auto면 스킵
+Phase 2: Implementation  → executor×N  (sonnet, acceptEdits, 병렬 가능)
+Gate 2:  Validation      → validator   (haiku,  plan)  — FAIL 시 3회 재시도
+Phase 3: Testing         → tester      (sonnet, acceptEdits)
+Gate 3:  Coverage        → 커버리지 85%+ 확인
+Phase 4: Review          → reviewer    (sonnet, plan)  — REQUEST_CHANGES 시 2회
+```
+
+> 위 모델 할당은 Balanced 모드 기준이다. Ultra 모드에서는 모든 에이전트가 opus로 실행된다.
+
+**실행 절차:**
+
+0. **품질 모드 결정**: 아래 우선순위로 품질 모드를 결정한다:
+   - `--quality <mode>` 플래그가 있으면: 해당 모드 사용 (소문자 정규화). 유효하지 않은 값이면 에러 출력 후 중단
+   - `--auto` 플래그가 있고 `--quality`가 없으면: "balanced" 자동 선택
+   - 둘 다 없으면: 인터랙티브 선택 UI 표시
+
+1. **planner spawn**: SPEC spec.md + plan.md를 전달하여 태스크 분해 및 에이전트 할당 표 생성
+2. **에이전트 할당 표 확인**: planner가 반환한 할당 표를 검토 (--auto면 자동 승인)
+3. **executor spawn**: 독립 태스크는 병렬 (단일 메시지에 여러 Agent 호출), 의존 태스크는 순차
+4. **validator spawn**: 품질 검증 실행 → PASS면 다음, FAIL이면 Gate Verdict의 추천 에이전트로 수정 위임
+5. **tester spawn**: 커버리지 갭 분석 및 테스트 보강
+6. **reviewer spawn**: TRUST 5 리뷰 → APPROVE면 완료, REQUEST_CHANGES면 수정 위임
+
+**병렬 실행 규칙:**
+- planner의 에이전트 할당 표에서 Mode가 "parallel"인 태스크만 병렬
+- 동일 파일을 수정하는 태스크는 자동으로 순차 전환
+- 각 서브에이전트에게 SPEC 요구사항, 태스크 설명, 관련 파일 컨텍스트 전달
+
+**재시도 제한:**
+- Validation: 최대 3회 → 초과 시 중단 + `--continue`로 재개 안내
+- Review: 최대 2회 → 초과 시 중단 + 사용자 개입
+
+**폴백:** 서브에이전트 실패 시 메인 세션에서 직접 처리
+
+### Pipeline (--multi 모드: 멀티프로바이더)
+
+`--multi` 플래그 지정 시 멀티프로바이더 오케스트레이션을 활성화합니다:
+
+- `auto orchestra review` 엔진을 활용하여 여러 AI 프로바이더(claude, gemini, codex)로 리뷰
+- 리뷰 게이트에서 멀티프로바이더 합의 기반 검증
+- `--strategy` 옵션과 조합 가능: consensus(기본), debate, pipeline, fastest
+
+`--team --multi` 조합 시: 멀티에이전트 파이프라인 + 리뷰 Phase에서 멀티프로바이더 활성화
+
+사용법: `/auto go SPEC-ID`, `/auto go SPEC-ID --team`, `/auto go SPEC-ID --team --quality ultra`, `/auto go SPEC-ID --team --auto --loop`
 
 ### Flags
 
@@ -161,6 +222,40 @@ SPEC 문서를 기반으로 코드를 구현합니다. {{.Methodology.Mode | upp
 | `--auto` | 자율 모드: 사용자 확인 없이 전체 파이프라인 실행 |
 | `--loop` | 루프 모드: Phase 완료 후 다음 Phase로 자동 진행 |
 | `--continue` | 이전 세션에서 중단된 구현을 이어서 진행 |
+| `--team` | 멀티에이전트 모드: 서브에이전트 파이프라인으로 실행 |
+| `--multi` | 멀티프로바이더 모드: orchestra 엔진 기반 리뷰 활성화 |
+| `--strategy` | 멀티프로바이더 전략: consensus, debate, pipeline, fastest (--multi 필요) |
+| `--quality` | 품질 모드: ultra (모든 에이전트 Opus), balanced (혼합). --team 필요 |
+
+### 품질 모드 선택 (인터랙티브)
+
+`--team` 모드에서 `--quality` 미지정 시 표시하는 선택 UI:
+
+```
+품질 모드를 선택하세요:
+
+[1] Ultra — 모든 에이전트를 Opus로 실행. 최고 품질. (비용: 높음)
+    planner=opus, executor=opus, validator=opus, tester=opus, reviewer=opus
+
+[2] Balanced — 핵심 분석은 Opus, 구현은 Sonnet, 검증은 Haiku. (비용: 보통)
+    planner=opus, executor=sonnet, validator=haiku, tester=sonnet, reviewer=sonnet
+
+선택 (1-2):
+```
+
+### 품질 모드 표시
+
+모드 결정 후 파이프라인 시작 전에 표시:
+
+```
+품질 모드: [Ultra | Balanced] — [모드 설명]
+```
+
+### 하네스 전용 태스크
+
+모든 태스크가 `.md` 파일만 수정하는 경우:
+- Go 빌드/테스트 검증 스킵
+- validator는 파일 형식 검증만 수행 (프론트매터 유효성, 300줄 제한)
 
 ### 완료 후 다음 단계 안내
 

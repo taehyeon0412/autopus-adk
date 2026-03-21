@@ -2,11 +2,11 @@ package cli
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 
+	"github.com/insajin/autopus-adk/internal/cli/tui"
 	"github.com/insajin/autopus-adk/pkg/setup"
 )
 
@@ -49,7 +49,7 @@ func newSetupGenerateCmd() *cobra.Command {
 				return genErr
 			}
 
-			fmt.Fprintln(cmd.OutOrStdout(), "Documentation generated successfully in .autopus/docs/")
+			tui.Success(cmd.OutOrStdout(), "Documentation generated in .autopus/docs/")
 			return nil
 		},
 	}
@@ -77,12 +77,13 @@ func newSetupUpdateCmd() *cobra.Command {
 				return updateErr
 			}
 
+			out := cmd.OutOrStdout()
 			if len(updated) == 0 {
-				fmt.Fprintln(cmd.OutOrStdout(), "All documents are up to date.")
+				tui.Info(out, "All documents are up to date.")
 			} else {
-				fmt.Fprintf(cmd.OutOrStdout(), "Updated %d document(s):\n", len(updated))
+				tui.Successf(out, "Updated %d document(s):", len(updated))
 				for _, f := range updated {
-					fmt.Fprintf(cmd.OutOrStdout(), "  - %s\n", f)
+					tui.Bullet(out, f)
 				}
 			}
 			return nil
@@ -119,20 +120,21 @@ func newSetupValidateCmd() *cobra.Command {
 				report.Valid = false
 			}
 
+			out := cmd.OutOrStdout()
 			if report.Valid && len(report.Warnings) == 0 {
-				fmt.Fprintln(cmd.OutOrStdout(), "All documents are up to date.")
+				tui.Success(out, "All documents are up to date.")
 				return nil
 			}
 
-			fmt.Fprintf(cmd.OutOrStdout(), "Validation issues (%d):\n", len(report.Warnings))
+			tui.Warnf(out, "Validation issues (%d):", len(report.Warnings))
 			for _, w := range report.Warnings {
 				loc := w.File
 				if w.Line > 0 {
 					loc = fmt.Sprintf("%s:%d", w.File, w.Line)
 				}
-				fmt.Fprintf(cmd.OutOrStdout(), "  [%s] %s: %s\n", w.Type, loc, w.Message)
+				tui.Bullet(out, fmt.Sprintf("[%s] %s: %s", w.Type, loc, w.Message))
 			}
-			fmt.Fprintf(cmd.OutOrStdout(), "\nDrift score: %.1f%%\n", report.DriftScore*100)
+			fmt.Fprintf(out, "\n  Drift score: %.1f%%\n", report.DriftScore*100)
 
 			return fmt.Errorf("%d validation issue(s) found", len(report.Warnings))
 		},
@@ -161,13 +163,12 @@ func newSetupStatusCmd() *cobra.Command {
 			}
 
 			if !status.Exists {
-				fmt.Fprintln(cmd.OutOrStdout(), "No documentation found. Run `auto setup generate` to create.")
+				tui.Info(cmd.OutOrStdout(), "No documentation found. Run `auto setup generate` to create.")
 				return nil
 			}
 
 			w := cmd.OutOrStdout()
-			fmt.Fprintln(w, "Documentation Status")
-			fmt.Fprintln(w, strings.Repeat("-", 40))
+			tui.SectionHeader(w, "Documentation Status")
 
 			if !status.GeneratedAt.IsZero() {
 				ago := time.Since(status.GeneratedAt).Round(time.Hour)
@@ -177,17 +178,15 @@ func newSetupStatusCmd() *cobra.Command {
 			}
 			fmt.Fprintf(w, "Drift score:    %.1f%%\n\n", status.DriftScore*100)
 
-			fmt.Fprintln(w, "Files:")
+			tui.SectionHeader(w, "Files")
 			for fileName, fs := range status.FileStatuses {
-				state := "missing"
-				if fs.Exists {
-					if fs.Fresh {
-						state = "fresh"
-					} else {
-						state = "stale"
-					}
+				if !fs.Exists {
+					tui.FAIL(w, fmt.Sprintf("%-20s missing", fileName))
+				} else if fs.Fresh {
+					tui.OK(w, fmt.Sprintf("%-20s fresh", fileName))
+				} else {
+					tui.SKIP(w, fmt.Sprintf("%-20s stale", fileName))
 				}
-				fmt.Fprintf(w, "  %-20s %s\n", fileName, state)
 			}
 
 			return nil

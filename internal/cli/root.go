@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/insajin/autopus-adk/internal/cli/tui"
 	"github.com/insajin/autopus-adk/pkg/version"
 )
 
@@ -54,7 +55,9 @@ func newVersionCmd() *cobra.Command {
 		Use:   "version",
 		Short: "Print version information",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println(version.String())
+			out := cmd.OutOrStdout()
+			tui.Banner(out)
+			fmt.Fprintln(out, version.String())
 		},
 	}
 }

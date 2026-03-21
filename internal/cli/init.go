@@ -10,6 +10,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/insajin/autopus-adk/internal/cli/tui"
 	"github.com/insajin/autopus-adk/pkg/adapter/claude"
 	"github.com/insajin/autopus-adk/pkg/adapter/codex"
 	"github.com/insajin/autopus-adk/pkg/adapter/gemini"
@@ -106,11 +107,13 @@ func newInitCmd() *cobra.Command {
 				return fmt.Errorf(".gitignore 업데이트 실패: %w", err)
 			}
 
-			fmt.Fprintf(cmd.OutOrStdout(), "✓ Autopus harness initialized (%s mode)\n", mode)
-			fmt.Fprintf(cmd.OutOrStdout(), "  Platforms: %s\n", strings.Join(platformList, ", "))
-			fmt.Fprintf(cmd.OutOrStdout(), "\n  PATH 확인: auto 바이너리가 PATH에 포함되어야 합니다.\n")
-			fmt.Fprintf(cmd.OutOrStdout(), "  코딩 CLI에서 /plan, /go 등의 명령어가 auto CLI를 호출합니다.\n")
-			fmt.Fprintf(cmd.OutOrStdout(), "  확인: which auto\n")
+			out := cmd.OutOrStdout()
+			tui.Successf(out, "Autopus harness initialized (%s mode)", mode)
+			tui.Bullet(out, "Platforms: "+strings.Join(platformList, ", "))
+			fmt.Fprintln(out)
+			tui.Info(out, "PATH 확인: auto 바이너리가 PATH에 포함되어야 합니다.")
+			tui.Bullet(out, "코딩 CLI에서 /plan, /go 등의 명령어가 auto CLI를 호출합니다.")
+			tui.Bullet(out, "확인: which auto")
 			return nil
 		},
 	}
@@ -141,13 +144,13 @@ func generatePlatformFiles(ctx context.Context, dir string, cfg *config.HarnessC
 			a := gemini.NewWithRoot(dir)
 			_, err = a.Generate(ctx, cfg)
 		default:
-			fmt.Fprintf(cmd.OutOrStdout(), "  경고: 알 수 없는 플랫폼 %q, 건너뜀\n", p)
+			tui.Warnf(cmd.OutOrStdout(), "알 수 없는 플랫폼 %q, 건너뜀", p)
 			continue
 		}
 		if err != nil {
 			return fmt.Errorf("플랫폼 %q 파일 생성 실패: %w", p, err)
 		}
-		fmt.Fprintf(cmd.OutOrStdout(), "  ✓ %s\n", p)
+		tui.Success(cmd.OutOrStdout(), p)
 	}
 	return nil
 }

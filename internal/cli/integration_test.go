@@ -159,7 +159,7 @@ func TestDoctor_ReportsHealth(t *testing.T) {
 		require.NoError(t, err)
 
 		// 정상 상태 보고 확인
-		assert.Contains(t, out, "Autopus-ADK Doctor")
+		assert.Contains(t, out, "Autopus")
 		assert.Contains(t, out, "[OK] autopus.yaml")
 		assert.Contains(t, out, "lite")
 		// 플랫폼 검증 OK
@@ -177,7 +177,7 @@ func TestDoctor_ReportsHealth(t *testing.T) {
 		require.NoError(t, err)
 
 		// 설정 로드 실패 메시지 확인
-		assert.Contains(t, out, "Autopus-ADK Doctor")
+		assert.Contains(t, out, "Autopus")
 		assert.Contains(t, out, "ERROR")
 	})
 }

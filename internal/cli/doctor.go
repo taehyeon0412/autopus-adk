@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/insajin/autopus-adk/internal/cli/tui"
 	"github.com/insajin/autopus-adk/pkg/adapter"
 	"github.com/insajin/autopus-adk/pkg/adapter/claude"
 	"github.com/insajin/autopus-adk/pkg/adapter/codex"
@@ -34,16 +35,15 @@ func newDoctorCmd() *cobra.Command {
 			}
 
 			out := cmd.OutOrStdout()
-			fmt.Fprintln(out, "Autopus-ADK Doctor")
-			fmt.Fprintln(out, "==================")
+			tui.BannerWithInfo(out, "autopus-adk", "doctor")
 
 			// 1. 설정 파일 확인
 			cfg, err := config.Load(dir)
 			if err != nil {
-				fmt.Fprintf(out, "[ERROR] autopus.yaml 로드 실패: %v\n", err)
+				tui.FAIL(out, fmt.Sprintf("autopus.yaml 로드 실패: %v", err))
 				return nil
 			}
-			fmt.Fprintf(out, "[OK] autopus.yaml (mode: %s)\n", cfg.Mode)
+			tui.OK(out, fmt.Sprintf("autopus.yaml (mode: %s)", cfg.Mode))
 
 			// 2. 플랫폼 파일 검증
 			ctx := context.Background()
@@ -63,24 +63,29 @@ func newDoctorCmd() *cobra.Command {
 					a := gemini.NewWithRoot(dir)
 					validationErrs, validateErr = a.Validate(ctx)
 				default:
-					fmt.Fprintf(out, "[WARN] 알 수 없는 플랫폼: %s\n", p)
+					tui.SKIP(out, fmt.Sprintf("알 수 없는 플랫폼: %s", p))
 					continue
 				}
 
 				if validateErr != nil {
-					fmt.Fprintf(out, "[ERROR] %s 검증 실패: %v\n", p, validateErr)
+					tui.FAIL(out, fmt.Sprintf("%s 검증 실패: %v", p, validateErr))
 					allOK = false
 					continue
 				}
 
 				if len(validationErrs) == 0 {
-					fmt.Fprintf(out, "[OK] %s\n", p)
+					tui.OK(out, p)
 				} else {
 					for _, ve := range validationErrs {
 						level := strings.ToUpper(ve.Level)
-						fmt.Fprintf(out, "[%s] %s: %s\n", level, p, ve.Message)
-						if ve.Level == "error" {
+						switch level {
+						case "ERROR":
+							tui.FAIL(out, fmt.Sprintf("%s: %s", p, ve.Message))
 							allOK = false
+						case "WARN":
+							tui.SKIP(out, fmt.Sprintf("%s: %s", p, ve.Message))
+						default:
+							tui.Info(out, fmt.Sprintf("%s: %s", p, ve.Message))
 						}
 					}
 				}
@@ -88,16 +93,16 @@ func newDoctorCmd() *cobra.Command {
 
 			// 3. 의존성 확인 (Full 모드)
 			if cfg.IsFullMode() {
-				fmt.Fprintln(out, "\nDependencies:")
+				tui.SectionHeader(out, "Dependencies")
 				statuses := detect.CheckDependencies(detect.FullModeDeps)
 				for _, s := range statuses {
 					if s.Installed {
-						fmt.Fprintf(out, "  [OK] %s\n", s.Name)
+						tui.OK(out, s.Name)
 					} else if s.Required {
-						fmt.Fprintf(out, "  [ERROR] %s not installed (install: %s)\n", s.Name, s.InstallCmd)
+						tui.FAIL(out, fmt.Sprintf("%s not installed (install: %s)", s.Name, s.InstallCmd))
 						allOK = false
 					} else {
-						fmt.Fprintf(out, "  [WARN] %s not installed (optional, install: %s)\n", s.Name, s.InstallCmd)
+						tui.SKIP(out, fmt.Sprintf("%s not installed (optional, install: %s)", s.Name, s.InstallCmd))
 					}
 				}
 			}
@@ -105,37 +110,39 @@ func newDoctorCmd() *cobra.Command {
 			// 4. 부모 디렉터리 규칙 충돌 검사
 			conflicts := detect.CheckParentRuleConflicts(dir)
 			if len(conflicts) > 0 {
-				fmt.Fprintln(out, "\nRule Conflicts:")
+				tui.SectionHeader(out, "Rule Conflicts")
 				if cfg.IsolateRules {
-					fmt.Fprintln(out, "  [OK] isolate_rules: true (parent rules ignored via CLAUDE.md directive)")
+					tui.OK(out, "isolate_rules: true (parent rules ignored)")
 				}
 				for _, c := range conflicts {
 					if cfg.IsolateRules {
-						fmt.Fprintf(out, "  [INFO] %s/.claude/rules/%s/ (ignored)\n", c.ParentDir, c.Namespace)
+						tui.Info(out, fmt.Sprintf("%s/.claude/rules/%s/ (ignored)", c.ParentDir, c.Namespace))
 					} else {
-						fmt.Fprintf(out, "  [WARN] Parent rules detected: %s/.claude/rules/%s/\n", c.ParentDir, c.Namespace)
-						fmt.Fprintf(out, "         Run 'auto init' or 'auto update' to configure rule isolation.\n")
+						tui.SKIP(out, fmt.Sprintf("Parent rules: %s/.claude/rules/%s/", c.ParentDir, c.Namespace))
+						tui.Bullet(out, "Run 'auto init' or 'auto update' to configure rule isolation.")
 						allOK = false
 					}
 				}
 			}
 
 			// 5. 코딩 CLI 감지 상태
-			fmt.Fprintln(out, "\nInstalled CLIs:")
+			tui.SectionHeader(out, "Installed CLIs")
 			detected := detect.DetectPlatforms()
 			if len(detected) == 0 {
-				fmt.Fprintln(out, "  [WARN] No coding CLIs detected in PATH")
+				tui.SKIP(out, "No coding CLIs detected in PATH")
 			} else {
 				for _, p := range detected {
-					fmt.Fprintf(out, "  [OK] %s (%s)\n", p.Name, p.Version)
+					tui.OK(out, fmt.Sprintf("%s (%s)", p.Name, p.Version))
 				}
 			}
 
-			if allOK {
-				fmt.Fprintln(out, "\nDiagnosis: All checks passed OK")
-			} else {
-				fmt.Fprintln(out, "\nDiagnosis: Issues found, run 'auto update' to fix")
-			}
+			fmt.Fprintln(out)
+			tui.ResultBox(out, allOK, func() string {
+				if allOK {
+					return "All checks passed"
+				}
+				return "Issues found — run 'auto update' to fix"
+			}())
 
 			return nil
 		},

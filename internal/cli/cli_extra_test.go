@@ -490,7 +490,7 @@ func TestDoctorCmd_WithConfig(t *testing.T) {
 	require.NoError(t, err)
 
 	output := buf.String()
-	assert.Contains(t, output, "Autopus-ADK Doctor")
+	assert.Contains(t, output, "Autopus")
 }
 
 // TestDoctorCmd_NoConfig는 설정 파일 없는 doctor 커맨드를 테스트한다.
@@ -506,7 +506,7 @@ func TestDoctorCmd_NoConfig(t *testing.T) {
 	// 설정 파일 없어도 오류 없이 실행됨 (내부에서 처리)
 	_ = doctorCmd.Execute()
 	output := buf.String()
-	assert.Contains(t, output, "Autopus-ADK Doctor")
+	assert.Contains(t, output, "Autopus")
 }
 
 // TestLSPCmd_Structure는 lsp 커맨드 구조를 테스트한다.
