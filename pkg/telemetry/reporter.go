@@ -11,6 +11,7 @@ import (
 // Output includes SPEC ID, status, quality mode, duration, retry count, and a
 // phases table with per-phase duration, status, and agent summary.
 // @AX:ANCHOR: [AUTO] public API — caller in cmd/auto and future CLI commands depend on this signature
+// @AX:REASON: CLI telemetry summary, pipeline completion display, and compare command all invoke this
 func FormatSummary(run PipelineRun) string {
 	var b strings.Builder
 
@@ -71,7 +72,10 @@ func FormatComparison(run1, run2 PipelineRun) string {
 // Example output: "추정 비용: $0.45 (Balanced)"
 // @AX:NOTE: [AUTO] output string is Korean — intentional per language policy (user-facing display)
 func FormatCostLine(estimatedCost float64, qualityMode string) string {
-	label := strings.ToUpper(qualityMode[:1]) + qualityMode[1:]
+	label := "Unknown"
+	if len(qualityMode) > 0 {
+		label = strings.ToUpper(qualityMode[:1]) + qualityMode[1:]
+	}
 	return fmt.Sprintf("추정 비용: $%.2f (%s)", estimatedCost, label)
 }
 

@@ -28,7 +28,7 @@ type AgentRun struct {
 	StartTime       time.Time     `json:"start_time"`
 	EndTime         time.Time     `json:"end_time"`
 	Duration        time.Duration `json:"duration_ns"`
-	Status          string        `json:"status"`          // PASS or FAIL
+	Status          string        `json:"status"` // PASS or FAIL
 	FilesModified   int           `json:"files_modified"`
 	EstimatedTokens int           `json:"estimated_tokens"`
 }
@@ -58,7 +58,7 @@ type PipelineRun struct {
 // Event is the top-level JSONL record written to the telemetry file.
 // Data holds an AgentRun, PhaseRecord, or PipelineRun depending on Type.
 type Event struct {
-	Type      string          `json:"type"`      // see EventType* constants
+	Type      string          `json:"type"` // see EventType* constants
 	Timestamp time.Time       `json:"timestamp"`
 	Data      json.RawMessage `json:"data"`
 }

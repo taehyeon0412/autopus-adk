@@ -153,4 +153,3 @@ func newTelemetryCompareCmd() *cobra.Command {
 	cmd.Flags().StringVar(&specID, "spec-id", "", "Filter runs by SPEC identifier")
 	return cmd
 }
-

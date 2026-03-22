@@ -7,6 +7,7 @@ import (
 
 // Estimator implements telemetry.CostEstimator using a pricing table and quality mode.
 // @AX:ANCHOR: [AUTO] token split ratio 3:1 (input:output) — SPEC D2
+// @AX:REASON: cost estimation, pipeline cost report, and quality comparison all depend on this ratio
 type Estimator struct {
 	qualityMode string
 	pricing     map[string]ModelPricing

@@ -58,7 +58,10 @@ func FormatQualityComparison(totalTokens int) string {
 func FormatCostLine(run telemetry.PipelineRun) string {
 	est := NewEstimator(run.QualityMode)
 	total := est.EstimatePipelineCost(run)
-	mode := strings.ToUpper(run.QualityMode[:1]) + run.QualityMode[1:]
+	mode := "Unknown"
+	if len(run.QualityMode) > 0 {
+		mode = strings.ToUpper(run.QualityMode[:1]) + run.QualityMode[1:]
+	}
 	return fmt.Sprintf("추정 비용: %s (%s)", formatUSD(total), mode)
 }
 

@@ -13,14 +13,14 @@ import (
 // Recorder writes telemetry events to a JSONL file for a single pipeline run.
 // It is safe for concurrent use via an internal mutex.
 type Recorder struct {
-	mu           sync.Mutex
-	file         *os.File
-	baseDir      string
-	specID       string
+	mu            sync.Mutex
+	file          *os.File
+	baseDir       string
+	specID        string
 	pipelineStart time.Time
-	qualityMode  string
-	phases       []PhaseRecord
-	currentPhase *PhaseRecord
+	qualityMode   string
+	phases        []PhaseRecord
+	currentPhase  *PhaseRecord
 }
 
 // NewRecorder creates a Recorder that appends events to
