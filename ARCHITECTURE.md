@@ -88,7 +88,8 @@ cmd/auto/main.go
 | Template | `pkg/template/engine.go` | Go template rendering with custom functions |
 | Factory | `pkg/config/defaults.go` | DefaultFullConfig / DefaultLiteConfig (includes quality presets) |
 | Marker Update | `pkg/adapter/manifest.go` | AUTOPUS:BEGIN/END for partial file updates |
-| Agent Pipeline | `.claude/skills/autopus/agent-pipeline.md` | 5-Phase multi-agent orchestration (planner→executor→validator→tester→reviewer) |
+| Agent Pipeline | `.claude/skills/autopus/agent-pipeline.md` | 5-Phase multi-agent orchestration with worktree isolation (planner→executor→validator→tester→reviewer) |
+| Worktree Isolation | `.claude/skills/autopus/worktree-isolation.md` | Parallel executor worktree isolation with file ownership conflict detection |
 | Shared Templates | `templates/shared/` | Cross-platform branding & UX format fragments |
 | Activator | `pkg/content/activator.go` | Skills auto-activation based on user query and context |
 | SigMap | `pkg/sigmap/extractor.go` | go/ast-based exported API inventory extraction |
