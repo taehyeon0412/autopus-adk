@@ -24,6 +24,8 @@ Autopus-ADK (Agentic Development Kit) is a Go CLI tool that installs the Autopus
 | Template | `pkg/template` | Go text/template wrapper with custom functions |
 | Detect | `pkg/detect` | Platform binary detection |
 | Version | `pkg/version` | Build metadata (ldflags injection) |
+| SigMap | `pkg/sigmap` | AST-based exported API signature extraction and rendering |
+| Constraint | `pkg/constraint` | Anti-pattern registry and violation scanning |
 | Verify | `internal/cli/verify.go` | Frontend UX verification via Playwright screenshots |
 
 ## Layers
@@ -38,6 +40,7 @@ Autopus-ADK (Agentic Development Kit) is a Go CLI tool that installs the Autopus
 │  pkg/spec/       pkg/lore/          │  Business Logic
 │  pkg/arch/       pkg/orchestra/     │
 │  pkg/content/    pkg/search/        │
+│  pkg/sigmap/     pkg/constraint/    │
 │  pkg/lsp/                           │
 ├─────────────────────────────────────┤
 │  pkg/config/     pkg/template/      │  Infrastructure
@@ -62,6 +65,8 @@ cmd/auto/main.go
         ├→ pkg/lsp/
         ├→ pkg/search/
         ├→ pkg/orchestra/
+        ├→ pkg/sigmap/
+        ├→ pkg/constraint/
         ├→ pkg/detect/
         └→ pkg/version/
 ```
@@ -81,6 +86,8 @@ cmd/auto/main.go
 | Agent Pipeline | `.claude/skills/autopus/agent-pipeline.md` | 5-Phase multi-agent orchestration (planner→executor→validator→tester→reviewer) |
 | Shared Templates | `templates/shared/` | Cross-platform branding & UX format fragments |
 | Activator | `pkg/content/activator.go` | Skills auto-activation based on user query and context |
+| SigMap | `pkg/sigmap/extractor.go` | go/ast-based exported API inventory extraction |
+| Constraint | `pkg/constraint/checker.go` | Pattern-based anti-pattern violation scanning |
 
 ## Architecture Rules
 

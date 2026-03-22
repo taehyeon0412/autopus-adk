@@ -102,6 +102,14 @@ func newInitCmd() *cobra.Command {
 				return err
 			}
 
+			// Generate default constraints.yaml for full mode installations
+			if cfg.Mode == config.ModeFull {
+				if err := generateDefaultConstraints(dir, cmd.OutOrStdout()); err != nil {
+					tui.Warnf(cmd.OutOrStdout(), "constraints.yaml 생성 실패: %v", err)
+					// Non-fatal: continue with init
+				}
+			}
+
 			// .gitignore 업데이트
 			if err := updateGitignore(dir); err != nil {
 				return fmt.Errorf(".gitignore 업데이트 실패: %w", err)

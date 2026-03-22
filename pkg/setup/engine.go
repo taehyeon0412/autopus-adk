@@ -5,6 +5,8 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/insajin/autopus-adk/pkg/config"
 )
 
 const defaultDocsDir = ".autopus/docs"
@@ -14,6 +16,7 @@ type GenerateOptions struct {
 	OutputDir string
 	Force     bool
 	Render    *RenderOptions
+	Config    *config.HarnessConfig // optional; controls sigmap generation
 }
 
 // Generate creates all documentation files for the project.
@@ -49,6 +52,11 @@ func Generate(projectDir string, opts *GenerateOptions) (*DocSet, error) {
 	meta := NewMeta(projectDir)
 	if err := writeDocSet(docsDir, projectDir, docSet, meta, info); err != nil {
 		return nil, fmt.Errorf("write documents: %w", err)
+	}
+
+	// Generate signature map
+	if err := generateSignatureMap(projectDir, opts.Config); err != nil {
+		return nil, fmt.Errorf("generate signature map: %w", err)
 	}
 
 	// Save meta
@@ -111,6 +119,15 @@ func Update(projectDir string, outputDir string) ([]string, error) {
 			}
 			updated = append(updated, fileName)
 		}
+	}
+
+	// Update signature map
+	sigUpdated, sigErr := updateSignatureMap(projectDir, nil)
+	if sigErr != nil {
+		return nil, fmt.Errorf("update signature map: %w", sigErr)
+	}
+	if sigUpdated {
+		updated = append(updated, signaturesFile)
 	}
 
 	// Update meta timestamp

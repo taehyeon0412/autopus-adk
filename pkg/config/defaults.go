@@ -115,6 +115,9 @@ func DefaultFullConfig(projectName string) *HarnessConfig {
 			AutoFix:         true,
 			MaxFixAttempts:  2,
 		},
+		Context: ContextConf{
+			SignatureMap: true,
+		},
 	}
 }
 
@@ -146,6 +149,9 @@ func DefaultLiteConfig(projectName string) *HarnessConfig {
 		Skills: SkillsConf{
 			AutoActivate:    true,
 			MaxActiveSkills: 3,
+		},
+		Context: ContextConf{
+			SignatureMap: true,
 		},
 	}
 }

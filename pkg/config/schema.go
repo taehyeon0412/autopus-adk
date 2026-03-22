@@ -58,6 +58,8 @@ type HarnessConfig struct {
 	Quality       QualityConf       `yaml:"quality,omitempty"`
 	Skills        SkillsConf        `yaml:"skills,omitempty"`
 	Verify        VerifyConf        `yaml:"verify,omitempty"`
+	Constraints   ConstraintConf    `yaml:"constraints,omitempty"`
+	Context       ContextConf       `yaml:"context,omitempty"`
 }
 
 // OrchestraConf는 다중 모델 오케스트레이션 설정이다 (Full 전용).
@@ -151,6 +153,17 @@ type VerifyConf struct {
 	DefaultViewport string `yaml:"default_viewport"`
 	AutoFix         bool   `yaml:"auto_fix"`
 	MaxFixAttempts  int    `yaml:"max_fix_attempts"`
+}
+
+// ConstraintConf is the anti-pattern constraint configuration.
+type ConstraintConf struct {
+	Enabled bool   `yaml:"enabled"`
+	Path    string `yaml:"path,omitempty"`
+}
+
+// ContextConf is the agent context enrichment configuration.
+type ContextConf struct {
+	SignatureMap bool `yaml:"signature_map"`
 }
 
 // Validate는 설정의 유효성을 검증한다.
