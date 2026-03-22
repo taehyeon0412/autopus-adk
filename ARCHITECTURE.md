@@ -13,7 +13,7 @@ Autopus-ADK (Agentic Development Kit) is a Go CLI tool that installs the Autopus
 | CLI | `internal/cli` | Cobra command definitions, flag parsing, command routing |
 | Adapter | `pkg/adapter` | Platform abstraction layer (Claude, Codex, Gemini; OpenCode and Cursor planned) |
 | Config | `pkg/config` | Configuration schema, YAML loading, defaults (Full/Lite modes), quality presets |
-| Content | `pkg/content` | Content generation: agents, skills, hooks, methodology, routing |
+| Content | `pkg/content` | Content generation: agents, skills, hooks, methodology, routing, skill auto-activation |
 | Setup | `pkg/setup` | Project documentation scanning, generation, validation |
 | Architecture | `pkg/arch` | Code structure analysis, ARCHITECTURE.md generation, rule linting |
 | SPEC | `pkg/spec` | EARS requirement parsing, SPEC validation, multi-provider review |
