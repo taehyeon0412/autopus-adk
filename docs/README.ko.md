@@ -8,10 +8,10 @@
 
 [![GitHub Stars](https://img.shields.io/github/stars/Insajin/autopus-adk?style=social)](https://github.com/Insajin/autopus-adk/stargazers)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Go Version](https://img.shields.io/badge/Go-1.23-00ADD8?logo=go&logoColor=white)](https://golang.org)
+[![Go Version](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)](https://golang.org)
 [![Platforms](https://img.shields.io/badge/Platforms-5-orange)](#-하나의-설정-다섯-개-플랫폼)
 [![Agents](https://img.shields.io/badge/Agents-15-blueviolet)](#-15개-전문-에이전트)
-[![Skills](https://img.shields.io/badge/Skills-35-ff69b4)](#-전체-명령어)
+[![Skills](https://img.shields.io/badge/Skills-37-ff69b4)](#-전체-명령어)
 
 [빠른 시작](#-30초-설치) · [왜 Autopus인가](#-문제점) · [**핵심 워크플로우**](#-워크플로우-세-개의-명령으로-배포까지) · [주요 기능](#-autopus가-다른-이유) · [파이프라인](#-파이프라인) · [명령어](#-전체-명령어)
 
@@ -154,6 +154,26 @@ Ref: SPEC-AUTH-001
 
 9개 구조화된 트레일러. `auto lore query "왜 인터페이스?"`로 조회. 90일 지난 결정은 자동 감지.
 
+### 🧪 자율 실험 루프
+
+AI가 자율적으로 반복합니다 — 측정하고, 유지 또는 폐기하고, 반복합니다.
+
+```bash
+/auto experiment --metric "go test -bench=BenchmarkProcess" --direction lower --max-iter 5
+```
+
+```
+🐙 Experiment ───────────────────────
+  Iter 1: baseline  │ 1200 ns/op
+  Iter 2: optimize  │  850 ns/op  ✓ keep (29% improvement)
+  Iter 3: refactor  │  900 ns/op  ✗ discard (regression)
+  Iter 4: cache     │  620 ns/op  ✓ keep (27% improvement)
+  ─────────────────────────────────────
+  Result: 1200 → 620 ns/op (48% improvement)
+```
+
+내장 **서킷 브레이커**로 무한 반복을 방지합니다. **단순성 점수**가 과도하게 복잡한 솔루션에 패널티를 부여합니다. 각 반복은 git 커밋으로 기록되어 리뷰 및 롤백이 용이합니다.
+
 ### 🌐 하나의 설정, 다섯 개 플랫폼
 
 ```bash
@@ -170,7 +190,7 @@ auto init   # 설치된 모든 AI 코딩 CLI 자동 감지
 | **Cursor** | `.cursor/rules/`, `.cursorrules` |
 | **OpenCode** | `.opencode/`, `agents.json` |
 
-동일한 15개 에이전트. 동일한 35개 스킬. 동일한 규칙. **어디서나.**
+동일한 15개 에이전트. 동일한 37개 스킬. 동일한 규칙. **어디서나.**
 
 ---
 
@@ -187,7 +207,7 @@ curl -sSfL https://raw.githubusercontent.com/Insajin/autopus-adk/main/install.sh
 # Homebrew (준비 중)
 # brew install insajin/autopus/auto
 
-# go install (개발용)
+# go install (Go 1.26+ 필요)
 go install github.com/Insajin/autopus-adk/cmd/auto@latest
 
 # 소스에서 빌드
@@ -388,7 +408,7 @@ SPEC 상태 업데이트, 프로젝트 문서 재생성, @AX 태그 라이프사
 ## 📖 전체 명령어
 
 <details>
-<summary><strong>CLI 명령어</strong> (루트 19개, 서브커맨드 포함 52개)</summary>
+<summary><strong>CLI 명령어</strong> (루트 21개, 서브커맨드 포함 55개+)</summary>
 
 | 명령어 | 설명 |
 |--------|------|
@@ -399,7 +419,7 @@ SPEC 상태 업데이트, 프로젝트 문서 재생성, @AX 태그 라이프사
 | `auto arch` | 아키텍처 분석 (generate / lint) |
 | `auto spec` | SPEC 관리 (new / validate / review) |
 | `auto lore` | 의사결정 추적 (context / commit / validate / stale) |
-| `auto orchestra` | 멀티 모델 오케스트레이션 (review / plan / secure) |
+| `auto orchestra` | 멀티 모델 오케스트레이션 (review / plan / secure / brainstorm) |
 | `auto setup` | 프로젝트 컨텍스트 문서 (generate / update / validate) |
 | `auto status` | SPEC 대시보드 (done / in-progress / draft) |
 | `auto telemetry` | 파이프라인 텔레메트리 (record / summary / cost / compare) |
@@ -407,9 +427,11 @@ SPEC 상태 업데이트, 프로젝트 문서 재생성, @AX 태그 라이프사
 | `auto search` | 지식 검색 (Exa) |
 | `auto docs` | 라이브러리 문서 조회 (Context7) |
 | `auto lsp` | LSP 연동 (diagnostics / refs / rename / symbols) |
-| `auto verify` | 하네스 상태 및 규칙 검증 |
+| `auto verify` | 프론트엔드 UX 검증 (Playwright + VLM) |
 | `auto check` | 하네스 규칙 검사 (안티패턴 스캔) |
 | `auto hash` | 파일 해싱 (xxhash) |
+| `auto issue` | 자동 이슈 리포터 (에러 컨텍스트 수집, GitHub 제출) |
+| `auto experiment` | 자율 실험 루프 (메트릭 기반 유지/폐기) |
 
 </details>
 
@@ -432,6 +454,7 @@ SPEC 상태 업데이트, 프로젝트 문서 재생성, @AX 태그 라이프사
 | `/auto setup` | 프로젝트 컨텍스트 문서 생성/업데이트 |
 | `/auto stale` | 오래된 결정 및 패턴 감지 |
 | `/auto why "질문"` | 의사결정 근거 조회 |
+| `/auto experiment` | 자율 실험 루프 (메트릭 기반 반복) |
 
 </details>
 
@@ -489,10 +512,10 @@ orchestra:
 ```
 autopus-adk/
 ├── cmd/auto/           # 진입점
-├── internal/cli/       # Cobra 명령어 19개 (서브커맨드 포함 52개)
+├── internal/cli/       # Cobra 명령어 21개 (서브커맨드 포함 55개+)
 ├── pkg/
 │   ├── adapter/        # 플랫폼 어댑터 5개 (Claude, Codex, Gemini, Cursor, OpenCode)
-│   ├── orchestra/      # 멀티 모델 오케스트레이션 (전략 4개)
+│   ├── orchestra/      # 멀티 모델 오케스트레이션 (전략 4개 + brainstorm)
 │   ├── spec/           # SPEC 엔진 (EARS 형식)
 │   ├── lore/           # 의사결정 추적 (9-trailer 프로토콜)
 │   ├── content/        # 에이전트/스킬/훅 생성 + 스킬 활성화
@@ -504,9 +527,11 @@ autopus-adk/
 │   ├── setup/          # 프로젝트 문서 생성
 │   ├── lsp/            # LSP 연동
 │   ├── search/         # 지식 검색 (Context7/Exa)
+│   ├── issue/          # 자동 이슈 리포터 (컨텍스트 수집, 정제)
+│   ├── experiment/     # 자율 실험 루프 (메트릭 실행, 서킷 브레이커)
 │   └── ...             # template, detect, config, version
 ├── templates/          # 플랫폼별 템플릿
-├── content/            # 임베디드 콘텐츠 (15개 에이전트, 36개 스킬)
+├── content/            # 임베디드 콘텐츠 (15개 에이전트, 37개 스킬)
 └── configs/            # 기본 설정
 ```
 
