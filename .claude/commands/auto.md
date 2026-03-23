@@ -43,12 +43,87 @@ No project context documents found. Run `/auto setup` to initialize.
 
 1. **Strip global flags**: Separate `--think`, `--ultrathink`, and other global flags from $ARGUMENTS
 2. **Match subcommand**: Use the first remaining word to determine the subcommand
-3. **Smart routing (natural language → auto-trigger plan)**:
+3. **Triage-based Smart Routing (natural language → difficulty-aware flow)**:
    - If the first word does not match a known subcommand and the remaining text has 2+ words:
-   - Treat as a **natural language feature/development request** and **auto-invoke the `plan` workflow** (including PRD generation unless `--skip-prd` is specified)
-   - Pass the full text as the feature description to the `spec-writer` agent
-   - After SPEC generation, prompt: `/auto go {SPEC-ID}`
+   - Execute the **Triage Process** (see below) to assess difficulty and recommend a flow
+   - Route to the recommended flow after user confirmation (or auto-proceed with `--auto`)
 4. **Empty arguments**: Show the subcommand list
+
+### Triage Process
+
+WHEN a natural language request is detected (rule 3 above), THE SYSTEM SHALL assess task difficulty before routing.
+
+#### Step 1: Signal Extraction
+
+Analyze the request text for the following signals:
+
+| Signal | LOW indicators | MEDIUM indicators | HIGH indicators |
+|--------|---------------|-------------------|-----------------|
+| **Change type** | fix, 수정, 고쳐, typo, rename, 오타, 삭제, 로그추가, config | 리팩토링, refactor, 개선, improve, 옵션추가, 확장, extend | 새로운, new, feature, 기능, 모듈, 시스템, 아키텍처, API설계 |
+| **Scope** | specific file/function mentioned | package/module mentioned | "전체", "모든", multi-domain, cross-cutting |
+| **Verb intensity** | change, update, move, remove | add, enhance, restructure | design, build, create, implement (large scope) |
+
+#### Step 2: Impact Scan (fast, ≤ 5 seconds)
+
+Run a quick codebase scan to validate the heuristic:
+
+1. **Grep** for keywords from the request to estimate affected files
+2. **Glob** for patterns matching the described scope
+3. Count: affected files, affected packages
+
+This step is OPTIONAL if the text-based signals are unambiguous. Skip if `--auto` flag is set.
+
+#### Step 3: Difficulty Classification
+
+| Difficulty | Criteria (ANY of) | Recommended Flow |
+|-----------|-------------------|------------------|
+| **LOW** | Single file change; bug fix with known location; config/doc edit; ≤ 1 package affected | `/auto fix "{desc}"` — direct fix, no SPEC |
+| **MEDIUM** | 2-3 files; existing feature extension; single-package refactor; test additions | `/auto plan "{desc}" --skip-prd` — SPEC only, no PRD |
+| **HIGH** | 3+ files across packages; new feature/module; API design; architecture change; multi-domain impact | `/auto plan "{desc}"` — full PRD + SPEC pipeline |
+| **CRITICAL** | Security vulnerability; urgent production fix | `/auto fix "{desc}"` + recommend `/auto secure` after |
+
+#### Step 4: Triage Display and Confirmation
+
+WHEN `--auto` is NOT set, display:
+
+```
+🐙 Triage ───────────────────────────
+  요청: "{natural language request}"
+
+  분석:
+  - 변경 유형: {bug fix | enhancement | new feature | refactor | config}
+  - 예상 영향: ~{N}개 파일 / {N}개 패키지
+  - 난이도: {LOW | MEDIUM | HIGH | CRITICAL}
+
+  추천: {recommended flow description}
+
+  선택:
+  [1] /auto fix "{desc}"              — 바로 수정 (SPEC 없음)
+  [2] /auto plan "{desc}" --skip-prd  — SPEC만 생성 (PRD 생략)
+  [3] /auto plan "{desc}"             — PRD + SPEC 전체 플로우
+
+  → 추천: [{N}] {recommended option}
+  선택 (1-3, Enter=추천 수락):
+```
+
+Highlight the recommended option. User can override by selecting a different number.
+
+WHEN `--auto` IS set, display triage result and auto-proceed:
+
+```
+🐙 Triage ───────────────────────────
+  요청: "{request}"
+  난이도: {level} → {flow} (자동 진행)
+```
+
+#### Triage Override
+
+The user can always force a specific flow by using the subcommand directly:
+- `/auto fix "..."` — skip triage, go directly to fix
+- `/auto plan "..."` — skip triage, go directly to plan
+- `/auto plan "..." --skip-prd` — skip triage, plan without PRD
+
+Triage ONLY activates for bare natural language input without a recognized subcommand.
 
 ### Subcommand List
 
