@@ -47,6 +47,14 @@ type TelemetryConf struct {
 	CostTracking  bool `yaml:"cost_tracking"`
 }
 
+// IssueReportConf is the auto issue reporter configuration.
+type IssueReportConf struct {
+	Repo             string   `yaml:"repo,omitempty"`
+	Labels           []string `yaml:"labels,omitempty"`
+	AutoSubmit       bool     `yaml:"auto_submit,omitempty"`
+	RateLimitMinutes int      `yaml:"rate_limit_minutes,omitempty"`
+}
+
 // HarnessConfig는 autopus.yaml의 최상위 설정 구조이다.
 type HarnessConfig struct {
 	Mode          Mode              `yaml:"mode"`
@@ -68,6 +76,7 @@ type HarnessConfig struct {
 	Constraints   ConstraintConf    `yaml:"constraints,omitempty"`
 	Context       ContextConf       `yaml:"context,omitempty"`
 	Telemetry     TelemetryConf     `yaml:"telemetry,omitempty"`
+	IssueReport   IssueReportConf   `yaml:"issue_report,omitempty"`
 }
 
 // OrchestraConf는 다중 모델 오케스트레이션 설정이다 (Full 전용).

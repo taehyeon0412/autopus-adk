@@ -28,6 +28,7 @@ Autopus-ADK (Agentic Development Kit) is a Go CLI tool that installs the Autopus
 | Constraint | `pkg/constraint` | Anti-pattern registry and violation scanning |
 | Telemetry | `pkg/telemetry` | Pipeline execution telemetry recording and reporting (JSONL) |
 | Cost | `pkg/cost` | Token-based cost estimation and pricing tables |
+| Issue | `pkg/issue` | Auto issue reporter: error context collection, sanitization, GitHub issue submission |
 | Verify | `internal/cli/verify.go` | Frontend UX verification via Playwright screenshots |
 
 ## Layers
@@ -72,6 +73,7 @@ cmd/auto/main.go
         ├→ pkg/constraint/
         ├→ pkg/telemetry/
         ├→ pkg/cost/            → pkg/telemetry/
+        ├→ pkg/issue/           → pkg/version/, pkg/config/, pkg/telemetry/
         ├→ pkg/detect/
         └→ pkg/version/
 ```
