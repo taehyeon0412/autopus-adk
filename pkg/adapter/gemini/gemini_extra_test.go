@@ -29,7 +29,7 @@ func TestGeminiAdapter_CleanRemovesFiles(t *testing.T) {
 
 	dir := t.TempDir()
 	a := gemini.NewWithRoot(dir)
-	cfg := config.DefaultLiteConfig("test-project")
+	cfg := config.DefaultFullConfig("test-project")
 
 	// 먼저 Generate로 파일 생성
 	_, err := a.Generate(context.Background(), cfg)
@@ -58,7 +58,7 @@ func TestGeminiAdapter_Validate_NoErrors(t *testing.T) {
 
 	dir := t.TempDir()
 	a := gemini.NewWithRoot(dir)
-	cfg := config.DefaultLiteConfig("test-project")
+	cfg := config.DefaultFullConfig("test-project")
 
 	// Generate 실행
 	_, err := a.Generate(context.Background(), cfg)
@@ -106,7 +106,7 @@ func TestGeminiAdapter_Generate_CreatesGeminiMd(t *testing.T) {
 
 	dir := t.TempDir()
 	a := gemini.NewWithRoot(dir)
-	cfg := config.DefaultLiteConfig("test-project")
+	cfg := config.DefaultFullConfig("test-project")
 
 	_, err := a.Generate(context.Background(), cfg)
 	require.NoError(t, err)

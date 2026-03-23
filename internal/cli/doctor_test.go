@@ -16,7 +16,7 @@ func TestDoctorCmd_ReportsStatus(t *testing.T) {
 
 	// init 실행 후 doctor 수행
 	initCmd := newTestRootCmd()
-	initCmd.SetArgs([]string{"init", "--lite", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code"})
+	initCmd.SetArgs([]string{"init", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code"})
 	require.NoError(t, initCmd.Execute())
 
 	var out bytes.Buffer
@@ -53,7 +53,7 @@ func TestDoctorCmd_ShowsOKAfterInit(t *testing.T) {
 	dir := t.TempDir()
 
 	initCmd := newTestRootCmd()
-	initCmd.SetArgs([]string{"init", "--lite", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code"})
+	initCmd.SetArgs([]string{"init", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code"})
 	require.NoError(t, initCmd.Execute())
 
 	var out bytes.Buffer

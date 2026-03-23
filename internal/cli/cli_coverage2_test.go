@@ -19,7 +19,7 @@ func TestUpdateCmd_AllPlatforms(t *testing.T) {
 
 	// 세 플랫폼 모두로 초기화
 	initCmd := newTestRootCmd()
-	initCmd.SetArgs([]string{"init", "--lite", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code,codex,gemini-cli"})
+	initCmd.SetArgs([]string{"init", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code,codex,gemini-cli"})
 	require.NoError(t, initCmd.Execute())
 
 	// update 실행 — 세 플랫폼 모두 처리되어야 함
@@ -37,7 +37,7 @@ func TestUpdateCmd_MultiplePlatformsOutput(t *testing.T) {
 
 	// claude-code와 codex로 초기화
 	initCmd := newTestRootCmd()
-	initCmd.SetArgs([]string{"init", "--lite", "--dir", dir, "--project", "multi-proj", "--platforms", "claude-code,codex"})
+	initCmd.SetArgs([]string{"init", "--dir", dir, "--project", "multi-proj", "--platforms", "claude-code,codex"})
 	require.NoError(t, initCmd.Execute())
 
 	// update 실행
@@ -53,7 +53,7 @@ func TestInitCmd_FullModeGemini(t *testing.T) {
 	dir := t.TempDir()
 
 	cmd := newTestRootCmd()
-	cmd.SetArgs([]string{"init", "--full", "--dir", dir, "--project", "full-gemini", "--platforms", "gemini-cli"})
+	cmd.SetArgs([]string{"init", "--dir", dir, "--project", "full-gemini", "--platforms", "gemini-cli"})
 	err := cmd.Execute()
 	require.NoError(t, err)
 
@@ -69,7 +69,7 @@ func TestInitCmd_GeminiPlatform(t *testing.T) {
 	dir := t.TempDir()
 
 	cmd := newTestRootCmd()
-	cmd.SetArgs([]string{"init", "--lite", "--dir", dir, "--project", "gemini-proj", "--platforms", "gemini-cli"})
+	cmd.SetArgs([]string{"init", "--dir", dir, "--project", "gemini-proj", "--platforms", "gemini-cli"})
 	err := cmd.Execute()
 	require.NoError(t, err)
 
@@ -85,7 +85,7 @@ func TestInitCmd_CodexPlatform(t *testing.T) {
 	dir := t.TempDir()
 
 	cmd := newTestRootCmd()
-	cmd.SetArgs([]string{"init", "--lite", "--dir", dir, "--project", "codex-proj", "--platforms", "codex"})
+	cmd.SetArgs([]string{"init", "--dir", dir, "--project", "codex-proj", "--platforms", "codex"})
 	err := cmd.Execute()
 	require.NoError(t, err)
 
@@ -101,7 +101,7 @@ func TestInitCmd_UpdatesGitignore(t *testing.T) {
 	dir := t.TempDir()
 
 	cmd := newTestRootCmd()
-	cmd.SetArgs([]string{"init", "--lite", "--dir", dir, "--project", "gitignore-proj", "--platforms", "claude-code"})
+	cmd.SetArgs([]string{"init", "--dir", dir, "--project", "gitignore-proj", "--platforms", "claude-code"})
 	require.NoError(t, cmd.Execute())
 
 	// .gitignore 확인
@@ -121,7 +121,7 @@ func TestInitCmd_ExistingGitignore(t *testing.T) {
 	require.NoError(t, os.WriteFile(gitignorePath, []byte("node_modules/\n*.log\n"), 0644))
 
 	cmd := newTestRootCmd()
-	cmd.SetArgs([]string{"init", "--lite", "--dir", dir, "--project", "existing-gi", "--platforms", "claude-code"})
+	cmd.SetArgs([]string{"init", "--dir", dir, "--project", "existing-gi", "--platforms", "claude-code"})
 	require.NoError(t, cmd.Execute())
 
 	// 기존 패턴이 보존되고 새 패턴이 추가되어야 함
@@ -137,7 +137,7 @@ func TestPlatformAddCmd_AlreadyExistsOutput(t *testing.T) {
 	dir := t.TempDir()
 
 	initCmd := newTestRootCmd()
-	initCmd.SetArgs([]string{"init", "--lite", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code"})
+	initCmd.SetArgs([]string{"init", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code"})
 	require.NoError(t, initCmd.Execute())
 
 	// 이미 있는 플랫폼을 다시 추가
@@ -155,7 +155,7 @@ func TestPlatformRemoveCmd_WithCleanup(t *testing.T) {
 
 	// 두 플랫폼으로 초기화
 	initCmd := newTestRootCmd()
-	initCmd.SetArgs([]string{"init", "--lite", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code,gemini-cli"})
+	initCmd.SetArgs([]string{"init", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code,gemini-cli"})
 	require.NoError(t, initCmd.Execute())
 
 	// gemini-cli 제거 (Clean 호출 경로)
@@ -173,7 +173,7 @@ func TestPlatformRemoveCmd_ClaudeCode(t *testing.T) {
 
 	// 두 플랫폼으로 초기화
 	initCmd := newTestRootCmd()
-	initCmd.SetArgs([]string{"init", "--lite", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code,codex"})
+	initCmd.SetArgs([]string{"init", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code,codex"})
 	require.NoError(t, initCmd.Execute())
 
 	// claude-code 제거 (Clean 호출 경로)
@@ -190,7 +190,7 @@ func TestPlatformListCmd_ResolveDir(t *testing.T) {
 	dir := t.TempDir()
 
 	initCmd := newTestRootCmd()
-	initCmd.SetArgs([]string{"init", "--lite", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code"})
+	initCmd.SetArgs([]string{"init", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code"})
 	require.NoError(t, initCmd.Execute())
 
 	// 현재 디렉터리를 임시 디렉터리로 변경
@@ -268,7 +268,7 @@ func TestDoctorCmd_AllPlatforms(t *testing.T) {
 	dir := t.TempDir()
 
 	initCmd := newTestRootCmd()
-	initCmd.SetArgs([]string{"init", "--lite", "--dir", dir, "--project", "doctor-proj", "--platforms", "claude-code,codex,gemini-cli"})
+	initCmd.SetArgs([]string{"init", "--dir", dir, "--project", "doctor-proj", "--platforms", "claude-code,codex,gemini-cli"})
 	require.NoError(t, initCmd.Execute())
 
 	doctorCmd := newTestRootCmd()
@@ -410,7 +410,7 @@ func TestInitCmd_ProjectNameFromDir(t *testing.T) {
 
 	// --project 없이 실행 (디렉터리 이름이 프로젝트 이름으로 사용됨)
 	cmd := newTestRootCmd()
-	cmd.SetArgs([]string{"init", "--lite", "--platforms", "claude-code"})
+	cmd.SetArgs([]string{"init", "--platforms", "claude-code"})
 	err = cmd.Execute()
 	assert.NoError(t, err)
 
@@ -428,7 +428,7 @@ func TestUpdateCmd_GeminiPlatform(t *testing.T) {
 	dir := t.TempDir()
 
 	initCmd := newTestRootCmd()
-	initCmd.SetArgs([]string{"init", "--lite", "--dir", dir, "--project", "gemini-update", "--platforms", "gemini-cli"})
+	initCmd.SetArgs([]string{"init", "--dir", dir, "--project", "gemini-update", "--platforms", "gemini-cli"})
 	require.NoError(t, initCmd.Execute())
 
 	updateCmd := newTestRootCmd()
@@ -444,7 +444,7 @@ func TestUpdateCmd_CodexPlatform(t *testing.T) {
 	dir := t.TempDir()
 
 	initCmd := newTestRootCmd()
-	initCmd.SetArgs([]string{"init", "--lite", "--dir", dir, "--project", "codex-update", "--platforms", "codex"})
+	initCmd.SetArgs([]string{"init", "--dir", dir, "--project", "codex-update", "--platforms", "codex"})
 	require.NoError(t, initCmd.Execute())
 
 	updateCmd := newTestRootCmd()

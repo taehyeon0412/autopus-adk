@@ -51,7 +51,7 @@ func TestClaudeAdapter_Generate_CreatesDirectories(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	a := claude.NewWithRoot(dir)
-	cfg := config.DefaultLiteConfig("test-project")
+	cfg := config.DefaultFullConfig("test-project")
 	cfg.Platforms = []string{"claude-code"}
 
 	files, err := a.Generate(context.Background(), cfg)
@@ -82,7 +82,7 @@ func TestClaudeAdapter_Generate_ClaudeMD_MarkerSection(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	a := claude.NewWithRoot(dir)
-	cfg := config.DefaultLiteConfig("test-project")
+	cfg := config.DefaultFullConfig("test-project")
 
 	_, err := a.Generate(context.Background(), cfg)
 	require.NoError(t, err)
@@ -101,7 +101,7 @@ func TestClaudeAdapter_Generate_ClaudeMD_PreservesUserContent(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	a := claude.NewWithRoot(dir)
-	cfg := config.DefaultLiteConfig("test-project")
+	cfg := config.DefaultFullConfig("test-project")
 
 	// 기존 사용자 컨텐츠가 있는 CLAUDE.md 생성
 	userContent := "# My Custom Rules\n\nSome user-defined rules here.\n"
@@ -127,7 +127,7 @@ func TestClaudeAdapter_Update_ChecksumComparison(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	a := claude.NewWithRoot(dir)
-	cfg := config.DefaultLiteConfig("test-project")
+	cfg := config.DefaultFullConfig("test-project")
 
 	// 초기 생성
 	files1, err := a.Generate(context.Background(), cfg)
@@ -147,7 +147,7 @@ func TestClaudeAdapter_Update_PreservesMarkerContent(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	a := claude.NewWithRoot(dir)
-	cfg := config.DefaultLiteConfig("test-project")
+	cfg := config.DefaultFullConfig("test-project")
 
 	// 초기 생성
 	_, err := a.Generate(context.Background(), cfg)
@@ -208,7 +208,7 @@ func TestClaudeAdapter_Validate_AfterGenerate(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	a := claude.NewWithRoot(dir)
-	cfg := config.DefaultLiteConfig("test-project")
+	cfg := config.DefaultFullConfig("test-project")
 
 	_, err := a.Generate(context.Background(), cfg)
 	require.NoError(t, err)
@@ -222,7 +222,7 @@ func TestClaudeAdapter_Clean(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	a := claude.NewWithRoot(dir)
-	cfg := config.DefaultLiteConfig("test-project")
+	cfg := config.DefaultFullConfig("test-project")
 
 	// 파일 생성 후 정리
 	_, err := a.Generate(context.Background(), cfg)
@@ -240,7 +240,7 @@ func TestClaudeAdapter_Generate_InstallsRules(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	a := claude.NewWithRoot(dir)
-	cfg := config.DefaultLiteConfig("test-project")
+	cfg := config.DefaultFullConfig("test-project")
 	cfg.Platforms = []string{"claude-code"}
 
 	_, err := a.Generate(context.Background(), cfg)
@@ -265,7 +265,7 @@ func TestClaudeAdapter_Generate_CLAUDEMDContainsGuidelines(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	a := claude.NewWithRoot(dir)
-	cfg := config.DefaultLiteConfig("test-project")
+	cfg := config.DefaultFullConfig("test-project")
 	cfg.Platforms = []string{"claude-code"}
 
 	_, err := a.Generate(context.Background(), cfg)

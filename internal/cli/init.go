@@ -32,8 +32,6 @@ var gitignorePatterns = []string{
 
 func newInitCmd() *cobra.Command {
 	var (
-		fullMode  bool
-		liteMode  bool
 		dir       string
 		project   string
 		platforms string
@@ -53,11 +51,8 @@ func newInitCmd() *cobra.Command {
 				}
 			}
 
-			// 모드 결정 (기본값: lite)
-			mode := config.ModeLite
-			if fullMode {
-				mode = config.ModeFull
-			}
+			// 모드 결정 (항상 full)
+			mode := config.ModeFull
 
 			// 프로젝트 이름 결정
 			if project == "" {
@@ -79,12 +74,7 @@ func newInitCmd() *cobra.Command {
 			}
 
 			// 설정 생성
-			var cfg *config.HarnessConfig
-			if mode == config.ModeFull {
-				cfg = config.DefaultFullConfig(project)
-			} else {
-				cfg = config.DefaultLiteConfig(project)
-			}
+			cfg := config.DefaultFullConfig(project)
 			cfg.Platforms = platformList
 
 			// autopus.yaml 저장
@@ -102,12 +92,10 @@ func newInitCmd() *cobra.Command {
 				return err
 			}
 
-			// Generate default constraints.yaml for full mode installations
-			if cfg.Mode == config.ModeFull {
-				if err := generateDefaultConstraints(dir, cmd.OutOrStdout()); err != nil {
-					tui.Warnf(cmd.OutOrStdout(), "constraints.yaml 생성 실패: %v", err)
-					// Non-fatal: continue with init
-				}
+			// Generate default constraints.yaml
+			if err := generateDefaultConstraints(dir, cmd.OutOrStdout()); err != nil {
+				tui.Warnf(cmd.OutOrStdout(), "constraints.yaml 생성 실패: %v", err)
+				// Non-fatal: continue with init
 			}
 
 			// .gitignore 업데이트
@@ -126,13 +114,9 @@ func newInitCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolVar(&fullMode, "full", false, "Full 모드로 초기화")
-	cmd.Flags().BoolVar(&liteMode, "lite", false, "Lite 모드로 초기화 (기본값)")
 	cmd.Flags().StringVar(&dir, "dir", "", "프로젝트 루트 디렉터리 (기본값: 현재 디렉터리)")
 	cmd.Flags().StringVar(&project, "project", "", "프로젝트 이름")
 	cmd.Flags().StringVar(&platforms, "platforms", "", "설치할 플랫폼 목록 (쉼표 구분, 예: claude-code,codex)")
-
-	_ = liteMode // --lite 플래그는 참고용 (기본값이 lite이므로)
 
 	return cmd
 }

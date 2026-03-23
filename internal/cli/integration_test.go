@@ -24,20 +24,17 @@ func runCmd(t *testing.T, args ...string) (string, error) {
 	return out.String(), err
 }
 
-// TestInitLite_CreatesCorrectFiles는 Lite 모드 init이 올바른 파일을 생성하는지 검증한다.
-func TestInitLite_CreatesCorrectFiles(t *testing.T) {
+// TestInit_CreatesCorrectFiles는 init이 올바른 파일을 생성하는지 검증한다.
+func TestInit_CreatesCorrectFiles(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-	_, err := runCmd(t, "init", "--lite", "--dir", dir, "--project", "lite-project", "--platforms", "claude-code")
+	_, err := runCmd(t, "init", "--dir", dir, "--project", "test-project", "--platforms", "claude-code")
 	require.NoError(t, err)
 
-	// autopus.yaml이 생성되고 mode: lite를 포함해야 함
+	// autopus.yaml이 생성되어야 함
 	yamlPath := filepath.Join(dir, "autopus.yaml")
 	require.FileExists(t, yamlPath)
-	yamlData, err := os.ReadFile(yamlPath)
-	require.NoError(t, err)
-	assert.Contains(t, string(yamlData), "lite")
 
 	// .claude/ 디렉터리 구조 생성 확인
 	assert.DirExists(t, filepath.Join(dir, ".claude", "rules", "autopus"))
@@ -59,27 +56,19 @@ func TestInitLite_CreatesCorrectFiles(t *testing.T) {
 	assert.Contains(t, gitignoreContent, ".claude/skills/autopus/")
 	assert.Contains(t, gitignoreContent, ".codex/skills/")
 	assert.Contains(t, gitignoreContent, ".gemini/skills/autopus/")
-
-	// Lite 모드: methodology/router/session 설정 미포함 확인
-	assert.NotContains(t, string(yamlData), "methodology:")
-	assert.NotContains(t, string(yamlData), "router:")
-	assert.NotContains(t, string(yamlData), "session:")
 }
 
-// TestInitFull_CreatesAllContent는 Full 모드 init이 전체 콘텐츠를 생성하는지 검증한다.
-func TestInitFull_CreatesAllContent(t *testing.T) {
+// TestInit_CreatesAllContent는 init이 전체 콘텐츠를 생성하는지 검증한다.
+func TestInit_CreatesAllContent(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-	_, err := runCmd(t, "init", "--full", "--dir", dir, "--project", "full-project", "--platforms", "claude-code")
+	_, err := runCmd(t, "init", "--dir", dir, "--project", "full-project", "--platforms", "claude-code")
 	require.NoError(t, err)
 
-	// autopus.yaml에 mode: full 확인
+	// autopus.yaml 생성 확인
 	yamlPath := filepath.Join(dir, "autopus.yaml")
 	require.FileExists(t, yamlPath)
-	yamlData, err := os.ReadFile(yamlPath)
-	require.NoError(t, err)
-	assert.Contains(t, string(yamlData), "full")
 
 	// .claude/ 디렉터리 구조 생성 확인
 	assert.DirExists(t, filepath.Join(dir, ".claude", "rules", "autopus"))
@@ -97,11 +86,6 @@ func TestInitFull_CreatesAllContent(t *testing.T) {
 	assert.Contains(t, string(claudeData), "full-project")
 	assert.Contains(t, string(claudeData), "<!-- AUTOPUS:BEGIN -->")
 	assert.Contains(t, string(claudeData), "<!-- AUTOPUS:END -->")
-
-	// Full 모드: autopus.yaml에 methodology/router/session 포함 확인
-	assert.Contains(t, string(yamlData), "methodology:")
-	assert.Contains(t, string(yamlData), "router:")
-	assert.Contains(t, string(yamlData), "session:")
 }
 
 // TestUpdate_PreservesUserModifications는 update가 마커 외부 사용자 수정을 보존하는지 검증한다.
@@ -111,7 +95,7 @@ func TestUpdate_PreservesUserModifications(t *testing.T) {
 	dir := t.TempDir()
 
 	// init 먼저 실행
-	_, err := runCmd(t, "init", "--lite", "--dir", dir, "--project", "update-proj", "--platforms", "claude-code")
+	_, err := runCmd(t, "init", "--dir", dir, "--project", "update-proj", "--platforms", "claude-code")
 	require.NoError(t, err)
 
 	claudePath := filepath.Join(dir, "CLAUDE.md")
@@ -151,7 +135,7 @@ func TestDoctor_ReportsHealth(t *testing.T) {
 		dir := t.TempDir()
 
 		// 먼저 init으로 유효한 상태 구성
-		_, err := runCmd(t, "init", "--lite", "--dir", dir, "--project", "doctor-proj", "--platforms", "claude-code")
+		_, err := runCmd(t, "init", "--dir", dir, "--project", "doctor-proj", "--platforms", "claude-code")
 		require.NoError(t, err)
 
 		// doctor 실행
@@ -161,7 +145,6 @@ func TestDoctor_ReportsHealth(t *testing.T) {
 		// 정상 상태 보고 확인
 		assert.Contains(t, out, "Autopus")
 		assert.Contains(t, out, "[OK] autopus.yaml")
-		assert.Contains(t, out, "lite")
 		// 플랫폼 검증 OK
 		assert.Contains(t, out, "[OK] claude-code")
 	})
@@ -188,7 +171,7 @@ func TestMultiPlatform_Init(t *testing.T) {
 
 	dir := t.TempDir()
 
-	_, err := runCmd(t, "init", "--lite", "--dir", dir, "--project", "multi-proj",
+	_, err := runCmd(t, "init", "--dir", dir, "--project", "multi-proj",
 		"--platforms", "claude-code,codex,gemini-cli")
 	require.NoError(t, err)
 

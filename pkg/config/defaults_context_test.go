@@ -25,14 +25,14 @@ func TestDefaultFullConfig_HasContext(t *testing.T) {
 	assert.True(t, cfg.Context.SignatureMap, "Context.SignatureMap must be true in full config")
 }
 
-// TestDefaultLiteConfig_HasContext verifies ContextConf is set correctly in lite config.
-func TestDefaultLiteConfig_HasContext(t *testing.T) {
+// TestDefaultFullConfig_HasContext2 verifies ContextConf is set correctly in full config (second instance).
+func TestDefaultFullConfig_HasContext2(t *testing.T) {
 	t.Parallel()
 
-	cfg := DefaultLiteConfig("test")
+	cfg := DefaultFullConfig("test")
 	require.NotNil(t, cfg)
 
-	assert.True(t, cfg.Context.SignatureMap, "Context.SignatureMap must be true in lite config")
+	assert.True(t, cfg.Context.SignatureMap, "Context.SignatureMap must be true in full config")
 }
 
 // TestDefaultFullConfig_ContextValidatesOK verifies the full config with Context passes Validate.

@@ -93,19 +93,17 @@ func newDoctorCmd() *cobra.Command {
 				}
 			}
 
-			// 3. 의존성 확인 (Full 모드)
-			if cfg.IsFullMode() {
-				tui.SectionHeader(out, "Dependencies")
-				statuses := detect.CheckDependencies(detect.FullModeDeps)
-				for _, s := range statuses {
-					if s.Installed {
-						tui.OK(out, s.Name)
-					} else if s.Required {
-						tui.FAIL(out, fmt.Sprintf("%s not installed (install: %s)", s.Name, s.InstallCmd))
-						allOK = false
-					} else {
-						tui.SKIP(out, fmt.Sprintf("%s not installed (optional, install: %s)", s.Name, s.InstallCmd))
-					}
+			// 3. 의존성 확인
+			tui.SectionHeader(out, "Dependencies")
+			statuses := detect.CheckDependencies(detect.FullModeDeps)
+			for _, s := range statuses {
+				if s.Installed {
+					tui.OK(out, s.Name)
+				} else if s.Required {
+					tui.FAIL(out, fmt.Sprintf("%s not installed (install: %s)", s.Name, s.InstallCmd))
+					allOK = false
+				} else {
+					tui.SKIP(out, fmt.Sprintf("%s not installed (optional, install: %s)", s.Name, s.InstallCmd))
 				}
 			}
 

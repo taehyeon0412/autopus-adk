@@ -27,10 +27,6 @@ func TestDefaultFullConfig_OtherProvidersPromptViaArgsFalse(t *testing.T) {
 	claude, ok := cfg.Orchestra.Providers["claude"]
 	require.True(t, ok, "claude provider must exist")
 	assert.False(t, claude.PromptViaArgs, "claude provider must have PromptViaArgs=false")
-
-	codex, ok := cfg.Orchestra.Providers["codex"]
-	require.True(t, ok, "codex provider must exist")
-	assert.False(t, codex.PromptViaArgs, "codex provider must have PromptViaArgs=false")
 }
 
 func TestDefaultFullConfig_QualityPresets(t *testing.T) {
@@ -82,15 +78,31 @@ func TestDefaultFullConfig_QualityUltraAllOpus(t *testing.T) {
 	}
 }
 
-func TestDefaultLiteConfig_NoQuality(t *testing.T) {
+// TestDefaultFullConfig_CodexPromptViaArgs verifies R1:
+// codex provider must have PromptViaArgs=true in DefaultFullConfig.
+func TestDefaultFullConfig_CodexPromptViaArgs(t *testing.T) {
 	t.Parallel()
-
-	cfg := DefaultLiteConfig("test-project")
+	cfg := DefaultFullConfig("test-project")
 	require.NotNil(t, cfg)
 
-	// Lite config must have zero-value Quality: empty Default and nil Presets.
-	assert.Empty(t, cfg.Quality.Default, "lite config must have empty Quality.Default")
-	assert.Nil(t, cfg.Quality.Presets, "lite config must have nil Quality.Presets")
+	codex, ok := cfg.Orchestra.Providers["codex"]
+	require.True(t, ok, "codex provider must exist in default full config")
+	assert.True(t, codex.PromptViaArgs, "codex provider must have PromptViaArgs=true (R1)")
+}
+
+// TestDefaultFullConfig_AllCommandsIncludeCodex verifies R2:
+// all orchestra commands must include "codex" in their providers list.
+func TestDefaultFullConfig_AllCommandsIncludeCodex(t *testing.T) {
+	t.Parallel()
+	cfg := DefaultFullConfig("test-project")
+	require.NotNil(t, cfg)
+
+	for _, cmdName := range []string{"review", "plan", "secure"} {
+		cmd, ok := cfg.Orchestra.Commands[cmdName]
+		require.True(t, ok, "command %q must exist", cmdName)
+		assert.Contains(t, cmd.Providers, "codex",
+			"command %q must include codex in providers (R2)", cmdName)
+	}
 }
 
 // TestDefaultFullConfig_BrainstormCommand verifies that DefaultFullConfig includes

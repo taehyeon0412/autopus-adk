@@ -45,7 +45,7 @@ func TestGeminiAdapter_Generate_CreatesGeminiMD(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	a := gemini.NewWithRoot(dir)
-	cfg := config.DefaultLiteConfig("test-project")
+	cfg := config.DefaultFullConfig("test-project")
 
 	files, err := a.Generate(context.Background(), cfg)
 	require.NoError(t, err)
@@ -64,7 +64,7 @@ func TestGeminiAdapter_Generate_CreatesSkillsWithFrontmatter(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	a := gemini.NewWithRoot(dir)
-	cfg := config.DefaultLiteConfig("test-project")
+	cfg := config.DefaultFullConfig("test-project")
 
 	_, err := a.Generate(context.Background(), cfg)
 	require.NoError(t, err)
@@ -92,7 +92,7 @@ func TestGeminiAdapter_Generate_CreatesAgentsAliases(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	a := gemini.NewWithRoot(dir)
-	cfg := config.DefaultLiteConfig("test-project")
+	cfg := config.DefaultFullConfig("test-project")
 
 	_, err := a.Generate(context.Background(), cfg)
 	require.NoError(t, err)
@@ -108,7 +108,7 @@ func TestGeminiAdapter_Generate_PreservesUserContent(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	a := gemini.NewWithRoot(dir)
-	cfg := config.DefaultLiteConfig("test-project")
+	cfg := config.DefaultFullConfig("test-project")
 
 	// 기존 GEMINI.md 생성
 	userContent := "# My Gemini Rules\n\nCustom rules.\n"
@@ -131,7 +131,7 @@ func TestGeminiAdapter_Update(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	a := gemini.NewWithRoot(dir)
-	cfg := config.DefaultLiteConfig("test-project")
+	cfg := config.DefaultFullConfig("test-project")
 
 	_, err := a.Generate(context.Background(), cfg)
 	require.NoError(t, err)
@@ -152,7 +152,7 @@ func TestGeminiAdapter_Validate_AfterGenerate(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	a := gemini.NewWithRoot(dir)
-	cfg := config.DefaultLiteConfig("test-project")
+	cfg := config.DefaultFullConfig("test-project")
 
 	_, err := a.Generate(context.Background(), cfg)
 	require.NoError(t, err)
@@ -166,7 +166,7 @@ func TestGeminiAdapter_Clean(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	a := gemini.NewWithRoot(dir)
-	cfg := config.DefaultLiteConfig("test-project")
+	cfg := config.DefaultFullConfig("test-project")
 
 	_, err := a.Generate(context.Background(), cfg)
 	require.NoError(t, err)

@@ -20,7 +20,7 @@ func TestLoad_ValidYAML(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	content := `
-mode: lite
+mode: full
 project_name: test
 platforms:
   - claude-code
@@ -39,7 +39,7 @@ spec:
 
 	cfg, err := Load(dir)
 	require.NoError(t, err)
-	assert.Equal(t, ModeLite, cfg.Mode)
+	assert.Equal(t, ModeFull, cfg.Mode)
 	assert.Equal(t, "test", cfg.ProjectName)
 	assert.Equal(t, []string{"claude-code", "codex"}, cfg.Platforms)
 	assert.Equal(t, 30, cfg.Lore.StaleThresholdDays)
@@ -93,7 +93,7 @@ platforms:
 func TestSave(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	cfg := DefaultLiteConfig("save-test")
+	cfg := DefaultFullConfig("save-test")
 	err := Save(dir, cfg)
 	require.NoError(t, err)
 

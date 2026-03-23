@@ -24,14 +24,14 @@ func templateRoot() string {
 func TestSharedWorkflowTemplate_Lite(t *testing.T) {
 	t.Parallel()
 	e := tmpl.New()
-	cfg := config.DefaultLiteConfig("my-project")
+	cfg := config.DefaultFullConfig("my-project")
 
 	tmplPath := filepath.Join(templateRoot(), "shared", "workflow.md.tmpl")
 	result, err := e.RenderFile(tmplPath, cfg)
 	require.NoError(t, err)
 
 	assert.Contains(t, result, "my-project")
-	assert.Contains(t, result, "lite")
+	assert.Contains(t, result, "full")
 	assert.Contains(t, result, "/plan")
 	assert.Contains(t, result, "/go")
 }
@@ -53,14 +53,14 @@ func TestSharedWorkflowTemplate_Full(t *testing.T) {
 func TestSharedAutopusYamlTemplate(t *testing.T) {
 	t.Parallel()
 	e := tmpl.New()
-	cfg := config.DefaultLiteConfig("yaml-project")
+	cfg := config.DefaultFullConfig("yaml-project")
 
 	tmplPath := filepath.Join(templateRoot(), "shared", "autopus.yaml.tmpl")
 	result, err := e.RenderFile(tmplPath, cfg)
 	require.NoError(t, err)
 
 	assert.Contains(t, result, "yaml-project")
-	assert.Contains(t, result, "mode: lite")
+	assert.Contains(t, result, "mode: full")
 	assert.Contains(t, result, "claude-code")
 }
 
@@ -85,7 +85,7 @@ func TestClaudeRouterTemplate(t *testing.T) {
 func TestCodexSkillTemplates(t *testing.T) {
 	t.Parallel()
 	e := tmpl.New()
-	cfg := config.DefaultLiteConfig("codex-project")
+	cfg := config.DefaultFullConfig("codex-project")
 
 	skills := []string{
 		"auto-plan", "auto-go", "auto-fix", "auto-review", "auto-sync",
@@ -106,7 +106,7 @@ func TestCodexSkillTemplates(t *testing.T) {
 func TestGeminiSkillTemplates_HasFrontmatter(t *testing.T) {
 	t.Parallel()
 	e := tmpl.New()
-	cfg := config.DefaultLiteConfig("gemini-project")
+	cfg := config.DefaultFullConfig("gemini-project")
 
 	skills := []string{
 		"auto-plan", "auto-go", "auto-fix", "auto-review", "auto-sync",
@@ -133,20 +133,14 @@ func TestTemplates_FullModeConditionals(t *testing.T) {
 	e := tmpl.New()
 	root := templateRoot()
 
-	liteCfg := config.DefaultLiteConfig("test")
-	fullCfg := config.DefaultFullConfig("test")
+	cfg := config.DefaultFullConfig("test")
 
 	// 라우터 템플릿에서 Full 모드 조건부 블록 확인
 	tmplPath := filepath.Join(root, "claude", "commands", "auto-router.md.tmpl")
 
-	liteResult, err := e.RenderFile(tmplPath, liteCfg)
-	require.NoError(t, err)
-
-	fullResult, err := e.RenderFile(tmplPath, fullCfg)
+	result, err := e.RenderFile(tmplPath, cfg)
 	require.NoError(t, err)
 
 	// Full 모드에서는 go/review/secure 서브커맨드의 스킬 참조가 포함됨
-	assert.Contains(t, fullResult, "tdd.md")
-	// Lite 모드에서는 Full 전용 안내 메시지가 표시됨
-	assert.Contains(t, liteResult, "Full mode only")
+	assert.Contains(t, result, "tdd.md")
 }

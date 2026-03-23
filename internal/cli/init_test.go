@@ -10,12 +10,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestInitCmd_DefaultModeLite(t *testing.T) {
+func TestInitCmd_Default(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 
 	cmd := newTestRootCmd()
-	cmd.SetArgs([]string{"init", "--lite", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code"})
+	cmd.SetArgs([]string{"init", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code"})
 	err := cmd.Execute()
 	require.NoError(t, err)
 
@@ -24,12 +24,12 @@ func TestInitCmd_DefaultModeLite(t *testing.T) {
 	require.NoError(t, statErr, "autopus.yaml이 생성되어야 함")
 }
 
-func TestInitCmd_FullMode(t *testing.T) {
+func TestInitCmd_CreatesAutopusYaml(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 
 	cmd := newTestRootCmd()
-	cmd.SetArgs([]string{"init", "--full", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code"})
+	cmd.SetArgs([]string{"init", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code"})
 	err := cmd.Execute()
 	require.NoError(t, err)
 
@@ -42,7 +42,7 @@ func TestInitCmd_CreatesGitignore(t *testing.T) {
 	dir := t.TempDir()
 
 	cmd := newTestRootCmd()
-	cmd.SetArgs([]string{"init", "--lite", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code"})
+	cmd.SetArgs([]string{"init", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code"})
 	err := cmd.Execute()
 	require.NoError(t, err)
 
@@ -61,7 +61,7 @@ func TestInitCmd_MultiplePlatforms(t *testing.T) {
 	dir := t.TempDir()
 
 	cmd := newTestRootCmd()
-	cmd.SetArgs([]string{"init", "--lite", "--dir", dir, "--project", "test-proj",
+	cmd.SetArgs([]string{"init", "--dir", dir, "--project", "test-proj",
 		"--platforms", "claude-code,codex"})
 	err := cmd.Execute()
 	require.NoError(t, err)
@@ -79,7 +79,7 @@ func TestInitCmd_ClaudeCodePlatform_CreatesFiles(t *testing.T) {
 	dir := t.TempDir()
 
 	cmd := newTestRootCmd()
-	cmd.SetArgs([]string{"init", "--lite", "--dir", dir, "--project", "my-project", "--platforms", "claude-code"})
+	cmd.SetArgs([]string{"init", "--dir", dir, "--project", "my-project", "--platforms", "claude-code"})
 	err := cmd.Execute()
 	require.NoError(t, err)
 
@@ -89,19 +89,4 @@ func TestInitCmd_ClaudeCodePlatform_CreatesFiles(t *testing.T) {
 
 	_, statErr = os.Stat(filepath.Join(dir, "CLAUDE.md"))
 	require.NoError(t, statErr, "CLAUDE.md가 존재해야 함")
-}
-
-func TestInitCmd_DefaultModeIsLite(t *testing.T) {
-	t.Parallel()
-	dir := t.TempDir()
-
-	// --full도 --lite도 없으면 lite가 기본값
-	cmd := newTestRootCmd()
-	cmd.SetArgs([]string{"init", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code"})
-	err := cmd.Execute()
-	require.NoError(t, err)
-
-	data, err := os.ReadFile(filepath.Join(dir, "autopus.yaml"))
-	require.NoError(t, err)
-	assert.Contains(t, string(data), "lite")
 }

@@ -68,7 +68,7 @@ func TestRouter_Generate_LiteMode_ExcludesFullOnlyCommands(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	a := claude.NewWithRoot(dir)
-	cfg := config.DefaultLiteConfig("test-project")
+	cfg := config.DefaultFullConfig("test-project")
 
 	_, err := a.Generate(context.Background(), cfg)
 	require.NoError(t, err)
@@ -112,7 +112,7 @@ func TestRouter_ClaudeMD_ShowsAutoMDPath(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	a := claude.NewWithRoot(dir)
-	cfg := config.DefaultLiteConfig("test-project")
+	cfg := config.DefaultFullConfig("test-project")
 
 	_, err := a.Generate(context.Background(), cfg)
 	require.NoError(t, err)
@@ -130,7 +130,7 @@ func TestRouter_Validate_ChecksAutoMDFile(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	a := claude.NewWithRoot(dir)
-	cfg := config.DefaultLiteConfig("test-project")
+	cfg := config.DefaultFullConfig("test-project")
 
 	_, err := a.Generate(context.Background(), cfg)
 	require.NoError(t, err)
@@ -176,7 +176,7 @@ func TestRouter_Clean_RemovesAutoMD(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	a := claude.NewWithRoot(dir)
-	cfg := config.DefaultLiteConfig("test-project")
+	cfg := config.DefaultFullConfig("test-project")
 
 	_, err := a.Generate(context.Background(), cfg)
 	require.NoError(t, err)
@@ -225,7 +225,7 @@ func TestRouter_Generate_FileMappingPath(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	a := claude.NewWithRoot(dir)
-	cfg := config.DefaultLiteConfig("test-project")
+	cfg := config.DefaultFullConfig("test-project")
 
 	files, err := a.Generate(context.Background(), cfg)
 	require.NoError(t, err)

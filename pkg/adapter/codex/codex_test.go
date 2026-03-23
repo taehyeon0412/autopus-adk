@@ -45,7 +45,7 @@ func TestCodexAdapter_Generate_CreatesAgentsMD(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	a := codex.NewWithRoot(dir)
-	cfg := config.DefaultLiteConfig("test-project")
+	cfg := config.DefaultFullConfig("test-project")
 
 	files, err := a.Generate(context.Background(), cfg)
 	require.NoError(t, err)
@@ -64,7 +64,7 @@ func TestCodexAdapter_Generate_CreatesSkillsDirectory(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	a := codex.NewWithRoot(dir)
-	cfg := config.DefaultLiteConfig("test-project")
+	cfg := config.DefaultFullConfig("test-project")
 
 	_, err := a.Generate(context.Background(), cfg)
 	require.NoError(t, err)
@@ -80,7 +80,7 @@ func TestCodexAdapter_Generate_PreservesUserContent(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	a := codex.NewWithRoot(dir)
-	cfg := config.DefaultLiteConfig("test-project")
+	cfg := config.DefaultFullConfig("test-project")
 
 	// 기존 AGENTS.md 생성
 	userContent := "# My Agent Rules\n\nCustom agent rules here.\n"
@@ -104,7 +104,7 @@ func TestCodexAdapter_Update(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	a := codex.NewWithRoot(dir)
-	cfg := config.DefaultLiteConfig("test-project")
+	cfg := config.DefaultFullConfig("test-project")
 
 	_, err := a.Generate(context.Background(), cfg)
 	require.NoError(t, err)
@@ -126,7 +126,7 @@ func TestCodexAdapter_Validate_AfterGenerate(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	a := codex.NewWithRoot(dir)
-	cfg := config.DefaultLiteConfig("test-project")
+	cfg := config.DefaultFullConfig("test-project")
 
 	_, err := a.Generate(context.Background(), cfg)
 	require.NoError(t, err)
@@ -140,7 +140,7 @@ func TestCodexAdapter_Clean(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	a := codex.NewWithRoot(dir)
-	cfg := config.DefaultLiteConfig("test-project")
+	cfg := config.DefaultFullConfig("test-project")
 
 	_, err := a.Generate(context.Background(), cfg)
 	require.NoError(t, err)

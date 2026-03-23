@@ -21,14 +21,6 @@ func TestHarnessConfig_Validate_Valid(t *testing.T) {
 				Platforms:   []string{"claude-code"},
 			},
 		},
-		{
-			name: "lite mode",
-			cfg: HarnessConfig{
-				Mode:        ModeLite,
-				ProjectName: "test-project",
-				Platforms:   []string{"claude-code", "codex"},
-			},
-		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -81,11 +73,6 @@ func TestHarnessConfig_ModeHelpers(t *testing.T) {
 	t.Parallel()
 	full := HarnessConfig{Mode: ModeFull}
 	assert.True(t, full.IsFullMode())
-	assert.False(t, full.IsLiteMode())
-
-	lite := HarnessConfig{Mode: ModeLite}
-	assert.False(t, lite.IsFullMode())
-	assert.True(t, lite.IsLiteMode())
 }
 
 func TestHarnessConfig_Validate_QualityDefaultExists(t *testing.T) {

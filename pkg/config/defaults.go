@@ -64,13 +64,13 @@ func DefaultFullConfig(projectName string) *HarnessConfig {
 			TimeoutSeconds:  120,
 			Providers: map[string]ProviderEntry{
 				"claude": {Binary: "claude", Args: []string{"--print"}},
-				"codex":  {Binary: "codex", Args: []string{"--quiet"}},
+				"codex":  {Binary: "codex", Args: []string{"--quiet"}, PromptViaArgs: true},
 				"gemini": {Binary: "gemini", Args: []string{}, PromptViaArgs: true},
 			},
 			Commands: map[string]CommandEntry{
 				"review": {Strategy: "debate", Providers: []string{"claude", "codex", "gemini"}},
-				"plan":   {Strategy: "consensus", Providers: []string{"claude", "gemini"}},
-				"secure":     {Strategy: "consensus", Providers: []string{"claude", "gemini"}},
+				"plan":   {Strategy: "consensus", Providers: []string{"claude", "codex", "gemini"}},
+				"secure":     {Strategy: "consensus", Providers: []string{"claude", "codex", "gemini"}},
 				"brainstorm": {Strategy: "debate", Providers: []string{"claude", "codex", "gemini"}},
 			},
 		},
@@ -127,40 +127,3 @@ func DefaultFullConfig(projectName string) *HarnessConfig {
 	}
 }
 
-// DefaultLiteConfig는 Lite 모드 기본 설정을 반환한다.
-func DefaultLiteConfig(projectName string) *HarnessConfig {
-	return &HarnessConfig{
-		Mode:        ModeLite,
-		ProjectName: projectName,
-		Platforms:   []string{"claude-code"},
-		Architecture: ArchitectureConf{
-			AutoGenerate: true,
-			Enforce:      true,
-		},
-		Lore: LoreConf{
-			Enabled:            true,
-			RequiredTrailers:   []string{"Constraint"},
-			StaleThresholdDays: 90,
-		},
-		Spec: SpecConf{
-			IDFormat:  "SPEC-{DOMAIN}-{NUMBER}",
-			EARSTypes: []string{"ubiquitous", "event-driven", "unwanted", "optional", "complex"},
-		},
-		Hooks: HooksConf{
-			PreCommitArch: true,
-		},
-		Orchestra: OrchestraConf{
-			Enabled: false,
-		},
-		Skills: SkillsConf{
-			AutoActivate:    true,
-			MaxActiveSkills: 3,
-		},
-		Context: ContextConf{
-			SignatureMap: true,
-		},
-		Telemetry: TelemetryConf{
-			Enabled: false,
-		},
-	}
-}

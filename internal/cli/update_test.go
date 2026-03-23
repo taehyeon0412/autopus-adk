@@ -2,12 +2,15 @@
 package cli_test
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/insajin/autopus-adk/pkg/config"
 )
 
 func TestUpdateCmd_RequiresExistingConfig(t *testing.T) {
@@ -29,7 +32,7 @@ func TestUpdateCmd_UpdatesAfterInit(t *testing.T) {
 
 	// 먼저 init 실행
 	initCmd := newTestRootCmd()
-	initCmd.SetArgs([]string{"init", "--lite", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code"})
+	initCmd.SetArgs([]string{"init", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code"})
 	require.NoError(t, initCmd.Execute())
 
 	// CLAUDE.md 수정 시간 기록
@@ -55,7 +58,7 @@ func TestUpdateCmd_PreservesUserModifications(t *testing.T) {
 
 	// init 실행
 	initCmd := newTestRootCmd()
-	initCmd.SetArgs([]string{"init", "--lite", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code"})
+	initCmd.SetArgs([]string{"init", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code"})
 	require.NoError(t, initCmd.Execute())
 
 	// CLAUDE.md에 사용자 컨텐츠 추가
@@ -76,4 +79,107 @@ func TestUpdateCmd_PreservesUserModifications(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(updated), "My Custom Section")
 	assert.Contains(t, string(updated), "User-defined rules.")
+}
+
+// TestUpdateCmd_MigratesCodexPromptViaArgs verifies R4:
+// update must migrate codex PromptViaArgs from false to true.
+func TestUpdateCmd_MigratesCodexPromptViaArgs(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+
+	// Given: a full-mode project with codex
+	initCmd := newTestRootCmd()
+	initCmd.SetArgs([]string{"init", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code,codex"})
+	require.NoError(t, initCmd.Execute())
+
+	// Manually set codex PromptViaArgs=false to simulate old config
+	cfg, err := loadConfigFromDir(dir)
+	require.NoError(t, err)
+	if cfg.Orchestra.Providers == nil {
+		cfg.Orchestra.Providers = make(map[string]config.ProviderEntry)
+	}
+	codexEntry := cfg.Orchestra.Providers["codex"]
+	codexEntry.PromptViaArgs = false
+	cfg.Orchestra.Providers["codex"] = codexEntry
+	require.NoError(t, config.Save(dir, cfg))
+
+	// When: update is executed
+	updateCmd := newTestRootCmd()
+	updateCmd.SetArgs([]string{"update", "--dir", dir})
+	require.NoError(t, updateCmd.Execute())
+
+	// Then: codex must have PromptViaArgs=true (R4)
+	cfgAfter, loadErr := loadConfigFromDir(dir)
+	require.NoError(t, loadErr)
+	codex, ok := cfgAfter.Orchestra.Providers["codex"]
+	require.True(t, ok, "codex must exist after update")
+	assert.True(t, codex.PromptViaArgs, "codex PromptViaArgs must be migrated to true (R4)")
+}
+
+// TestUpdateCmd_NoAdapterPlatformIsSkipped verifies that a valid but adapter-less
+// platform (e.g. "opencode") in config is skipped with a warning, and update
+// still completes successfully.
+func TestUpdateCmd_NoAdapterPlatformIsSkipped(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+
+	// Init with claude-code first.
+	initCmd := newTestRootCmd()
+	initCmd.SetArgs([]string{"init", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code"})
+	require.NoError(t, initCmd.Execute())
+
+	// Reload config and add "opencode" — valid platform but no update adapter.
+	cfg, err := loadConfigFromDir(dir)
+	require.NoError(t, err)
+	cfg.Platforms = append(cfg.Platforms, "opencode")
+	require.NoError(t, config.Save(dir, cfg))
+
+	var out bytes.Buffer
+	updateCmd := newTestRootCmd()
+	updateCmd.SetOut(&out)
+	updateCmd.SetArgs([]string{"update", "--dir", dir})
+	require.NoError(t, updateCmd.Execute(), "update must succeed even when opencode has no adapter")
+	assert.Contains(t, out.String(), "경고", "output must warn about platform with no adapter")
+}
+
+// TestUpdateCmd_AddsCodexToOrchestraCommands verifies R5:
+// update must add codex to orchestra command providers when missing.
+func TestUpdateCmd_AddsCodexToOrchestraCommands(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+
+	// Given: full-mode project with codex platform
+	initCmd := newTestRootCmd()
+	initCmd.SetArgs([]string{"init", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code,codex"})
+	require.NoError(t, initCmd.Execute())
+
+	// Remove codex from command providers to simulate old config
+	cfg, err := loadConfigFromDir(dir)
+	require.NoError(t, err)
+	for cmdName, entry := range cfg.Orchestra.Commands {
+		var filtered []string
+		for _, p := range entry.Providers {
+			if p != "codex" {
+				filtered = append(filtered, p)
+			}
+		}
+		entry.Providers = filtered
+		cfg.Orchestra.Commands[cmdName] = entry
+	}
+	require.NoError(t, config.Save(dir, cfg))
+
+	// When: update is executed
+	updateCmd := newTestRootCmd()
+	updateCmd.SetArgs([]string{"update", "--dir", dir})
+	require.NoError(t, updateCmd.Execute())
+
+	// Then: all commands must include codex (R5)
+	cfgAfter, loadErr := loadConfigFromDir(dir)
+	require.NoError(t, loadErr)
+	for _, cmdName := range []string{"review", "plan", "secure"} {
+		entry, ok := cfgAfter.Orchestra.Commands[cmdName]
+		require.True(t, ok, "command %q must exist", cmdName)
+		assert.Contains(t, entry.Providers, "codex",
+			"command %q must include codex after update (R5)", cmdName)
+	}
 }

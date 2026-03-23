@@ -85,7 +85,7 @@ func newPlatformAddCmd(dir *string) *cobra.Command {
 
 			// 유효한 플랫폼 확인 (임시 config로 검증)
 			testCfg := &config.HarnessConfig{
-				Mode:        config.ModeLite,
+				Mode:        config.ModeFull,
 				ProjectName: "test",
 				Platforms:   []string{platform},
 			}
@@ -107,6 +107,16 @@ func newPlatformAddCmd(dir *string) *cobra.Command {
 			}
 
 			cfg.Platforms = append(cfg.Platforms, platform)
+
+			// Update orchestra config for the new platform
+			providerName := config.PlatformToProvider(platform)
+			if providerName == "" {
+				providerName = platform
+			}
+			if err := config.EnsureOrchestraProvider(cfg, providerName); err != nil {
+				return fmt.Errorf("orchestra 설정 갱신 실패: %w", err)
+			}
+
 			if err := config.Save(d, cfg); err != nil {
 				return fmt.Errorf("설정 저장 실패: %w", err)
 			}

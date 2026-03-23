@@ -357,7 +357,7 @@ func TestUpdateCmd_WithDir(t *testing.T) {
 
 	// 먼저 init으로 설정 파일 생성
 	initCmd := newTestRootCmd()
-	initCmd.SetArgs([]string{"init", "--lite", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code"})
+	initCmd.SetArgs([]string{"init", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code"})
 	require.NoError(t, initCmd.Execute())
 
 	// update 실행
@@ -394,7 +394,7 @@ func TestPlatformListCmd_WithDetected(t *testing.T) {
 
 	// 설정 파일 생성
 	initCmd := newTestRootCmd()
-	initCmd.SetArgs([]string{"init", "--lite", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code"})
+	initCmd.SetArgs([]string{"init", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code"})
 	require.NoError(t, initCmd.Execute())
 
 	var buf bytes.Buffer
@@ -417,7 +417,7 @@ func TestPlatformAddCmd_AlreadyExists(t *testing.T) {
 
 	// 설정 파일 생성
 	initCmd := newTestRootCmd()
-	initCmd.SetArgs([]string{"init", "--lite", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code"})
+	initCmd.SetArgs([]string{"init", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code"})
 	require.NoError(t, initCmd.Execute())
 
 	// 이미 있는 플랫폼 추가 시도
@@ -438,7 +438,7 @@ func TestPlatformRemoveCmd_NotFound(t *testing.T) {
 
 	// 설정 파일 생성
 	initCmd := newTestRootCmd()
-	initCmd.SetArgs([]string{"init", "--lite", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code"})
+	initCmd.SetArgs([]string{"init", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code"})
 	require.NoError(t, initCmd.Execute())
 
 	// 없는 플랫폼 제거 시도
@@ -459,7 +459,7 @@ func TestPlatformRemoveCmd_LastPlatform(t *testing.T) {
 
 	// 단일 플랫폼으로 설정
 	initCmd := newTestRootCmd()
-	initCmd.SetArgs([]string{"init", "--lite", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code"})
+	initCmd.SetArgs([]string{"init", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code"})
 	require.NoError(t, initCmd.Execute())
 
 	// 마지막 플랫폼 제거 시도 - 오류가 발생해야 함
@@ -477,7 +477,7 @@ func TestDoctorCmd_WithConfig(t *testing.T) {
 
 	// 설정 파일 생성
 	initCmd := newTestRootCmd()
-	initCmd.SetArgs([]string{"init", "--lite", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code"})
+	initCmd.SetArgs([]string{"init", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code"})
 	require.NoError(t, initCmd.Execute())
 
 	var buf bytes.Buffer

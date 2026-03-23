@@ -20,17 +20,14 @@ func TestDefaultFullConfig_HasVerify(t *testing.T) {
 	assert.Equal(t, 2, cfg.Verify.MaxFixAttempts)
 }
 
-// TestDefaultLiteConfig_NoVerify verifies VerifyConf is zero-valued in lite config.
-func TestDefaultLiteConfig_NoVerify(t *testing.T) {
+// TestDefaultFullConfig_NoVerifyZeroValue verifies VerifyConf zero-value behavior in full config.
+func TestDefaultFullConfig_NoVerify(t *testing.T) {
 	t.Parallel()
 
-	cfg := DefaultLiteConfig("test")
+	cfg := DefaultFullConfig("test")
 	require.NotNil(t, cfg)
 
-	assert.False(t, cfg.Verify.Enabled, "Verify.Enabled must be false (zero value) in lite config")
-	assert.Empty(t, cfg.Verify.DefaultViewport)
-	assert.False(t, cfg.Verify.AutoFix)
-	assert.Zero(t, cfg.Verify.MaxFixAttempts)
+	assert.True(t, cfg.Verify.Enabled, "Verify.Enabled must be true in full config")
 }
 
 // TestVerifyConf_YAMLTags verifies that VerifyConf fields have the expected yaml tags

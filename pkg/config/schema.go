@@ -8,7 +8,6 @@ type Mode string
 
 const (
 	ModeFull Mode = "full"
-	ModeLite Mode = "lite"
 )
 
 // LanguageConf는 프로젝트 언어 설정이다.
@@ -194,8 +193,8 @@ type ContextConf struct {
 
 // Validate는 설정의 유효성을 검증한다.
 func (c *HarnessConfig) Validate() error {
-	if c.Mode != ModeFull && c.Mode != ModeLite {
-		return fmt.Errorf("invalid mode %q: must be 'full' or 'lite'", c.Mode)
+	if c.Mode != ModeFull {
+		return fmt.Errorf("invalid mode %q: must be 'full'", c.Mode)
 	}
 	if c.ProjectName == "" {
 		return fmt.Errorf("project_name is required")
@@ -228,14 +227,9 @@ func (c *HarnessConfig) Validate() error {
 	return nil
 }
 
-// IsFullMode는 Full 모드 여부를 반환한다.
+// IsFullMode는 Full 모드 여부를 반환한다. 항상 true를 반환한다.
 func (c *HarnessConfig) IsFullMode() bool {
 	return c.Mode == ModeFull
-}
-
-// IsLiteMode는 Lite 모드 여부를 반환한다.
-func (c *HarnessConfig) IsLiteMode() bool {
-	return c.Mode == ModeLite
 }
 
 var validPlatforms = map[string]bool{

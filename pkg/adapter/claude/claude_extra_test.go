@@ -20,7 +20,7 @@ func TestClaudeAdapter_CleanRemovesFiles(t *testing.T) {
 
 	dir := t.TempDir()
 	a := claude.NewWithRoot(dir)
-	cfg := config.DefaultLiteConfig("test-project")
+	cfg := config.DefaultFullConfig("test-project")
 
 	// 먼저 Generate로 파일 생성
 	_, err := a.Generate(context.Background(), cfg)
@@ -57,7 +57,7 @@ func TestClaudeAdapter_Validate_NoErrors(t *testing.T) {
 
 	dir := t.TempDir()
 	a := claude.NewWithRoot(dir)
-	cfg := config.DefaultLiteConfig("test-project")
+	cfg := config.DefaultFullConfig("test-project")
 
 	// Generate 실행
 	_, err := a.Generate(context.Background(), cfg)
@@ -110,14 +110,14 @@ func TestClaudeAdapter_Generate_WithExistingMarker(t *testing.T) {
 
 	dir := t.TempDir()
 	a := claude.NewWithRoot(dir)
-	cfg := config.DefaultLiteConfig("project-v1")
+	cfg := config.DefaultFullConfig("project-v1")
 
 	// 첫 번째 Generate
 	_, err := a.Generate(context.Background(), cfg)
 	require.NoError(t, err)
 
 	// 프로젝트 이름 변경 후 두 번째 Generate
-	cfg2 := config.DefaultLiteConfig("project-v2")
+	cfg2 := config.DefaultFullConfig("project-v2")
 	_, err = a.Generate(context.Background(), cfg2)
 	require.NoError(t, err)
 

@@ -221,7 +221,7 @@ func TestPlatformAddCmd_GeminiCLI(t *testing.T) {
 
 	// 설정 파일 생성
 	initCmd := newTestRootCmd()
-	initCmd.SetArgs([]string{"init", "--lite", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code"})
+	initCmd.SetArgs([]string{"init", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code"})
 	assert.NoError(t, initCmd.Execute())
 
 	// gemini-cli 추가
@@ -239,7 +239,7 @@ func TestPlatformRemoveCmd_Codex(t *testing.T) {
 
 	// 두 플랫폼으로 초기화
 	initCmd := newTestRootCmd()
-	initCmd.SetArgs([]string{"init", "--lite", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code,codex"})
+	initCmd.SetArgs([]string{"init", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code,codex"})
 	assert.NoError(t, initCmd.Execute())
 
 	// codex 제거
@@ -259,7 +259,7 @@ func TestUpdateCmd_UnknownPlatform(t *testing.T) {
 	// 설정 파일 생성 후 직접 수정하여 알 수 없는 플랫폼 추가는 어려우므로
 	// 기본 설정으로만 테스트
 	initCmd := newTestRootCmd()
-	initCmd.SetArgs([]string{"init", "--lite", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code"})
+	initCmd.SetArgs([]string{"init", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code"})
 	assert.NoError(t, initCmd.Execute())
 
 	updateCmd := newTestRootCmd()

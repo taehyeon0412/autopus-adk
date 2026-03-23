@@ -30,7 +30,7 @@ func TestCodexAdapter_CleanRemovesFiles(t *testing.T) {
 
 	dir := t.TempDir()
 	a := codex.NewWithRoot(dir)
-	cfg := config.DefaultLiteConfig("test-project")
+	cfg := config.DefaultFullConfig("test-project")
 
 	// 먼저 Generate로 파일 생성
 	_, err := a.Generate(context.Background(), cfg)
@@ -59,7 +59,7 @@ func TestCodexAdapter_Validate_NoErrors(t *testing.T) {
 
 	dir := t.TempDir()
 	a := codex.NewWithRoot(dir)
-	cfg := config.DefaultLiteConfig("test-project")
+	cfg := config.DefaultFullConfig("test-project")
 
 	// Generate 실행
 	_, err := a.Generate(context.Background(), cfg)
@@ -107,7 +107,7 @@ func TestCodexAdapter_Generate_CreatesAgentMd(t *testing.T) {
 
 	dir := t.TempDir()
 	a := codex.NewWithRoot(dir)
-	cfg := config.DefaultLiteConfig("test-project")
+	cfg := config.DefaultFullConfig("test-project")
 
 	_, err := a.Generate(context.Background(), cfg)
 	require.NoError(t, err)
