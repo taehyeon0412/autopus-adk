@@ -1,0 +1,234 @@
+# PRD: [Product/Feature Title]
+
+> Product Requirements Document — Standard (10-section format).
+> Fill in each section using the placeholder guidance below.
+
+- **SPEC-ID**: [e.g., SPEC-PRD-001]
+- **Author**: [Name or team]
+- **Status**: Draft | Review | Approved
+- **Date**: [YYYY-MM-DD]
+
+---
+
+## 1. Problem & Context
+
+> Describe the problem being solved and why it matters now.
+> Cover: current situation, user pain points, business impact, and the motivation for this change.
+
+**Current Situation**
+
+[Describe the current state. What exists today? What is not working?]
+
+**Problem Statement**
+
+[Articulate the core problem in 1-3 sentences. Be specific about who is affected and how.]
+
+**Impact**
+
+[What happens if this problem is not solved? Quantify if possible — e.g., X% of users affected, N hours of manual work per week.]
+
+**Change Motivation**
+
+[Why now? What triggered this initiative — user feedback, business goal, technical debt, regulatory requirement?]
+
+---
+
+## 2. Goals & Success Metrics
+
+> Define SMART goals (Specific, Measurable, Achievable, Relevant, Time-bound).
+> Each goal must have at least one quantitative success criterion.
+
+| Goal | Success Metric | Target | Timeline |
+|------|---------------|--------|----------|
+| [Goal 1] | [Metric — e.g., task completion rate] | [e.g., ≥ 90%] | [e.g., Q2 2026] |
+| [Goal 2] | [Metric] | [Target] | [Timeline] |
+| [Goal 3] | [Metric] | [Target] | [Timeline] |
+
+**Anti-Goals** (what success does NOT look like)
+
+- [State what you are explicitly NOT optimizing for]
+
+---
+
+## 3. Target Users
+
+> Identify who will use this feature, how often, and what they expect.
+
+| User Group | Role | Usage Frequency | Key Expectation |
+|------------|------|-----------------|-----------------|
+| [Group 1] | [e.g., End user / Admin / Developer] | [Daily / Weekly / Occasional] | [Primary need or expectation] |
+| [Group 2] | [Role] | [Frequency] | [Expectation] |
+
+**Primary User**: [Which group matters most for MVP? State one.]
+
+---
+
+## 4. User Stories
+
+> Write stories from the user's perspective. Include acceptance criteria in Given-When-Then format.
+
+### Story 1: [Short descriptive title]
+
+**As a** [role],
+**I want** [action or capability],
+**so that** [benefit or outcome].
+
+**Acceptance Criteria**
+
+- Given [precondition], when [action], then [expected result].
+- Given [precondition], when [action], then [expected result].
+
+---
+
+### Story 2: [Short descriptive title]
+
+**As a** [role],
+**I want** [action or capability],
+**so that** [benefit or outcome].
+
+**Acceptance Criteria**
+
+- Given [precondition], when [action], then [expected result].
+
+---
+
+### Story 3: [Add more stories as needed]
+
+[Use the same format above.]
+
+---
+
+## 5. Functional Requirements
+
+> Prioritize all requirements using MoSCoW: P0 = Must Have, P1 = Should Have, P2 = Could Have.
+
+### P0 — Must Have
+
+| ID | Requirement | Notes |
+|----|-------------|-------|
+| FR-01 | [Requirement description] | [Any clarification or constraint] |
+| FR-02 | [Requirement description] | |
+| FR-03 | [Requirement description] | |
+
+### P1 — Should Have
+
+| ID | Requirement | Notes |
+|----|-------------|-------|
+| FR-10 | [Requirement description] | |
+| FR-11 | [Requirement description] | |
+
+### P2 — Could Have
+
+| ID | Requirement | Notes |
+|----|-------------|-------|
+| FR-20 | [Requirement description] | |
+
+---
+
+## 6. Non-Functional Requirements
+
+> Specify measurable constraints on system behavior — not what it does, but how well it does it.
+
+| Category | Requirement | Target |
+|----------|-------------|--------|
+| Performance | [e.g., API response time] | [e.g., p99 < 200ms under 1000 RPS] |
+| Security | [e.g., authentication method] | [e.g., OAuth 2.0, no plaintext credentials] |
+| Scalability | [e.g., concurrent users] | [e.g., support 10,000 concurrent sessions] |
+| Availability | [e.g., uptime SLA] | [e.g., 99.9% monthly uptime] |
+| Data Retention | [e.g., log retention] | [e.g., 90-day rolling window] |
+| Compliance | [e.g., GDPR, SOC 2] | [e.g., PII must be encrypted at rest] |
+
+---
+
+## 7. Technical Constraints
+
+> List constraints imposed by existing systems, technology choices, or external dependencies.
+
+**Technology Stack Constraints**
+
+- [e.g., Must use existing Go 1.22+ service — no new language runtimes]
+- [e.g., Frontend must remain in React 18; no framework migration]
+
+**External Dependencies**
+
+| Dependency | Version / SLA | Risk if Unavailable |
+|------------|---------------|---------------------|
+| [Service or library name] | [Version or SLA] | [Impact description] |
+
+**Compatibility Requirements**
+
+- [e.g., Must support Chrome 110+, Safari 16+, Firefox 120+]
+- [e.g., API must remain backward-compatible with v2 clients for 6 months]
+
+**Infrastructure Constraints**
+
+- [e.g., Deployment target: AWS us-east-1 only]
+- [e.g., No new managed services without SRE approval]
+
+---
+
+## 8. Out of Scope
+
+> Explicitly list what this initiative will NOT deliver. Prevents scope creep.
+
+The following are out of scope for this release:
+
+- [Item 1 — e.g., Mobile native app support]
+- [Item 2 — e.g., Multi-language localization beyond EN/KO]
+- [Item 3 — e.g., Offline mode]
+- [Item 4 — e.g., Bulk data export]
+
+**Deferred to Future Iterations**
+
+- [Feature or capability deferred and why — e.g., Admin dashboard deferred to v2 pending UX research]
+
+---
+
+## 9. Risks & Open Questions
+
+> Identify known risks and unresolved questions. Each item must include severity and mitigation.
+
+### Risks
+
+| Risk | Severity | Probability | Mitigation Strategy |
+|------|----------|-------------|---------------------|
+| [Risk description] | High / Medium / Low | High / Medium / Low | [How to reduce or accept this risk] |
+| [Risk description] | [Severity] | [Probability] | [Mitigation] |
+
+### Open Questions
+
+| # | Question | Owner | Due Date | Status |
+|---|----------|-------|----------|--------|
+| Q1 | [Unresolved question affecting design or scope] | [Name] | [YYYY-MM-DD] | Open / Resolved |
+| Q2 | [Question] | [Name] | [Date] | Open |
+
+---
+
+## 10. Practitioner Q&A
+
+> Key questions an implementer must answer before or during development.
+> Target 5-10 questions. Mark each with the answer once resolved.
+
+**Q1: [Question about the core data model or API contract]**
+A: [Answer, or "TBD — see Open Questions Q1"]
+
+**Q2: [Question about edge cases or error handling]**
+A: [Answer]
+
+**Q3: [Question about integration with existing systems]**
+A: [Answer]
+
+**Q4: [Question about rollout strategy — feature flag, gradual rollout, etc.]**
+A: [Answer]
+
+**Q5: [Question about observability — what metrics/logs are needed?]**
+A: [Answer]
+
+**Q6: [Question about rollback plan if the feature causes incidents]**
+A: [Answer]
+
+**Q7: [Question about data migration or backward compatibility]**
+A: [Answer]
+
+**Q8: [Add more as needed]**
+A: [Answer]

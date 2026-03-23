@@ -91,6 +91,7 @@ cmd/auto/main.go
 | Agent Pipeline | `.claude/skills/autopus/agent-pipeline.md` | 5-Phase multi-agent orchestration with worktree isolation (planner→executor→validator→tester→reviewer) |
 | Worktree Isolation | `.claude/skills/autopus/worktree-isolation.md` | Parallel executor worktree isolation with file ownership conflict detection |
 | Shared Templates | `templates/shared/` | Cross-platform branding & UX format fragments |
+| PRD Templates | `templates/shared/prd-*.md.tmpl` | PRD Standard (10 sections) and Minimal (5 sections) reference templates |
 | Activator | `pkg/content/activator.go` | Skills auto-activation based on user query and context |
 | SigMap | `pkg/sigmap/extractor.go` | go/ast-based exported API inventory extraction |
 | Constraint | `pkg/constraint/checker.go` | Pattern-based anti-pattern violation scanning |

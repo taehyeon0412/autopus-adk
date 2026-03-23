@@ -51,7 +51,7 @@ func Check(dir string, constraints []Constraint, opts CheckOptions) ([]Violation
 
 		fileViolations, scanErr := checkFile(path, filtered)
 		if scanErr != nil {
-			// @AX:TODO [AUTO]: Propagate or log scan errors — SPEC-ANTI-001 @AX:CYCLE:2
+			// @AX:WARN [AUTO]: Propagate or log scan errors — SPEC-ANTI-001 @AX:CYCLE:3 @AX:REASON: escalated from TODO after 3 cycles
 			return nil // skip unreadable files
 		}
 		violations = append(violations, fileViolations...)

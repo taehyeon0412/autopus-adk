@@ -1,0 +1,89 @@
+# PRD Minimal: [Feature / Bug / Refactor Title]
+
+> Lightweight PRD for simple features, bug fixes, and refactors.
+> Fill in each section. Remove placeholder text before finalizing.
+
+---
+
+## 1. Problem
+
+<!--
+State the core problem in 1-2 sentences.
+Answer: what is broken or missing, and why does it need to be fixed now?
+-->
+
+[Describe the current state and the pain it causes. Example: "Users cannot reset their
+password without contacting support, causing N support tickets per week."]
+
+---
+
+## 2. Requirements
+
+<!--
+List only P0 (Must Have) requirements.
+Use EARS format where possible:
+  WHEN <trigger>, THE SYSTEM SHALL <behavior>.
+  WHILE <state>, THE SYSTEM SHALL <behavior>.
+  WHERE <context>, THE SYSTEM SHALL <behavior>.
+-->
+
+- WHEN [trigger condition], THE SYSTEM SHALL [expected behavior].
+- WHEN [trigger condition], THE SYSTEM SHALL [expected behavior].
+- THE SYSTEM SHALL [always-on behavior without a trigger].
+
+<!--
+Add more bullets as needed. Keep each requirement atomic and testable.
+Remove any bullet that is not strictly required for this change.
+-->
+
+---
+
+## 3. Technical Notes
+
+<!--
+Record technical constraints, dependencies, and impact on existing code.
+Be specific: name files, packages, APIs, or services affected.
+-->
+
+**Constraints:**
+- [e.g., Must stay within the existing auth package; no new external dependencies.]
+
+**Dependencies:**
+- [e.g., Requires go-redis v9+; blocked by SPEC-XXX-001 (cache layer).]
+
+**Impact on existing code:**
+- [e.g., Modifies `internal/user/repository.go`; callers of `GetUser()` are unaffected.]
+
+---
+
+## 4. Out of Scope
+
+<!--
+Explicitly list what this change does NOT cover.
+At least one item is required. This prevents scope creep and sets clear expectations.
+-->
+
+- [e.g., Multi-factor authentication is out of scope for this change.]
+- [e.g., Admin password reset flow is handled separately in SPEC-XXX-002.]
+
+---
+
+## 5. Key Q&A
+
+<!--
+List 3-5 open questions that must be answered or decided before implementation begins.
+Format: Q: <question> / A: <answer or "TBD">
+-->
+
+**Q1:** [e.g., Should the reset link expire after 15 minutes or 60 minutes?]
+**A1:** TBD — confirm with product.
+
+**Q2:** [e.g., Do we need to invalidate all active sessions on password reset?]
+**A2:** TBD — check security policy.
+
+**Q3:** [e.g., Which email template service handles the reset email?]
+**A3:** TBD — check infra docs.
+
+<!--
+Add Q4, Q5 as needed. Remove any question that is already answered.
+-->
