@@ -388,7 +388,7 @@ This creates 4 files in `.autopus/specs/SPEC-AUTH-001/`:
 # Multi-agent pipeline
 /auto go SPEC-AUTH-001 --team
 
-# Fully autonomous
+# Fully autonomous with RALF loop (auto-retry failed gates)
 /auto go SPEC-AUTH-001 --team --auto --loop
 ```
 

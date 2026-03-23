@@ -367,7 +367,7 @@ graph TB
 # 멀티 에이전트 파이프라인
 /auto go SPEC-AUTH-001 --team
 
-# 완전 자율 모드
+# 완전 자율 모드 (RALF 루프: 품질 게이트 자동 재시도)
 /auto go SPEC-AUTH-001 --team --auto --loop
 ```
 

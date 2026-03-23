@@ -341,12 +341,84 @@ Phase 4: Review          → reviewer    (mode: plan)  — retry up to 2× on RE
 
 ### Retry Limits Reference
 
-| Gate / Phase | Max Retries | On Exceeded |
-|-------------|-------------|-------------|
-| Gate 1: Approval | skip if AUTO_MODE | N/A |
-| Gate 2: Validation | 3 | Abort, guide: `--continue` |
-| Gate 3: Coverage | re-spawn tester | Until 85%+ |
-| Phase 4: Review | 2 | Abort, request user intervention |
+| Gate / Phase | Max Retries | With --loop | On Exceeded |
+|-------------|-------------|-------------|-------------|
+| Gate 1: Approval | skip if AUTO_MODE | skip if AUTO_MODE | N/A |
+| Gate 2: Validation | 3 | 5 | Abort, guide: `--continue` |
+| Gate 3: Coverage | re-spawn tester | 3 retries | Until 85%+ / circuit break |
+| Phase 4: Review | 2 | 3 | Abort, request user intervention |
+
+### RALF Loop Protocol
+
+WHEN `LOOP_MODE = true`, the pipeline applies the RALF (RED-GREEN-REFACTOR-LOOP) cycle at each quality gate:
+
+```
+RALF Loop (per Phase):
+  ┌─→ RED    : Phase 실행 (구현/테스트/리뷰)
+  │   GREEN  : Gate 검증 (PASS/FAIL 판정)
+  │   REFACTOR: FAIL 시 이슈 수정 에이전트 스폰
+  └── LOOP   : Gate PASS까지 반복 (circuit breaker 적용)
+```
+
+#### Iteration Limits
+
+| Gate / Phase | Without --loop | With --loop |
+|-------------|---------------|-------------|
+| Gate 2 (Validation) | 3 retries | 5 retries |
+| Gate 3 (Coverage) | 1 retry | 3 retries |
+| Phase 4 (Review) | 2 retries | 3 retries |
+
+WHERE `LOOP_MODE = false`, existing retry limits apply with no behavioral change (R8 backward compatibility).
+
+#### Circuit Breaker
+
+WHILE `LOOP_MODE = true`, THE SYSTEM SHALL track consecutive no-progress iterations per Phase:
+- Progress is measured by: issue count, coverage %, review issue count
+- WHERE 3 consecutive iterations produce no new commits or file changes, THE SYSTEM SHALL break the loop
+- On circuit break: log stuck state, display remaining issues, suggest recovery options
+
+#### Progress Detection
+
+WHEN each RALF iteration completes, THE SYSTEM SHALL compare current state against previous iteration:
+- Issue count: decreased = progress
+- Coverage %: increased = progress
+- Review issues: decreased = progress
+- WHERE no measurable improvement for 3 consecutive iterations → circuit breaker triggers
+
+#### Escalation on Circuit Break
+
+WHEN circuit breaker triggers, THE SYSTEM SHALL display:
+
+```
+🐙 RALF [CIRCUIT BREAK] ──────────────
+  Phase: {phase} | Iteration: {N}/{max}
+  Stuck: 3 consecutive iterations with no progress
+  Remaining Issues:
+  - {issue list}
+  복구 옵션:
+  1. /auto go {SPEC-ID} --continue  (수정 후 재개)
+  2. /auto fix "{specific issue}"   (개별 이슈 수정)
+```
+
+#### Flag Combination Matrix
+
+| Flags | Gate 1 (Approval) | Gates 2-4 |
+|-------|-------------------|-----------|
+| (none) | User approval | Retry with default limits, stop |
+| --auto | Skip | Retry with default limits, stop |
+| --loop | User approval | RALF loop with extended limits |
+| --auto --loop | Skip | RALF loop with extended limits (완전 자율) |
+
+#### RALF Iteration Display
+
+WHEN `LOOP_MODE = true` AND a retry iteration occurs, THE SYSTEM SHALL display:
+
+```
+🐙 RALF [{phase}] ──────────────────
+  Iteration: {N}/{max} | Issues: {before} → {after}
+  Progress: {description}
+  Status: {RETRY | PASS | CIRCUIT_BREAK}
+```
 
 **Step 2.1: Determine Quality Mode**
 
@@ -507,6 +579,8 @@ Agent(
 - **PASS** → proceed to Phase 3
 - **FAIL** → spawn the Recommended Agent to fix issues, then re-validate (up to 3 retries)
 
+WHEN `LOOP_MODE = true`: extend retry limit to 5. Display RALF iteration status after each retry. Apply circuit breaker if 3 consecutive no-progress iterations.
+
 **Validation failure recovery (Gate 2):**
 ```
 ✗ Validation 실패: {N}개 이슈 발견
@@ -550,6 +624,8 @@ After tester, display:
 
 **[GATE] Gate 3: Coverage** — verify 85%+ coverage from tester output. If below, re-spawn tester. For harness-only tasks → [INTENDED SKIP: Gate 3]
 
+WHEN `LOOP_MODE = true`: extend coverage retry limit to 3 (default: 1). Display RALF iteration status after each retry.
+
 **[REQUIRED] Phase 4 — Review (MUST call Agent tool)**
 
 ```
@@ -567,6 +643,8 @@ Agent(
 
 - **APPROVE** → pipeline complete
 - **REQUEST_CHANGES** → spawn executor to fix issues, then re-review (up to 2 retries)
+
+WHEN `LOOP_MODE = true`: extend review retry limit to 3. Display RALF iteration status after each retry. Apply circuit breaker if 3 consecutive identical issues.
 
 **Review failure recovery (retries exceeded):**
 ```
@@ -632,7 +710,7 @@ Usage: `/auto go SPEC-ID` (subagent pipeline), `/auto go SPEC-ID --team` (Agent 
 | Flag | Description |
 |------|-------------|
 | `--auto` | Autonomous mode: run the full pipeline without user confirmation |
-| `--loop` | Loop mode: automatically advance to the next phase after each phase completes |
+| `--loop` | RALF loop mode: auto-retry failed gates with extended iteration limits until PASS or circuit break |
 | `--continue` | Resume an interrupted implementation from a previous session |
 | `--team` | Agent Teams mode: use Claude Code Agent Teams (experimental) for multi-agent collaboration |
 | `--solo` | Single session mode: no subagents, main session implements directly |
