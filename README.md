@@ -4,14 +4,14 @@
 
 ### The Autopus where AI agents remember, debate, and ship.
 
-**Superpowers for AI Coding CLIs — 15 agents, 35 skills, one config, every platform.**
+**Superpowers for AI Coding CLIs — 15 agents, 37 skills, one config, every platform.**
 
 [![GitHub Stars](https://img.shields.io/github/stars/Insajin/autopus-adk?style=social)](https://github.com/Insajin/autopus-adk/stargazers)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Go Version](https://img.shields.io/badge/Go-1.23-00ADD8?logo=go&logoColor=white)](https://golang.org)
+[![Go Version](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)](https://golang.org)
 [![Platforms](https://img.shields.io/badge/Platforms-5-orange)](#-one-config-five-platforms)
 [![Agents](https://img.shields.io/badge/Agents-15-blueviolet)](#-15-specialized-agents)
-[![Skills](https://img.shields.io/badge/Skills-35-ff69b4)](#-all-commands)
+[![Skills](https://img.shields.io/badge/Skills-37-ff69b4)](#-all-commands)
 
 ```bash
 curl -sSfL https://raw.githubusercontent.com/Insajin/autopus-adk/main/install.sh | sh
@@ -158,6 +158,26 @@ Ref: SPEC-AUTH-001
 
 9 structured trailers. Query with `auto lore query "why interface?"`. Stale decisions auto-detected after 90 days.
 
+### 🧪 Autonomous Experiment Loop
+
+Let AI iterate autonomously — measure, keep or discard, repeat.
+
+```bash
+/auto experiment --metric "go test -bench=BenchmarkProcess" --direction lower --max-iter 5
+```
+
+```
+🐙 Experiment ───────────────────────
+  Iter 1: baseline  │ 1200 ns/op
+  Iter 2: optimize  │  850 ns/op  ✓ keep (29% improvement)
+  Iter 3: refactor  │  900 ns/op  ✗ discard (regression)
+  Iter 4: cache     │  620 ns/op  ✓ keep (27% improvement)
+  ─────────────────────────────────────
+  Result: 1200 → 620 ns/op (48% improvement)
+```
+
+Built-in **circuit breaker** prevents runaway iterations. **Simplicity scoring** penalizes over-complex solutions. Each iteration is a git commit — easy to review or revert.
+
 ### 🌐 One Config, Five Platforms
 
 ```bash
@@ -174,7 +194,7 @@ One `autopus.yaml` generates **native configuration** for every detected platfor
 | **Cursor** | `.cursor/rules/`, `.cursorrules` |
 | **OpenCode** | `.opencode/`, `agents.json` |
 
-Same 15 agents. Same 35 skills. Same rules. **Everywhere.**
+Same 15 agents. Same 37 skills. Same rules. **Everywhere.**
 
 ---
 
@@ -191,7 +211,7 @@ curl -sSfL https://raw.githubusercontent.com/Insajin/autopus-adk/main/install.sh
 # Homebrew (coming soon)
 # brew install insajin/autopus/auto
 
-# go install (development)
+# go install (requires Go 1.26+)
 go install github.com/Insajin/autopus-adk/cmd/auto@latest
 
 # Build from source
@@ -389,7 +409,7 @@ Providers: **Claude** · **Codex** · **Gemini** — with graceful degradation.
 ## 📖 All Commands
 
 <details>
-<summary><strong>CLI Commands</strong> (19 root commands, 52 total with subcommands)</summary>
+<summary><strong>CLI Commands</strong> (21 root commands, 55+ total with subcommands)</summary>
 
 | Command | Description |
 |---------|-------------|
@@ -400,7 +420,7 @@ Providers: **Claude** · **Codex** · **Gemini** — with graceful degradation.
 | `auto arch` | Architecture analysis (generate / lint) |
 | `auto spec` | SPEC management (new / validate / review) |
 | `auto lore` | Decision tracking (context / commit / validate / stale) |
-| `auto orchestra` | Multi-model orchestration (review / plan / secure) |
+| `auto orchestra` | Multi-model orchestration (review / plan / secure / brainstorm) |
 | `auto setup` | Project context documents (generate / update / validate) |
 | `auto status` | SPEC dashboard (done / in-progress / draft) |
 | `auto telemetry` | Pipeline telemetry (record / summary / cost / compare) |
@@ -408,9 +428,11 @@ Providers: **Claude** · **Codex** · **Gemini** — with graceful degradation.
 | `auto search` | Knowledge search (Exa) |
 | `auto docs` | Library documentation lookup (Context7) |
 | `auto lsp` | LSP integration (diagnostics / refs / rename / symbols) |
-| `auto verify` | Harness state and rule verification |
+| `auto verify` | Frontend UX verification (Playwright + VLM) |
 | `auto check` | Harness rule checks (anti-pattern scanning) |
 | `auto hash` | File hashing (xxhash) |
+| `auto issue` | Auto issue reporter (error context collection, GitHub submission) |
+| `auto experiment` | Autonomous experiment loop (metric-driven keep/discard) |
 
 </details>
 
@@ -433,6 +455,7 @@ Providers: **Claude** · **Codex** · **Gemini** — with graceful degradation.
 | `/auto setup` | Generate/update project context docs |
 | `/auto stale` | Detect stale decisions and patterns |
 | `/auto why "question"` | Query decision rationale |
+| `/auto experiment` | Autonomous experiment loop (metric-driven iteration) |
 
 </details>
 
@@ -490,10 +513,10 @@ orchestra:
 ```
 autopus-adk/
 ├── cmd/auto/           # Entry point
-├── internal/cli/       # 19 Cobra commands (52 with subcommands)
+├── internal/cli/       # 21 Cobra commands (55+ with subcommands)
 ├── pkg/
 │   ├── adapter/        # 5 platform adapters (Claude, Codex, Gemini, Cursor, OpenCode)
-│   ├── orchestra/      # Multi-model orchestration (4 strategies)
+│   ├── orchestra/      # Multi-model orchestration (4 strategies + brainstorm)
 │   ├── spec/           # SPEC engine (EARS format)
 │   ├── lore/           # Decision tracking (9-trailer protocol)
 │   ├── content/        # Agent/skill/hook generation + skill activator
@@ -505,9 +528,11 @@ autopus-adk/
 │   ├── setup/          # Project doc generation
 │   ├── lsp/            # LSP integration
 │   ├── search/         # Knowledge search (Context7/Exa)
+│   ├── issue/          # Auto issue reporter (context collection, sanitization)
+│   ├── experiment/     # Autonomous experiment loop (metric execution, circuit breaker)
 │   └── ...             # template, detect, config, version
 ├── templates/          # Platform-specific templates
-├── content/            # Embedded content (15 agents, 36 skills)
+├── content/            # Embedded content (15 agents, 37 skills)
 └── configs/            # Default configuration
 ```
 
