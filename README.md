@@ -177,10 +177,6 @@ Same 15 agents. Same 35 skills. Same rules. **Everywhere.**
 ## 📦 30-Second Install
 
 ```bash
-# Homebrew (macOS / Linux)
-brew install insajin/autopus/auto
-
-# or curl one-liner
 curl -sSfL https://raw.githubusercontent.com/Insajin/autopus-adk/main/install.sh | sh
 ```
 
@@ -188,6 +184,9 @@ curl -sSfL https://raw.githubusercontent.com/Insajin/autopus-adk/main/install.sh
 <summary>Other methods</summary>
 
 ```bash
+# Homebrew (coming soon)
+# brew install insajin/autopus/auto
+
 # go install (development)
 go install github.com/Insajin/autopus-adk/cmd/auto@latest
 
