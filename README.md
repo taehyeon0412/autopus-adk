@@ -262,6 +262,8 @@ Phase 4    │ 🔍 Reviewer + 🛡️    │ TRUST 5 review + OWASP security au
 
 ## 📐 The Workflow: Three Commands to Ship
 
+<p align="center"><img src="demo/workflow.gif" width="720" alt="Autopus workflow — spec new, status, skills, platforms" /></p>
+
 Every feature in Autopus follows the same **plan → go → sync** lifecycle. No exceptions.
 
 ```

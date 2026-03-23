@@ -1,46 +1,30 @@
 # Demo GIFs
 
-Terminal demo GIFs generated with [VHS](https://github.com/charmbracelet/vhs).
+Terminal demo GIFs generated with [VHS](https://github.com/charmbracelet/vhs) and optimized with [gifsicle](https://www.lcdf.org/gifsicle/).
 
 ## Prerequisites
 
 ```bash
-# macOS
-brew install vhs
-
-# Or via Go
-go install github.com/charmbracelet/vhs@latest
+brew install vhs gifsicle
 ```
-
-VHS requires `ffmpeg` and `ttyd` (installed automatically by Homebrew).
 
 ## Generate GIFs
 
 ```bash
-# Generate all demos
-vhs demo/hero.tape
-vhs demo/doctor.tape
-vhs demo/status.tape
-vhs demo/quickstart.tape
+cd demo
 
-# Or generate all at once
-for tape in demo/*.tape; do vhs "$tape"; done
+# Generate all
+for tape in *.tape; do vhs "$tape"; done
+
+# Optimize all
+for f in *.gif; do gifsicle -O3 --lossy=80 "$f" -o "$f.opt" && mv "$f.opt" "$f"; done
 ```
 
 ## Files
 
-| Tape | Output | Description |
-|------|--------|-------------|
-| `hero.tape` | `hero.gif` | Full hero demo for README top |
-| `doctor.tape` | `doctor.gif` | Health check showcase |
-| `status.tape` | `status.gif` | SPEC dashboard |
-| `quickstart.tape` | `quickstart.gif` | Quick start flow |
-
-## Regenerating
-
-After changing CLI output or adding features, regenerate GIFs:
-
-```bash
-for tape in demo/*.tape; do vhs "$tape"; done
-git add demo/*.gif
-```
+| Tape | Output | Description | README Section |
+|------|--------|-------------|----------------|
+| `hero.tape` | `hero.gif` | Claude Code session: plan → go → sync | Top ("See It In Action") |
+| `workflow.tape` | `workflow.gif` | spec new → status → skills → platforms | "Three Commands to Ship" |
+| `doctor.tape` | `doctor.gif` | Health check + CLI detection | "30-Second Install" |
+| `check.tape` | `check.gif` | Architecture rule enforcement | standalone |
