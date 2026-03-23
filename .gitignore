@@ -18,7 +18,7 @@ coverage.out
 
 # Autopus-ADK generated files
 .claude/commands/auto.md
-.autopus/
+**/.autopus/
 .mcp.json
 
 # Build artifacts
