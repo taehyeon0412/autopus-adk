@@ -20,3 +20,10 @@ coverage.out
 .claude/commands/auto.md
 .autopus/
 .mcp.json
+
+# Build artifacts
+auto
+coverage.html
+sigmap.test
+internal/cli/test-results/
+.claude/analysis/
