@@ -109,10 +109,19 @@ func countLines(path string) (int, error) {
 
 // checkLore verifies that the most recent commit uses Lore format.
 // It checks for a valid type prefix and the required sign-off line.
+// Experiment branches (experiment/*) are exempt from Lore format.
 // Returns false if the format is invalid or git is unavailable.
 func checkLore(dir string, out io.Writer, quiet bool) bool {
 	if !quiet {
 		tui.SectionHeader(out, "lore: commit format")
+	}
+
+	// Experiment branches use a simplified commit format, not Lore.
+	if isExperimentBranch(dir) {
+		if !quiet {
+			tui.SKIP(out, "experiment branch — Lore format not required")
+		}
+		return true
 	}
 
 	msg, err := lastCommitMessage(dir)
@@ -167,4 +176,16 @@ func hasValidLoreType(msg string) bool {
 		}
 	}
 	return false
+}
+
+// isExperimentBranch reports whether the current branch has the experiment/ prefix.
+func isExperimentBranch(dir string) bool {
+	cmd := exec.Command("git", "branch", "--show-current")
+	cmd.Dir = dir
+	var buf bytes.Buffer
+	cmd.Stdout = &buf
+	if err := cmd.Run(); err != nil {
+		return false
+	}
+	return strings.HasPrefix(strings.TrimSpace(buf.String()), "experiment/")
 }

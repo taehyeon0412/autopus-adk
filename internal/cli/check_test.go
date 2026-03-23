@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -113,6 +114,55 @@ func TestCheckCmd_ArchSkipsGeneratedFiles(t *testing.T) {
 
 	if err := root.Execute(); err != nil {
 		t.Fatalf("generated files should be skipped, got: %v", err)
+	}
+}
+
+// TestCheckCmd_LoreSkipsOnExperimentBranch verifies that lore check is skipped
+// when the current branch has the experiment/ prefix.
+func TestCheckCmd_LoreSkipsOnExperimentBranch(t *testing.T) {
+	dir := t.TempDir()
+
+	// Initialize a git repo on an experiment branch.
+	for _, args := range [][]string{
+		{"init"},
+		{"checkout", "-b", "experiment/XLOOP-test"},
+		{"config", "user.email", "test@test.com"},
+		{"config", "user.name", "Test"},
+	} {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+
+	// Create a non-Lore commit (experiment format).
+	dummyFile := filepath.Join(dir, "dummy.go")
+	if err := os.WriteFile(dummyFile, []byte("package dummy\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{
+		{"add", "dummy.go"},
+		{"commit", "-m", "experiment(XLOOP-test): iteration 1 - test change"},
+	} {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+
+	root := newTestRootCmd()
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetErr(&buf)
+	root.SetArgs([]string{"check", "--lore", "--dir", dir})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("lore check should pass on experiment branch, got: %v", err)
+	}
+	if !strings.Contains(buf.String(), "experiment branch") {
+		t.Errorf("expected experiment branch skip message, got: %s", buf.String())
 	}
 }
 
