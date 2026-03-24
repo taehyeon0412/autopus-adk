@@ -86,3 +86,72 @@ func TestIssueSearchCmd_ExistsWithUse(t *testing.T) {
 	cmd := newIssueSearchCmd()
 	assert.True(t, strings.HasPrefix(cmd.Use, "search"), "search cmd use should start with 'search'")
 }
+
+func TestBuildIssueTitle_BothFields(t *testing.T) {
+	t.Parallel()
+	title := buildIssueTitle("something broke", "doctor")
+	assert.Equal(t, "[auto] doctor: something broke", title)
+}
+
+func TestBuildIssueTitle_LongError(t *testing.T) {
+	t.Parallel()
+	longMsg := strings.Repeat("x", 80)
+	title := buildIssueTitle(longMsg, "init")
+	// Should truncate to 60 chars + "..."
+	assert.Equal(t, "[auto] init: "+strings.Repeat("x", 60)+"...", title)
+}
+
+func TestBuildIssueTitle_ErrOnly(t *testing.T) {
+	t.Parallel()
+	title := buildIssueTitle("oops", "")
+	assert.Equal(t, "[auto] oops", title)
+}
+
+func TestBuildIssueTitle_LongErrOnly(t *testing.T) {
+	t.Parallel()
+	longMsg := strings.Repeat("y", 80)
+	title := buildIssueTitle(longMsg, "")
+	assert.Equal(t, "[auto] "+strings.Repeat("y", 72)+"...", title)
+}
+
+func TestBuildIssueTitle_Empty(t *testing.T) {
+	t.Parallel()
+	title := buildIssueTitle("", "")
+	assert.Equal(t, "[auto] issue report", title)
+}
+
+func TestConfirmIssue_Yes(t *testing.T) {
+	t.Parallel()
+
+	cmd := newIssueCmd()
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetIn(strings.NewReader("y\n"))
+
+	result := confirmIssue(cmd, "confirm? ")
+	assert.True(t, result)
+}
+
+func TestConfirmIssue_No(t *testing.T) {
+	t.Parallel()
+
+	cmd := newIssueCmd()
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetIn(strings.NewReader("n\n"))
+
+	result := confirmIssue(cmd, "confirm? ")
+	assert.False(t, result)
+}
+
+func TestConfirmIssue_EmptyInput(t *testing.T) {
+	t.Parallel()
+
+	cmd := newIssueCmd()
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetIn(strings.NewReader(""))
+
+	result := confirmIssue(cmd, "confirm? ")
+	assert.False(t, result)
+}
