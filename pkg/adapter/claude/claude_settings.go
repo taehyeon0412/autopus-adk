@@ -98,6 +98,15 @@ func (a *Adapter) InstallHooks(_ context.Context, hooks []adapter.HookConfig, pe
 		settings["permissions"] = permMap
 	}
 
+	// Statusline configuration
+	if _, exists := settings["statusLine"]; !exists {
+		settings["statusLine"] = map[string]any{
+			"type":    "command",
+			"command": ".claude/statusline.sh",
+			"padding": 1,
+		}
+	}
+
 	out, err := json.MarshalIndent(settings, "", "  ")
 	if err != nil {
 		return fmt.Errorf("settings.json 직렬화 실패: %w", err)

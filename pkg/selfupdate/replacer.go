@@ -3,6 +3,8 @@ package selfupdate
 import (
 	"fmt"
 	"os"
+	"os/exec"
+	"runtime"
 )
 
 // Replacer atomically replaces a binary file.
@@ -30,6 +32,11 @@ func (r *Replacer) Replace(newBinaryPath, targetPath string) error {
 
 	if err := os.Chmod(targetPath, targetInfo.Mode().Perm()); err != nil {
 		return err
+	}
+
+	// macOS: remove quarantine attribute to prevent Gatekeeper from killing the binary
+	if runtime.GOOS == "darwin" {
+		_ = exec.Command("xattr", "-d", "com.apple.quarantine", targetPath).Run()
 	}
 
 	return nil

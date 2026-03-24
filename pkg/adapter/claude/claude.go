@@ -132,6 +132,20 @@ func (a *Adapter) Generate(ctx context.Context, cfg *config.HarnessConfig) (*ada
 	}
 	files = append(files, ruleFiles...)
 
+	// Copy statusline script
+	statusFiles, err := a.copyStatusline()
+	if err != nil {
+		return nil, fmt.Errorf("statusline 복사 실패: %w", err)
+	}
+	files = append(files, statusFiles...)
+
+	// Copy hooks to .claude/hooks/autopus/
+	hookFiles, err := a.copyContentFiles(cfg, "hooks", filepath.Join(".claude", "hooks", "autopus"))
+	if err != nil {
+		return nil, fmt.Errorf("훅 파일 복사 실패: %w", err)
+	}
+	files = append(files, hookFiles...)
+
 	// Full mode: copy skills/agents content files
 	if cfg.IsFullMode() {
 		skillFiles, err := a.copyContentFiles(cfg, "skills", ".claude/skills/autopus")

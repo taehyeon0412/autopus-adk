@@ -52,6 +52,20 @@ func (a *Adapter) prepareFiles(cfg *config.HarnessConfig) ([]adapter.FileMapping
 	}
 	files = append(files, mcpFiles...)
 
+	// Statusline script
+	statusFiles, err := a.prepareStatusline()
+	if err != nil {
+		return nil, fmt.Errorf("statusline 준비 실패: %w", err)
+	}
+	files = append(files, statusFiles...)
+
+	// Hooks
+	hookFiles, err := a.prepareContentFiles("hooks", filepath.Join(".claude", "hooks", "autopus"))
+	if err != nil {
+		return nil, fmt.Errorf("훅 파일 준비 실패: %w", err)
+	}
+	files = append(files, hookFiles...)
+
 	// Rules content files (all modes)
 	ruleFiles, err := a.prepareContentFiles("rules", filepath.Join(".claude", "rules", "autopus"))
 	if err != nil {
@@ -151,6 +165,38 @@ func (a *Adapter) prepareMCPConfig(cfg *config.HarnessConfig) ([]adapter.FileMap
 		OverwritePolicy: adapter.OverwriteMerge,
 		Checksum:        checksum(outStr),
 		Content:         []byte(outStr),
+	}}, nil
+}
+
+// prepareStatusline reads statusline.sh from embedded FS and returns a FileMapping.
+func (a *Adapter) prepareStatusline() ([]adapter.FileMapping, error) {
+	data, err := contentfs.FS.ReadFile("statusline.sh")
+	if err != nil {
+		return nil, fmt.Errorf("statusline.sh 읽기 실패: %w", err)
+	}
+	return []adapter.FileMapping{{
+		TargetPath:      filepath.Join(".claude", "statusline.sh"),
+		OverwritePolicy: adapter.OverwriteAlways,
+		Checksum:        checksum(string(data)),
+		Content:         data,
+	}}, nil
+}
+
+// copyStatusline copies statusline.sh to the target project.
+func (a *Adapter) copyStatusline() ([]adapter.FileMapping, error) {
+	data, err := contentfs.FS.ReadFile("statusline.sh")
+	if err != nil {
+		return nil, fmt.Errorf("statusline.sh 읽기 실패: %w", err)
+	}
+	destPath := filepath.Join(a.root, ".claude", "statusline.sh")
+	if err := os.WriteFile(destPath, data, 0755); err != nil {
+		return nil, fmt.Errorf("statusline.sh 쓰기 실패: %w", err)
+	}
+	return []adapter.FileMapping{{
+		TargetPath:      filepath.Join(".claude", "statusline.sh"),
+		OverwritePolicy: adapter.OverwriteAlways,
+		Checksum:        checksum(string(data)),
+		Content:         data,
 	}}, nil
 }
 
