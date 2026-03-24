@@ -4,13 +4,13 @@
 
 ### The Autopus where AI agents remember, debate, and ship.
 
-**Superpowers for AI Coding CLIs — 15 agents, 37 skills, one config, every platform.**
+**Superpowers for AI Coding CLIs — 16 agents, 37 skills, one config, every platform.**
 
 [![GitHub Stars](https://img.shields.io/github/stars/Insajin/autopus-adk?style=social)](https://github.com/Insajin/autopus-adk/stargazers)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Go Version](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)](https://golang.org)
 [![Platforms](https://img.shields.io/badge/Platforms-5-orange)](#-one-config-five-platforms)
-[![Agents](https://img.shields.io/badge/Agents-15-blueviolet)](#-15-specialized-agents)
+[![Agents](https://img.shields.io/badge/Agents-16-blueviolet)](#-16-specialized-agents)
 [![Skills](https://img.shields.io/badge/Skills-37-ff69b4)](#-all-commands)
 
 ```bash
@@ -33,7 +33,7 @@ curl -sSfL https://raw.githubusercontent.com/Insajin/autopus-adk/main/install.sh
 # You describe what you want.
 /auto plan "Add OAuth2 with Google and GitHub providers"
 
-# 15 agents handle the rest — planning, testing, implementing, reviewing.
+# 16 agents handle the rest — planning, testing, implementing, reviewing.
 /auto go SPEC-AUTH-001 --auto --loop
 
 # Docs, changelog, and SPEC status — all synced in one command.
@@ -134,7 +134,7 @@ This isn't just about file size. The entire harness is **agent-readable by desig
 
 ### 🤖 AI Agents That Form a Team, Not a Chatbot
 
-Autopus doesn't give you one AI assistant — it gives you a **software engineering team of 15 specialized agents** with defined roles, quality gates, and retry logic.
+Autopus doesn't give you one AI assistant — it gives you a **software engineering team of 16 specialized agents** with defined roles, quality gates, and retry logic.
 
 ```
 🧠 Planner        →  Decomposes requirements into tasks
@@ -145,6 +145,7 @@ Autopus doesn't give you one AI assistant — it gives you a **software engineer
 🛡️ Security       →  OWASP Top 10 audit
 📝 Annotator      →  Documents code with @AX tags
 🏗️ Architect      →  System design decisions
+🔬 Deep Worker    →  Long-running autonomous exploration + implementation
 ... and 7 more
 ```
 
@@ -241,6 +242,40 @@ Let AI iterate autonomously — measure, keep or discard, repeat.
 
 Built-in **circuit breaker** prevents runaway iterations. **Simplicity scoring** penalizes over-complex solutions. Each iteration is a git commit — easy to review or revert.
 
+### 🔄 Pipeline That Never Dies
+
+Crash mid-pipeline? Resume exactly where you left off.
+
+```bash
+/auto go SPEC-AUTH-001 --continue    # Resume from last checkpoint
+```
+
+YAML-based checkpoints save pipeline state after every phase. Stale detection prevents resuming outdated sessions. Combined with `--auto --loop`, you get a **fully resilient autonomous pipeline.**
+
+### 🧪 E2E Scenarios from Your Code
+
+Auto-generate and execute E2E test scenarios — no manual test writing needed.
+
+```bash
+auto test run                    # Run all scenarios
+auto test run -s init --verbose  # Run a specific scenario
+```
+
+Autopus analyzes your codebase (Cobra commands, API routes, frontend pages) and generates typed scenarios with **verification primitives** (`exit_code`, `stdout_contains`, `status_code`, `json_path`, etc.). Incremental sync keeps scenarios up-to-date as code evolves.
+
+### 🔧 More Power Tools
+
+| Feature | Command | What It Does |
+|---------|---------|-------------|
+| **Reaction Engine** | `auto react check/apply` | Detects CI failures, analyzes logs, generates fix reports automatically |
+| **Meta-Agent Builder** | `auto agent create` / `auto skill create` | Scaffold custom agents and skills from patterns |
+| **Hard Gate** | `auto check --gate` | Enforce mandatory pipeline gates (mandatory/advisory modes) |
+| **Self-Update** | `auto update --self` | Atomic binary update — GitHub Releases check + SHA256 verification |
+| **Cost Tracking** | `auto telemetry cost` | Token-based pipeline cost estimation per model |
+| **Issue Reporter** | `auto issue report` | Auto-collect error context, sanitize secrets, create GitHub issues |
+| **Signature Map** | `auto setup` | Extract exported API signatures (Go + TypeScript) via AST analysis |
+| **Test Runner Detection** | `auto init` | Auto-detect jest, vitest, pytest, cargo test frameworks |
+
 ### 🌐 One Config, Five Platforms
 
 ```bash
@@ -257,7 +292,7 @@ One `autopus.yaml` generates **native configuration** for every detected platfor
 | **Cursor** | `.cursor/rules/`, `.cursorrules` |
 | **OpenCode** | `.opencode/`, `agents.json` |
 
-Same 15 agents. Same 37 skills. Same rules. **Everywhere.**
+Same 16 agents. Same 37 skills. Same rules. **Everywhere.**
 
 ---
 
@@ -330,7 +365,7 @@ Now you're ready. Describe what you want in plain language:
 # 1. Plan — AI creates a full SPEC (requirements, tasks, acceptance criteria)
 /auto plan "Add a health check endpoint at GET /healthz"
 
-# 2. Build — 15 agents handle implementation, testing, and review
+# 2. Build — 16 agents handle implementation, testing, and review
 /auto go SPEC-HEALTH-001 --auto
 
 # 3. Ship — Sync docs, update SPEC status, commit with decision history
@@ -359,6 +394,8 @@ That's it — production-ready code with tests, security audit, and full documen
 | Full autonomy + self-healing | `/auto go SPEC-ID --auto --loop` |
 | Fix a bug | `/auto fix "description"` |
 | One-shot plan→build→ship | `/auto dev "description"` |
+| Resume interrupted pipeline | `/auto go SPEC-ID --continue` |
+| Run E2E test scenarios | `/auto test` |
 | Update docs after changes | `/auto sync SPEC-ID` |
 
 ---
@@ -394,7 +431,7 @@ sequenceDiagram
     R-->>S: ✅ APPROVE
 ```
 
-### 15 Specialized Agents
+### 16 Specialized Agents
 
 | Agent | Role | When |
 |-------|------|------|
@@ -412,6 +449,7 @@ sequenceDiagram
 | **Frontend Specialist** | Playwright E2E + VLM visual regression | Phase 3.5 |
 | **UX Validator** | Frontend component visual validation | Phase 3.5 |
 | **Perf Engineer** | Benchmark, pprof, regression detection | on-demand |
+| **Deep Worker** | Long-running autonomous exploration + implementation | on-demand |
 | **Explorer** | Codebase structure analysis | `/auto map` |
 
 ### Quality Modes
@@ -473,7 +511,7 @@ Options: `--multi` for multi-provider review · `--prd-mode minimal` for lightwe
 
 ### 🚀 Step 2 · `/auto go` — Build It
 
-Feed the SPEC to **15 agents** that plan, scaffold tests, implement in parallel, validate, annotate, test, and review — all automatically.
+Feed the SPEC to **16 agents** that plan, scaffold tests, implement in parallel, validate, annotate, test, and review — all automatically.
 
 ```bash
 /auto go SPEC-HOOK-001 --auto --loop
@@ -542,7 +580,7 @@ Providers: **Claude** · **Codex** · **Gemini** — with graceful degradation.
 ## 📖 All Commands
 
 <details>
-<summary><strong>CLI Commands</strong> (21 root commands, 55+ total with subcommands)</summary>
+<summary><strong>CLI Commands</strong> (28 root commands, 55+ total with subcommands)</summary>
 
 | Command | Description |
 |---------|-------------|
@@ -566,6 +604,11 @@ Providers: **Claude** · **Codex** · **Gemini** — with graceful degradation.
 | `auto hash` | File hashing (xxhash) |
 | `auto issue` | Auto issue reporter (error context collection, GitHub submission) |
 | `auto experiment` | Autonomous experiment loop (metric-driven keep/discard) |
+| `auto test` | E2E scenario runner (generate, execute, verify) |
+| `auto react` | Reaction engine (CI failure detection, fix reports) |
+| `auto agent create` | Meta-agent builder (scaffold custom agents) |
+| `auto skill create` | Meta-skill builder (scaffold custom skills) |
+| `auto update --self` | CLI binary self-update (GitHub Releases + SHA256) |
 
 </details>
 
@@ -589,6 +632,8 @@ Providers: **Claude** · **Codex** · **Gemini** — with graceful degradation.
 | `/auto stale` | Detect stale decisions and patterns |
 | `/auto why "question"` | Query decision rationale |
 | `/auto experiment` | Autonomous experiment loop (metric-driven iteration) |
+| `/auto test` | Run E2E scenarios against your project |
+| `/auto go SPEC-ID --continue` | Resume interrupted pipeline from checkpoint |
 
 </details>
 
@@ -646,7 +691,7 @@ orchestra:
 ```
 autopus-adk/
 ├── cmd/auto/           # Entry point
-├── internal/cli/       # 21 Cobra commands (55+ with subcommands)
+├── internal/cli/       # 28 Cobra commands (55+ with subcommands)
 ├── pkg/
 │   ├── adapter/        # 5 platform adapters (Claude, Codex, Gemini, Cursor, OpenCode)
 │   ├── orchestra/      # Multi-model orchestration (4 strategies + brainstorm)
@@ -663,9 +708,12 @@ autopus-adk/
 │   ├── search/         # Knowledge search (Context7/Exa)
 │   ├── issue/          # Auto issue reporter (context collection, sanitization)
 │   ├── experiment/     # Autonomous experiment loop (metric execution, circuit breaker)
+│   ├── e2e/            # E2E scenario generation, execution, verification
+│   ├── selfupdate/     # CLI binary self-update (SHA256, atomic replace)
+│   ├── pipeline/       # Pipeline state persistence + checkpoint resume
 │   └── ...             # template, detect, config, version
 ├── templates/          # Platform-specific templates
-├── content/            # Embedded content (15 agents, 37 skills)
+├── content/            # Embedded content (16 agents, 37 skills)
 └── configs/            # Default configuration
 ```
 
