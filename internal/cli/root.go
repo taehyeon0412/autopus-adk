@@ -1,4 +1,4 @@
-// Package cli는 Cobra 기반 CLI 커맨드를 정의한다.
+// Package cli defines Cobra-based CLI commands.
 package cli
 
 import (
@@ -11,10 +11,10 @@ import (
 	"github.com/insajin/autopus-adk/pkg/version"
 )
 
-// NewRootCmd는 루트 커맨드를 생성한다.
-// 패키지 수준 변수 대신 로컬 변수를 사용하여 병렬 테스트 시 데이터 레이스를 방지한다.
+// NewRootCmd creates the root command.
+// Uses local variables instead of package-level to prevent data races in parallel tests.
 func NewRootCmd() *cobra.Command {
-	// 플래그 변수를 로컬로 선언하여 각 호출마다 독립적인 상태를 가진다
+	// Declare flag variables locally so each invocation has independent state.
 	var (
 		verbose    bool
 		configPath string
@@ -52,6 +52,8 @@ func NewRootCmd() *cobra.Command {
 	root.AddCommand(newIssueCmd())
 	root.AddCommand(newCheckCmd())
 	root.AddCommand(newExperimentCmd())
+	// @AX:NOTE [AUTO] @AX:REASON: Phase 2 addition — registers `auto test` and `auto test run` subcommands; added as part of SPEC-E2E-001
+	root.AddCommand(newAutoTestCmd())
 
 	return root
 }
@@ -68,7 +70,7 @@ func newVersionCmd() *cobra.Command {
 	}
 }
 
-// Execute는 CLI를 실행한다.
+// Execute runs the CLI.
 func Execute() {
 	if err := NewRootCmd().Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)

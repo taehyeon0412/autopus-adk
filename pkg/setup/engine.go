@@ -54,6 +54,11 @@ func Generate(projectDir string, opts *GenerateOptions) (*DocSet, error) {
 		return nil, fmt.Errorf("write documents: %w", err)
 	}
 
+	// Generate scenarios.md
+	if err := generateScenarios(projectDir, info); err != nil {
+		return nil, fmt.Errorf("generate scenarios: %w", err)
+	}
+
 	// Generate signature map
 	if err := generateSignatureMap(projectDir, opts.Config); err != nil {
 		return nil, fmt.Errorf("generate signature map: %w", err)
@@ -121,6 +126,9 @@ func Update(projectDir string, outputDir string) ([]string, error) {
 		}
 	}
 
+	// Update scenarios.md (incremental sync — non-fatal on error)
+	_ = generateScenarios(projectDir, info)
+
 	// Update signature map
 	sigUpdated, sigErr := updateSignatureMap(projectDir, nil)
 	if sigErr != nil {
@@ -141,7 +149,6 @@ func Update(projectDir string, outputDir string) ([]string, error) {
 
 	return updated, nil
 }
-
 // Status returns the documentation status.
 type Status struct {
 	Exists       bool
