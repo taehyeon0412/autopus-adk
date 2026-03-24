@@ -34,6 +34,7 @@ autopus-adk/
 │   ├── issue.go                #   auto issue: 이슈 리포터
 │   ├── experiment.go           #   auto experiment: 자율 반복 실험
 │   ├── experiment_helpers.go   #   experiment CLI 헬퍼 함수
+│   ├── test.go                 #   auto test: E2E 시나리오 실행
 │   ├── prompts.go               #   대화형 프롬프트 (quality mode, review gate, methodology)
 │   ├── init_helpers.go          #   Init 헬퍼 함수 (gitignore, summary 생성)
 │   ├── doctor_fix.go            #   Doctor 자동 수정 (의존성 설치)
@@ -73,6 +74,7 @@ autopus-adk/
 │   │   └── activator_context.go    #     활성화 컨텍스트 빌더
 │   ├── setup/                   #   프로젝트 문서화
 │   │   ├── engine.go            #     Generate/Update/Validate
+│   │   ├── scenarios.go         #     E2E 시나리오 생성 헬퍼 (setup 통합)
 │   │   ├── scanner.go           #     프로젝트 스캔
 │   │   ├── renderer.go          #     문서 렌더링
 │   │   ├── types.go             #     ProjectInfo, DocSet
@@ -140,6 +142,13 @@ autopus-adk/
 │   │   ├── sanitizer.go         #     경로/키/토큰/시크릿 제거
 │   │   ├── formatter.go         #     마크다운 템플릿 렌더링
 │   │   └── submitter.go         #     gh CLI 이슈 생성/중복 검색
+│   ├── e2e/                     #   E2E 시나리오 생성/실행/검증
+│   │   ├── scenario.go          #     Scenario/ScenarioSet 타입, 파서/렌더러
+│   │   ├── extract_cobra.go     #     go/ast Cobra 커맨드 추출기
+│   │   ├── runner.go            #     시나리오 실행 엔진
+│   │   ├── verify.go            #     검증 프리미티브 (exit_code, stdout_contains 등)
+│   │   ├── env.go               #     계층형 환경변수 해결
+│   │   └── sync.go              #     증분 시나리오 동기화
 │   ├── experiment/              #   자율 반복 실험 엔진
 │   │   ├── types.go             #     Config, Result, MetricOutput, Direction 타입
 │   │   ├── metric.go            #     메트릭 실행, JSON 파싱, median 계산
@@ -192,10 +201,10 @@ autopus-adk/
 
 | Category | Count |
 |----------|-------|
-| Go source files | ~116 |
-| Test files | ~114 |
+| Go source files | ~124 |
+| Test files | ~127 |
 | Template files | ~22 |
 | Content files | ~64 |
-| CLI commands | 22 |
+| CLI commands | 23 |
 | Experiment pkg files | 6 |
 | Platform adapters | 5 |

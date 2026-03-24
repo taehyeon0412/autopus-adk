@@ -52,6 +52,7 @@ AI 코딩 CLI 플랫폼(Claude Code, Codex, Gemini CLI, OpenCode, Cursor)에 Aut
 | Cost Tracking | `auto telemetry cost` | 토큰 기반 파이프라인 비용 추정 및 리포트 |
 | Issue Reporter | `auto issue` | 에러 컨텍스트 자동 수집, 민감 정보 제거, GitHub 이슈 생성 (report/list/search) |
 | Experiment Loop | `/auto experiment` | 자율 반복 실험 엔진 — 메트릭 기반 keep/discard, circuit breaker, simplicity scoring, scope 제한 |
+| E2E Scenarios | `auto test run` | 대상 프로젝트 E2E 시나리오 자동 생성, 실행, 검증 — Cobra 커맨드 추출, 검증 프리미티브, 증분 동기화 |
 
 ## Supported Platforms
 
@@ -82,6 +83,7 @@ AI 코딩 CLI 플랫폼(Claude Code, Codex, Gemini CLI, OpenCode, Cursor)에 Aut
 15. **파이프라인 텔레메트리**: `auto telemetry`로 실행 기록 조회, 비용 추정, 이전 실행 비교
 16. **자동 이슈 리포트**: `auto issue report`로 에러 컨텍스트 수집, 민감 정보 제거 후 GitHub 이슈 자동 생성
 17. **자율 반복 실험**: `/auto experiment`으로 메트릭 기반 자율 코드 개선 — 에이전트가 코드 수정 → 메트릭 실행 → keep/discard 반복
+18. **E2E 시나리오 테스트**: `auto test run`으로 대상 프로젝트의 사용자 관점 E2E 시나리오 자동 실행 및 검증
 
 ## Modes
 

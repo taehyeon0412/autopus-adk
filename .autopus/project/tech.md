@@ -54,7 +54,7 @@
 | Coverage Target | 85%+ |
 | Test Pattern | Table-driven tests |
 | Parallel | `t.Parallel()` 사용 |
-| Test Files | ~85 |
+| Test Files | ~98 |
 
 ## Architecture Patterns
 
@@ -78,6 +78,7 @@
 | Cost Estimator | `pkg/cost/estimator.go` | 토큰 기반 비용 추정 (3:1 분할) |
 | Experiment Loop | `pkg/experiment/` | 스킬 오케스트레이션 + CLI 유틸리티 분리 (메트릭 실행, git 상태 관리, circuit breaker) |
 | Worktree Isolation | `content/skills/worktree-isolation.md` | 병렬 executor 워크트리 격리, Phase 2.1 배치 머지 |
+| E2E Scenarios | `pkg/e2e/` | 시나리오 기반 E2E 테스트 생성/실행/검증 (Cobra 추출, 검증 프리미티브, 증분 동기화) |
 
 ## Configuration
 
