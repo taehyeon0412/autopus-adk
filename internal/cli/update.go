@@ -145,6 +145,11 @@ func runSelfUpdate(cmd *cobra.Command, checkOnly, force bool, targetVersion stri
 		return fmt.Errorf("심볼릭 링크 해결 실패: %w", err)
 	}
 
+	// R13: Check write permission — re-exec with sudo if needed
+	if !isWritable(filepath.Dir(execPath)) {
+		return reExecWithSudo()
+	}
+
 	// Use info from checker, or construct one if targetVersion is set
 	if info == nil {
 		info = &selfupdate.ReleaseInfo{}
@@ -174,3 +179,4 @@ func runSelfUpdate(cmd *cobra.Command, checkOnly, force bool, targetVersion stri
 	fmt.Fprintf(cmd.OutOrStdout(), "하네스 파일도 업데이트하려면: auto update\n")
 	return nil
 }
+

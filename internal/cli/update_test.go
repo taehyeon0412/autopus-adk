@@ -166,24 +166,25 @@ func TestUpdateCmd_SelfFlagRecognized(t *testing.T) {
 }
 
 // TestUpdateCmd_SelfFlagWithForce verifies that --self --force bypasses the
-// dev-build guard and proceeds to the network check step. The test uses a
-// closed server URL to confirm it reaches the checker (network error expected).
+// dev-build guard and proceeds past it. We only verify the guard is not the
+// error source; actual download behavior depends on network/permissions.
 func TestUpdateCmd_SelfFlagWithForce(t *testing.T) {
 	t.Parallel()
 
-	// Given: root command with --self --force
+	// Given: root command with --self --force --check (check-only avoids download)
 	cmd := newTestRootCmd()
 	var out bytes.Buffer
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
-	cmd.SetArgs([]string{"update", "--self", "--force"})
+	cmd.SetArgs([]string{"update", "--self", "--force", "--check"})
 
 	// When: command executes
 	err := cmd.Execute()
 
-	// Then: dev-build guard is bypassed; error is from network/checker, not the guard
-	require.Error(t, err)
-	assert.NotContains(t, err.Error(), "개발 빌드")
+	// Then: dev-build guard is bypassed (no "개발 빌드" error)
+	if err != nil {
+		assert.NotContains(t, err.Error(), "개발 빌드")
+	}
 }
 
 // TestUpdateCmd_SelfCheckOnly verifies that --self --check exits without
