@@ -3,6 +3,50 @@
 > Format specifications for Autopus visual feedback and progress displays.
 > These formats MUST be used by all agents as defined per subcommand context.
 
+> **Canonical Source**: This file is the single source of truth for all Autopus visual output formats.
+> All agents and rules MUST reference this file rather than duplicating format definitions inline.
+
+---
+
+## A0: Session Start Format
+
+Display on the first response of a new conversation (Tier 1 — Session Start).
+
+**Case 1: SPECs exist**
+
+```
+🐙 Autopus ─────────────────────────
+  프로젝트: {project-name} | 모드: {mode}
+  SPEC: {draft}개 draft · {approved}개 approved · {implemented}개 구현중 · {completed}개 완료
+  최근 완료: {SPEC-ID} ({title})
+  다음: {next-step recommendation}
+```
+
+**Case 2: No SPECs**
+
+```
+🐙 Autopus ─────────────────────────
+  프로젝트: {project-name} | 모드: {mode}
+  SPEC: 없음
+  다음: /auto plan "기능 설명" 으로 시작하세요
+```
+
+**Field mappings:**
+- `{project-name}` — project name from autopus.yaml
+- `{mode}` — current mode (full, lite, etc.) from autopus.yaml
+- `{draft}` — count of SPECs in draft status
+- `{approved}` — count of SPECs in approved status
+- `{implemented}` — count of SPECs currently being implemented
+- `{completed}` — count of SPECs fully completed
+- `{SPEC-ID}` — identifier of most recently completed SPEC (e.g., `SPEC-UX-001`)
+- `{title}` — title of most recently completed SPEC
+- `{next-step recommendation}` — contextual suggestion based on project state
+
+**Rules:**
+- R1: Show Case 1 format when any SPECs exist in the project
+- R2: Show Case 2 format when no SPECs exist
+- R3: "최근 완료" line is omitted when no completed SPECs exist
+
 ---
 
 ## A1: Pipeline Progress Format
@@ -120,6 +164,8 @@ Display when a natural language request triggers the triage process (smart routi
 
 **Interactive mode** (default):
 
+1. Display analysis text:
+
 ```
 🐙 Triage ───────────────────────────
   요청: "{natural language request}"
@@ -130,15 +176,26 @@ Display when a natural language request triggers the triage process (smart routi
   - 난이도: {LOW | MEDIUM | HIGH | CRITICAL}
 
   추천: {recommended flow description}
-
-  선택:
-  [1] /auto fix "{desc}"              — 바로 수정 (SPEC 없음)
-  [2] /auto plan "{desc}" --skip-prd  — SPEC만 생성 (PRD 생략)
-  [3] /auto plan "{desc}"             — PRD + SPEC 전체 플로우
-
-  → 추천: [{N}] {recommended option}
-  선택 (1-3, Enter=추천 수락):
 ```
+
+2. Use `AskUserQuestion` tool for selection (NOT text-based numbered options):
+
+```
+AskUserQuestion(
+  questions = [{
+    question: "어떤 플로우로 진행할까요?",
+    header: "Triage",
+    multiSelect: false,
+    options: [
+      { label: "바로 수정 (Recommended)", description: "/auto fix — SPEC 없이 직접 수정" },
+      { label: "SPEC만 생성", description: "/auto plan --skip-prd — PRD 생략, SPEC만 작성" },
+      { label: "PRD + SPEC 전체", description: "/auto plan — PRD 작성 후 SPEC 생성" }
+    ]
+  }]
+)
+```
+
+Place recommended option FIRST with "(Recommended)" suffix.
 
 **Auto mode** (`--auto` flag):
 
@@ -148,11 +205,11 @@ Display when a natural language request triggers the triage process (smart routi
   난이도: {level} → {flow} (자동 진행)
 ```
 
-**Difficulty → option mapping:**
-- LOW → [1] fix
-- MEDIUM → [2] plan --skip-prd
-- HIGH → [3] plan (full)
-- CRITICAL → [1] fix + recommend `/auto secure` after
+**Difficulty → recommended option mapping:**
+- LOW → "바로 수정" first (Recommended)
+- MEDIUM → "SPEC만 생성" first (Recommended)
+- HIGH → "PRD + SPEC 전체" first (Recommended)
+- CRITICAL → "바로 수정" first (Recommended) + recommend `/auto secure` after
 
 ---
 

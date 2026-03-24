@@ -116,6 +116,15 @@ func DetectPermissions(projectRoot string, extra config.PermissionsConf) *adapte
 		"Bash(make:*)",
 		"mcp__sequential-thinking__sequentialthinking",
 		"WebSearch",
+
+		// Pipeline: agent orchestration tools
+		"Agent",
+		"AskUserQuestion",
+		"TaskCreate",
+		"TaskUpdate",
+		"TeamCreate",
+		"SendMessage",
+		"ToolSearch",
 	}
 
 	// Go project detection

@@ -84,7 +84,9 @@ This step is OPTIONAL if the text-based signals are unambiguous. Skip if `--auto
 
 #### Step 4: Triage Display and Confirmation
 
-WHEN `--auto` is NOT set, display:
+WHEN `--auto` is NOT set:
+
+1. Display the triage analysis as text:
 
 ```
 🐙 Triage ───────────────────────────
@@ -96,17 +98,26 @@ WHEN `--auto` is NOT set, display:
   - 난이도: {LOW | MEDIUM | HIGH | CRITICAL}
 
   추천: {recommended flow description}
-
-  선택:
-  [1] /auto fix "{desc}"              — 바로 수정 (SPEC 없음)
-  [2] /auto plan "{desc}" --skip-prd  — SPEC만 생성 (PRD 생략)
-  [3] /auto plan "{desc}"             — PRD + SPEC 전체 플로우
-
-  → 추천: [{N}] {recommended option}
-  선택 (1-3, Enter=추천 수락):
 ```
 
-Highlight the recommended option. User can override by selecting a different number.
+2. Use the `AskUserQuestion` tool to present the selection (do NOT use text-based numbered options):
+
+```
+AskUserQuestion(
+  questions = [{
+    question: "어떤 플로우로 진행할까요?",
+    header: "Triage",
+    multiSelect: false,
+    options: [
+      { label: "바로 수정 (Recommended)", description: "/auto fix — SPEC 없이 직접 수정" },
+      { label: "SPEC만 생성", description: "/auto plan --skip-prd — PRD 생략, SPEC만 작성" },
+      { label: "PRD + SPEC 전체", description: "/auto plan — PRD 작성 후 SPEC 생성" }
+    ]
+  }]
+)
+```
+
+Adjust the recommended option (add "(Recommended)" suffix) based on the difficulty classification. Place the recommended option FIRST in the options list.
 
 WHEN `--auto` IS set, display triage result and auto-proceed:
 
@@ -566,24 +577,28 @@ WHEN `LOOP_MODE = true` AND a retry iteration occurs, THE SYSTEM SHALL display:
 Priority order:
 1. If `QUALITY` is set → use it. If invalid value, print error and stop.
 2. If `AUTO_MODE = true` and `QUALITY` is not set → auto-select "balanced"
-3. Otherwise → show interactive selection UI:
+3. Otherwise → use the `AskUserQuestion` tool for interactive selection (do NOT use text-based numbered options):
 
 ```
-품질 모드를 선택하세요:
-
-[1] Ultra — 모든 에이전트를 Opus로 실행. 최고 품질. (비용: 높음)
-    planner=opus, executor=opus, validator=opus, tester=opus, reviewer=opus
-
-[2] Balanced — 핵심 분석은 Opus, 구현은 Sonnet, 검증은 Haiku. Adaptive Quality로 태스크 복잡도별 모델 자동 선택. (비용: 보통)
-    planner=opus, executor=sonnet, validator=haiku, tester=sonnet, reviewer=sonnet
-
-예상 비용 비교 (100K 토큰 기준):
-| Mode | Estimated Cost |
-|------|---------------|
-| Ultra | ~$2.25 |
-| Balanced | ~$0.45 |
-
-선택 (1-2):
+AskUserQuestion(
+  questions = [{
+    question: "품질 모드를 선택하세요.",
+    header: "Quality",
+    multiSelect: false,
+    options: [
+      {
+        label: "Balanced (Recommended)",
+        description: "핵심 분석은 Opus, 구현은 Sonnet, 검증은 Haiku. Adaptive Quality 적용. (~$0.45/100K tokens)",
+        preview: "planner=opus\nexecutor=sonnet (adaptive)\nvalidator=haiku\ntester=sonnet\nreviewer=sonnet"
+      },
+      {
+        label: "Ultra",
+        description: "모든 에이전트를 Opus로 실행. 최고 품질. (~$2.25/100K tokens)",
+        preview: "planner=opus\nexecutor=opus\nvalidator=opus\ntester=opus\nreviewer=opus"
+      }
+    ]
+  }]
+)
 ```
 
 When telemetry is enabled (`autopus.yaml → telemetry.enabled: true`), run `auto telemetry cost` output via Bash to get actual historical cost data. If previous runs exist, display historical average instead of the static table above.

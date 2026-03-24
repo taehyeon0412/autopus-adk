@@ -8,13 +8,15 @@ Branding visibility is tiered by context. Show only what is meaningful — never
 
 ### Tier 1 — Session Start
 
-First response of a new conversation: start with the full banner.
+First response of a new conversation: use the A0 Session Start Format defined in
+`templates/shared/branding-formats.md.tmpl`.
 
-```
-🐙 Autopus ─────────────────────────
-```
+**Project status block display rules:**
+- R1: When SPECs exist, display SPEC counts (draft/approved/implemented/completed) and most recent completed SPEC
+- R2: When no SPECs exist, display "SPEC: 없음" with a `/auto plan` prompt as next step
+- R3: Omit the "최근 완료" line when no SPECs have been completed yet
 
-Follow the banner with a one-line status, then continue normally.
+After the banner and status block, continue with the response normally.
 
 ### Tier 2 — /auto Command
 
@@ -49,3 +51,11 @@ After completing a major milestone (commit, deploy, review complete, plan finali
 - Subagent or background agent responses
 - Error messages or quick follow-ups
 - When only Tier 4 applies (no rules were actively used)
+
+## Canonical Source
+
+All branding formats are defined in `templates/shared/branding-formats.md.tmpl`.
+
+- R7: All branding formats MUST reference `templates/shared/branding-formats.md.tmpl` as the canonical source — do NOT duplicate format definitions inline
+- R8: Agent Result Format sections (subagent completion summaries) MUST use the A3 format from branding-formats.md.tmpl
+- R9: Tier display formats (A0–A4) are authoritative in branding-formats.md.tmpl; references in rule files MUST point there rather than redefining the format
