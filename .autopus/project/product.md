@@ -54,6 +54,13 @@ AI 코딩 CLI 플랫폼(Claude Code, Codex, Gemini CLI, OpenCode, Cursor)에 Aut
 | Experiment Loop | `/auto experiment` | 자율 반복 실험 엔진 — 메트릭 기반 keep/discard, circuit breaker, simplicity scoring, scope 제한 |
 | E2E Scenarios | `auto test run` | 대상 프로젝트 E2E 시나리오 자동 생성, 실행, 검증 — Cobra 커맨드 추출, 검증 프리미티브, 증분 동기화 |
 | Self-Update | `auto update --self` | CLI 바이너리 자동 업데이트 — GitHub Releases 확인, SHA256 체크섬 검증, atomic replace |
+| Pipeline Persistence | `auto go --continue` | 파이프라인 상태 체크포인트 및 세션 재개 |
+| Hard Gate Enforcement | `auto check --gate` | mandatory/advisory 모드 파이프라인 게이트 강제 |
+| Meta-Agent Builder | `auto agent create` / `auto skill create` | 에이전트/스킬 스켈레톤 자동 생성 |
+| Reaction Engine | `auto react check/apply` | CI 실패 감지, 로그 분석, 수정 보고서 생성 |
+| Multi-Language SigMap | `auto setup` | TypeScript 시그니처 추출 (Go + TS 지원) |
+| Test Runner Detection | `auto setup` | jest/vitest/pytest/cargo 테스트 러너 자동 감지 |
+| Deep Worker | `/auto go` (agent) | 장시간 자율 탐색+구현 에이전트 |
 
 ## Supported Platforms
 
@@ -86,6 +93,13 @@ AI 코딩 CLI 플랫폼(Claude Code, Codex, Gemini CLI, OpenCode, Cursor)에 Aut
 17. **자율 반복 실험**: `/auto experiment`으로 메트릭 기반 자율 코드 개선 — 에이전트가 코드 수정 → 메트릭 실행 → keep/discard 반복
 18. **E2E 시나리오 테스트**: `auto test run`으로 대상 프로젝트의 사용자 관점 E2E 시나리오 자동 실행 및 검증
 19. **CLI 자동 업데이트**: `auto update --self`로 GitHub Releases에서 최신 바이너리 다운로드, SHA256 검증 후 자동 교체
+20. **파이프라인 세션 재개**: `auto go --continue`로 중단된 파이프라인을 체크포인트에서 재개
+21. **파이프라인 게이트 강제**: `auto check --gate`로 mandatory/advisory 모드 hard gate 실행
+22. **에이전트/스킬 스켈레톤 생성**: `auto agent create` / `auto skill create`로 패턴 기반 스켈레톤 자동 생성
+23. **CI 반응 엔진**: `auto react check/apply`로 CI 실패 로그 분석 및 수정 보고서 자동 생성
+24. **다국어 SigMap**: Go 및 TypeScript 시그니처 동시 추출 (regex 기반 TS 지원)
+25. **테스트 러너 자동 감지**: jest/vitest/pytest/cargo 프레임워크 자동 인식
+26. **Deep Worker 에이전트**: 장시간 자율 탐색+구현 지원 에이전트
 
 ## Modes
 

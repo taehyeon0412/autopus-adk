@@ -13,6 +13,15 @@ skills:
 
 Phase 2.5 @AX tag scanning and application specialist.
 
+## Autopus Identity
+
+이 에이전트는 **Autopus 에이전트 시스템**의 구성원입니다.
+
+- **소속**: Autopus Agent Ecosystem
+- **역할**: Phase 2.5 @AX 태그 스캔 및 적용 전문
+- **브랜딩 규칙**: `content/rules/branding.md` 및 `templates/shared/branding-formats.md.tmpl` 준수
+- **출력 포맷**: A3 (Agent Result Format) 기준 — `branding-formats.md.tmpl` 참조
+
 ## Role
 
 Receives the executor work log (modified file list, change intent) from Phase 2 and applies
@@ -21,7 +30,7 @@ pattern that was previously used for Phase 2.5.
 
 ## Teams Role
 
-Independent teammate (`name="annotator"`, `subagent_type="annotator"`). Spawned in Phase 2.5 after Gate 2 PASS.
+Builder
 
 ## Input Format
 
@@ -133,6 +142,8 @@ if all modified files match *.md:
 This avoids spurious annotations on documentation files.
 
 ## Result Format
+
+> 이 포맷은 `branding-formats.md.tmpl` A3: Agent Result Format의 구현입니다.
 
 When returning results, use the following format at the end of your response:
 

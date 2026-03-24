@@ -8,7 +8,7 @@
 autopus-adk/
 ├── cmd/auto/                    # Entry point
 │   └── main.go                  #   cli.Execute() 호출
-├── internal/cli/                # Cobra CLI commands (18 commands)
+├── internal/cli/                # Cobra CLI commands (28 commands)
 │   ├── root.go                  #   Root command, global flags (--verbose, --config)
 │   ├── init.go                  #   auto init: 하네스 설치
 │   ├── update.go                #   auto update: Marker 기반 업데이트
@@ -35,6 +35,11 @@ autopus-adk/
 │   ├── experiment.go           #   auto experiment: 자율 반복 실험
 │   ├── experiment_helpers.go   #   experiment CLI 헬퍼 함수
 │   ├── test.go                 #   auto test: E2E 시나리오 실행
+│   ├── gate.go                 #   auto check --gate: hard gate enforcement
+│   ├── pipeline.go             #   auto go --continue: pipeline resume
+│   ├── react.go                #   auto react check/apply: reaction engine
+│   ├── agent_create.go         #   auto agent create: meta-agent builder
+│   ├── skill_create.go         #   auto skill create: meta-skill builder
 │   ├── prompts.go               #   대화형 프롬프트 (quality mode, review gate, methodology)
 │   ├── init_helpers.go          #   Init 헬퍼 함수 (gitignore, summary 생성)
 │   ├── doctor_fix.go            #   Doctor 자동 수정 (의존성 설치)
@@ -118,10 +123,13 @@ autopus-adk/
 │   ├── template/                #   템플릿 엔진
 │   │   ├── engine.go            #     Go template 래퍼
 │   │   └── funcmap.go           #     커스텀 함수
-│   ├── sigmap/                  #   API 시그니처 맵
+│   ├── sigmap/                  #   API 시그니처 맵 (Go + TypeScript)
 │   │   ├── types.go             #     Signature, Package, SignatureMap 타입
 │   │   ├── extractor.go         #     go/ast 기반 시그니처 추출
-│   │   └── renderer.go          #     Markdown 렌더링 + 500줄 필터링
+│   │   ├── renderer.go          #     Markdown 렌더링 + 500줄 필터링
+│   │   ├── iface.go             #     Extractor 인터페이스 (다국어 플러그인)
+│   │   ├── go_extractor.go      #     Go 전용 추출기 (extractor.go 리팩터)
+│   │   └── ts_extractor.go      #     TypeScript 시그니처 추출기 (regex 기반)
 │   ├── constraint/              #   안티패턴 제약
 │   │   ├── types.go             #     Constraint, Violation 타입
 │   │   ├── registry.go          #     YAML 기반 제약 로딩
@@ -162,8 +170,12 @@ autopus-adk/
 │   │   ├── recorder.go          #     results.tsv 기록, 실험 요약
 │   │   ├── circuit.go           #     Circuit breaker 로직
 │   │   └── simplicity.go        #     Simplicity Score 계산
+│   ├── pipeline/                #   파이프라인 상태 지속성
+│   │   ├── checkpoint.go        #     YAML 기반 체크포인트 저장/로드, stale 감지
+│   │   └── types.go             #     PipelineState, PhaseResult 타입
 │   ├── detect/                  #   플랫폼 감지
-│   │   └── detect.go
+│   │   ├── detect.go
+│   │   └── testrunner.go        #     테스트 러너 자동 감지 (jest/vitest/pytest/cargo)
 │   ├── plugin/                  #   플러그인 인터페이스
 │   │   └── plugin.go
 │   └── version/                 #   버전 정보
@@ -176,7 +188,7 @@ autopus-adk/
 │   ├── opencode/                #   OpenCode
 │   └── cursor/                  #   Cursor
 ├── content/                     # 임베디드 콘텐츠
-│   ├── agents/                  #   에이전트 정의 (15, annotator/perf-engineer/frontend-specialist 추가)
+│   ├── agents/                  #   에이전트 정의 (16, deep-worker 추가)
 │   ├── skills/                  #   스킬 정의 (37, agent-teams, adaptive-quality, agent-presets 추가)
 │   │   ├── worktree-isolation.md #     워크트리 격리 스킬
 │   │   └── agent-pipeline.md    #     에이전트 파이프라인 스킬
@@ -207,10 +219,10 @@ autopus-adk/
 
 | Category | Count |
 |----------|-------|
-| Go source files | ~129 |
-| Test files | ~131 |
+| Go source files | ~139 |
+| Test files | ~139 |
 | Template files | ~22 |
-| Content files | ~64 |
-| CLI commands | 23 |
+| Content files | ~65 |
+| CLI commands | 28 |
 | Experiment pkg files | 6 |
 | Platform adapters | 5 |

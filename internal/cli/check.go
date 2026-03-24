@@ -17,6 +17,7 @@ func newCheckCmd() *cobra.Command {
 		loreFlag     bool
 		quietFlag    bool
 		warnOnlyFlag bool
+		gateFlag     string
 		dir          string
 	)
 
@@ -38,6 +39,28 @@ func newCheckCmd() *cobra.Command {
 				tui.BannerWithInfo(out, "autopus-adk", "check")
 			}
 
+			if gateFlag != "" {
+				mode := GateModeMandatory
+				if warnOnlyFlag {
+					mode = GateModeAdvisory
+				}
+				result := GateCheck(GateConfig{
+					GateName: gateFlag,
+					Mode:     mode,
+					Dir:      dir,
+				})
+				if result.Err != nil {
+					return result.Err
+				}
+				if result.Warning != "" {
+					fmt.Fprintln(out, "Warning:", result.Warning)
+				}
+				if !result.Passed {
+					return fmt.Errorf("%s", result.Message)
+				}
+				return nil
+			}
+
 			allOK := runChecks(archFlag, loreFlag, dir, out, quietFlag, warnOnlyFlag)
 			if !allOK {
 				return fmt.Errorf("check failed")
@@ -50,6 +73,7 @@ func newCheckCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&loreFlag, "lore", false, "Check Lore commit format")
 	cmd.Flags().BoolVar(&quietFlag, "quiet", false, "Suppress non-error output")
 	cmd.Flags().BoolVar(&warnOnlyFlag, "warn-only", false, "Exit 0 even if checks fail (advisory mode)")
+	cmd.Flags().StringVar(&gateFlag, "gate", "", "Run a named gate check (e.g. phase2)")
 	cmd.Flags().StringVar(&dir, "dir", "", "Project root directory")
 
 	return cmd

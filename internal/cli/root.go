@@ -54,6 +54,8 @@ func NewRootCmd() *cobra.Command {
 	root.AddCommand(newExperimentCmd())
 	// @AX:NOTE [AUTO] @AX:REASON: Phase 2 addition — registers `auto test` and `auto test run` subcommands; added as part of SPEC-E2E-001
 	root.AddCommand(newAutoTestCmd())
+	root.AddCommand(newAgentCmd())
+	root.AddCommand(newReactCmd())
 
 	return root
 }

@@ -1,4 +1,18 @@
 {
+  "hooks": {
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "auto check --arch --quiet --warn-only",
+            "timeout": 30,
+            "type": "command"
+          }
+        ],
+        "matcher": "Bash"
+      }
+    ]
+  },
   "permissions": {
     "allow": [
       "Agent",
@@ -33,12 +47,15 @@
       "Bash(sort:*)",
       "Bash(mkdir:*)",
       "Bash(echo:*)",
-      "Bash(gh:*)"
+      "Bash(gh:*)",
+      "Bash(auto *)",
+      "Bash(git *)",
+      "Bash(make:*)"
     ]
   },
   "statusLine": {
-    "type": "command",
     "command": ".claude/statusline.sh",
-    "padding": 1
+    "padding": 1,
+    "type": "command"
   }
 }

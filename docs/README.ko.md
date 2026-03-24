@@ -257,7 +257,11 @@ auto init   # 설치된 모든 AI 코딩 CLI 자동 감지
 
 ---
 
-## 📦 30초 설치
+## 🚀 빠른 시작 가이드
+
+5분 안에 첫 AI 기반 기능을 만들어 보세요.
+
+### 1단계 · Autopus 설치
 
 ```bash
 curl -sSfL https://raw.githubusercontent.com/Insajin/autopus-adk/main/install.sh | sh
@@ -267,9 +271,6 @@ curl -sSfL https://raw.githubusercontent.com/Insajin/autopus-adk/main/install.sh
 <summary>기타 설치 방법</summary>
 
 ```bash
-# Homebrew (준비 중)
-# brew install insajin/autopus/auto
-
 # go install (Go 1.26+ 필요)
 go install github.com/Insajin/autopus-adk/cmd/auto@latest
 
@@ -280,12 +281,81 @@ cd autopus-adk && make build && make install
 
 </details>
 
-그런 다음, 아무 프로젝트에서:
+### 2단계 · 프로젝트 초기화
 
 ```bash
-auto init       # 플랫폼 감지, 하네스 생성
-auto setup      # 프로젝트 컨텍스트 문서 생성
+cd your-project
+auto init
 ```
+
+`auto init`은 설치된 AI 코딩 CLI(Claude Code, Codex, Gemini CLI, Cursor, OpenCode)를 자동 감지하고, 각 플랫폼에 맞는 **네이티브 설정** — 규칙, 스킬, 에이전트 — 을 하나의 `autopus.yaml`에서 생성합니다.
+
+```
+✓ 감지됨: claude-code, gemini-cli
+✓ 생성됨: .claude/rules/, .claude/skills/, .claude/agents/, CLAUDE.md
+✓ 생성됨: .gemini/, GEMINI.md
+✓ 생성됨: autopus.yaml
+```
+
+### 3단계 · 프로젝트 컨텍스트 생성 (`/auto setup`)
+
+**가장 중요한 단계입니다.** AI 에이전트는 세션 간 모든 기억을 잃습니다 — 매번 프로젝트를 처음 보는 것과 같습니다. `/auto setup`은 에이전트가 프로젝트를 즉시 이해할 수 있게 해주는 "온보딩 문서"를 생성합니다.
+
+```bash
+auto setup      # CLI에서
+/auto setup     # AI 코딩 CLI 내부에서 (예: Claude Code)
+```
+
+코드베이스를 분석하여 5개의 컨텍스트 문서를 생성합니다:
+
+```
+ARCHITECTURE.md                    # 도메인, 레이어, 의존성 맵
+.autopus/project/product.md       # 프로젝트 설명, 핵심 기능
+.autopus/project/structure.md     # 디렉토리 구조, 패키지 역할, 엔트리포인트
+.autopus/project/tech.md          # 기술 스택, 빌드, 테스트 전략
+.autopus/project/scenarios.md     # 코드에서 추출된 E2E 테스트 시나리오
+```
+
+> 💡 **왜 중요한가요?** 이 문서 없이 AI가 프로젝트를 보는 것은, 온보딩 없이 첫 출근한 신입사원과 같습니다 — 아키텍처를 추측하고, 컨벤션을 놓치고, 이미 존재하는 패턴을 다시 만들게 됩니다. `/auto setup`으로 모든 에이전트 세션이 정보를 갖고 시작합니다.
+
+### 4단계 · 첫 기능 만들기
+
+준비 완료. 원하는 것을 자연어로 설명하세요:
+
+```bash
+# 1. 기획 — AI가 전체 SPEC 생성 (요구사항, 태스크, 수락 기준)
+/auto plan "GET /healthz 헬스 체크 엔드포인트 추가"
+
+# 2. 구현 — 15개 에이전트가 구현, 테스트, 리뷰 처리
+/auto go SPEC-HEALTH-001 --auto
+
+# 3. 배포 — 문서 동기화, SPEC 상태 업데이트, 의사결정 이력과 함께 커밋
+/auto sync SPEC-HEALTH-001
+```
+
+```
+╭────────────────────────────────────╮
+│ 🐙 파이프라인 완료!                 │
+│ SPEC-HEALTH-001: 헬스 체크          │
+│ 태스크: 3/3 │ 커버리지: 92%         │
+│ 리뷰: APPROVE                      │
+╰────────────────────────────────────╯
+```
+
+이게 전부입니다 — 테스트, 보안 감사, 완전한 문서화가 포함된 프로덕션 수준 코드가 세 개의 명령으로 완성됩니다.
+
+### 빠른 참조
+
+| 하고 싶은 것 | 명령어 |
+|-------------|--------|
+| 새 프로젝트에 초기화 | `auto init` |
+| 프로젝트 컨텍스트 생성 | `/auto setup` |
+| 새 기능 기획 | `/auto plan "설명"` |
+| SPEC 구현 | `/auto go SPEC-ID --auto` |
+| 완전 자율 + 자가 치유 | `/auto go SPEC-ID --auto --loop` |
+| 버그 수정 | `/auto fix "설명"` |
+| 원샷 기획→구현→배포 | `/auto dev "설명"` |
+| 변경 후 문서 동기화 | `/auto sync SPEC-ID` |
 
 ---
 

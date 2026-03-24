@@ -1,20 +1,20 @@
 ---
 name: agent-teams
-description: Specialized agent-based team composition skill for Claude Code Agent Teams mode
+description: Role-based team composition skill for Claude Code Agent Teams mode
 triggers:
   - agent teams
   - teams
   - 에이전트 팀
   - 팀 구성
 category: agentic
-level1_metadata: "Agent Teams, specialized subagent_type, Phase-based spawning, SendMessage, worktree isolation"
+level1_metadata: "Agent Teams, role-based, Lead-Builder-Guardian, SendMessage, worktree isolation"
 ---
 
 # Agent Teams Skill
 
 ## Overview
 
-Agent Teams mode (`--team`) enables specialized agent collaboration via Claude Code Agent Teams. Each teammate is spawned with a `subagent_type` that loads the corresponding agent definition from `.claude/agents/autopus/`, inheriting its tools, skills, model, and domain expertise. Teammates communicate directly via `SendMessage`, share a task list, and self-coordinate through the pipeline.
+Agent Teams mode (`--team`) enables role-based team collaboration via Claude Code Agent Teams. Instead of spawning ephemeral subagents per task, this mode creates persistent teammates that communicate directly, share a task list, and self-coordinate through the pipeline.
 
 **Activation flag**: `/auto go SPEC-ID --team`
 
@@ -33,266 +33,142 @@ Error: Agent Teams mode requires CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
 Fallback: Run without --team to use the subagent pipeline mode.
 ```
 
-## Team Composition
+## Team Roles
 
-Each teammate maps 1:1 to a specialized agent definition. No role bundling.
+### Lead (1 agent)
 
-### Core Members (always spawned)
+**Responsibilities**: planner + reviewer
 
-| Name | subagent_type | Agent Definition | Phase |
-|------|---------------|------------------|-------|
-| `lead` | `planner` | planner.md (tools: Read,Grep,Glob,Bash,WebSearch,WebFetch,sequentialthinking) | Phase 1, Gate 1, coordination |
-| `builder-1` | `executor` | executor.md (tools: Read,Write,Edit,Grep,Glob,Bash,TodoWrite) | Phase 2 |
-| `tester` | `tester` | tester.md (tools: Read,Write,Edit,Grep,Glob,Bash) | Phase 1.5, Phase 3 |
-| `guardian` | `validator` | validator.md (tools: Read,Grep,Glob,Bash) | Gate 2 |
-
-### Phase-Dependent Members (spawned when needed)
-
-| Name | subagent_type | Agent Definition | Condition |
-|------|---------------|------------------|-----------|
-| `builder-2` | `executor` | executor.md | Parallel tasks exist (2+ independent tasks) |
-| `annotator` | `annotator` | annotator.md | Gate 2 PASS → Phase 2.5 |
-| `auditor` | `security-auditor` | security-auditor.md | Phase 4 (parallel with reviewer) |
-| `reviewer` | `reviewer` | reviewer.md | Phase 4 (parallel with auditor) |
-| `ux-verifier` | `frontend-specialist` | frontend-specialist.md | Phase 3.5, only if .tsx/.jsx changed |
-
-### Responsibilities per Member
-
-**lead** (planner):
-- Creates the team and task list
+- Creates the team and assigns tasks via `SendMessage`
 - Runs Phase 1 (Planning) to produce the execution plan
-- Assigns tasks to teammates via `SendMessage`
-- Monitors progress and consolidates results
-- Handles Gate 1 (Approval) coordination
-- Acts as Consolidator for Phase 4 review verdicts
+- Assigns tasks to Builder(s) and Guardian
+- Monitors task list and consolidates results
+- Runs Phase 4 (Review) and finalizes output
+- Re-assigns or falls back to subagent if a teammate fails
 
-**builder-1/2** (executor):
-- Implements code following TDD GREEN → REFACTOR
-- Works in an isolated worktree for parallel tasks
-- Reports completion to lead via `SendMessage`
+### Builder (1–2 agents)
 
-**tester** (tester):
-- Phase 1.5: Creates failing test skeletons (RED state)
-- Phase 3: Raises coverage to 85%+, adds edge case tests
+**Responsibilities**: executor + tester + annotator + frontend-specialist
 
-**guardian** (validator):
-- Gate 2: Runs go build, go test -race, golangci-lint, go vet
-- Checks file size limits (300 lines)
-- Reports Gate Verdict to lead
+- Implements code following TDD (RED → GREEN → REFACTOR)
+- Writes tests in Phase 1.5 (Test Scaffold) before implementation
+- Executes Phase 2 (Implementation) in an isolated worktree
+- Applies `@AX` annotation tags in Phase 2.5 (Annotation)
+- Communicates validation requests to Guardian via `SendMessage`
+- Reports completion to Lead via `SendMessage`
 
-**annotator** (annotator):
-- Phase 2.5: Applies @AX tags to modified files
-- Validates per-file limits (ANCHOR ≤ 3, WARN ≤ 5)
+### Guardian (1 agent)
 
-**auditor** (security-auditor):
-- Phase 4: OWASP Top 10 security audit on changed files
-- Reports Verdict to lead in parallel with reviewer
+**Responsibilities**: validator + security-auditor + perf-engineer
 
-**reviewer** (reviewer):
-- Phase 4: TRUST 5 code review on changed files
-- Reports Verdict to lead in parallel with auditor
+- Executes Gate 2 (Validation): coverage, lint, race conditions
+- Performs security audit on modified files
+- Monitors performance regressions
+- Responds to partial validation requests from Builder
+- Reports validation results to Lead via `SendMessage`
 
 ## Team Creation Pattern
 
 ```python
-# Step 1: Create team
-TeamCreate(team_name="team-{SPEC_ID}")
+# Lead creates the team at pipeline start
+team = TeamCreate(team_name=f"team-{spec_id}")
 
-# Step 2: Spawn core members
-# model parameter follows Quality Mode rules (see below)
-
-# Lead — always first
-Agent(
-    subagent_type="planner",
-    team_name="team-{SPEC_ID}",
-    name="lead",
-    model="opus",          # Ultra: "opus", Balanced: omit (frontmatter default: opus)
-    prompt="You are the team lead for SPEC-{SPEC_ID}. Read the SPEC, decompose tasks, and coordinate the team."
-)
-
-# Tester — Phase 1.5 (Test Scaffold)
-Agent(
-    subagent_type="tester",
-    team_name="team-{SPEC_ID}",
-    name="tester",
-    prompt="Create failing test skeletons for SPEC-{SPEC_ID} P0/P1 requirements."
-)
-
-# Builder(s) — Phase 2 (Implementation)
-Agent(
-    subagent_type="executor",
-    team_name="team-{SPEC_ID}",
-    name="builder-1",
-    isolation="worktree",  # Parallel tasks get worktree isolation
-    prompt="Implement tasks assigned by lead. SPEC: .autopus/specs/SPEC-{SPEC_ID}/spec.md"
-)
-
-# Guardian — Gate 2 (Validation)
-Agent(
-    subagent_type="validator",
-    team_name="team-{SPEC_ID}",
-    name="guardian",
-    prompt="Validate implementation: build, test, lint, coverage, file size."
-)
+# Spawn teammates
+lead    = Teammate(role="lead",     model="opus")
+builder = Teammate(role="builder",  model="sonnet")  # or haiku for LOW complexity
+guardian = Teammate(role="guardian", model="sonnet")
 ```
 
-### Phase 4: Spawn Review Members
+Task assignment via `SendMessage`:
 
 ```python
-# Reviewer and Auditor spawned in parallel for Phase 4
-Agent(
-    subagent_type="reviewer",
-    team_name="team-{SPEC_ID}",
-    name="reviewer",
-    prompt="Review all changes using TRUST 5 criteria. Report verdict to lead."
-)
-Agent(
-    subagent_type="security-auditor",
-    team_name="team-{SPEC_ID}",
-    name="auditor",
-    prompt="Audit all changed files for security vulnerabilities. Report verdict to lead."
-)
-```
+# Lead → Builder
+SendMessage(to="builder", message={
+    "phase": "Phase 2",
+    "tasks": [...],
+    "worktree": "<path>"
+})
 
-## Quality Mode × Model Selection
-
-Quality Mode determines the `model` parameter when spawning each teammate.
-
-### Ultra Mode
-
-Add `model: "opus"` to ALL Agent() calls:
-
-```python
-Agent(subagent_type="executor", team_name="...", name="builder-1", model="opus")
-Agent(subagent_type="validator", team_name="...", name="guardian",  model="opus")
-# ... all opus
-```
-
-### Balanced Mode
-
-Omit `model` parameter → each agent uses its frontmatter default:
-
-| Teammate | subagent_type | Frontmatter Model | Rationale |
-|----------|---------------|-------------------|-----------|
-| lead | planner | opus | Planning requires deep reasoning |
-| builder-1/2 | executor | sonnet | Implementation: speed/cost balance |
-| tester | tester | sonnet | Test writing |
-| guardian | validator | haiku | Build/lint checks are lightweight |
-| annotator | annotator | sonnet | Tag analysis |
-| auditor | security-auditor | opus | Security requires deep reasoning |
-| reviewer | reviewer | sonnet | Code review |
-
-### Balanced + Adaptive Quality
-
-Per-task complexity overrides the model for builder agents:
-
-| Complexity | Model Override |
-|-----------|---------------|
-| HIGH | `model: "opus"` |
-| MEDIUM | omit (sonnet default) |
-| LOW | `model: "haiku"` |
-
-```python
-# HIGH complexity task
-Agent(subagent_type="executor", team_name="...", name="builder-1", model="opus")
-# LOW complexity task
-Agent(subagent_type="executor", team_name="...", name="builder-2", model="haiku")
+# Lead → Guardian
+SendMessage(to="guardian", message={
+    "phase": "Gate 2",
+    "target_branch": "<branch>",
+    "coverage_threshold": 85
+})
 ```
 
 ## Execution Flow
 
 ```
-Main Session:
-  TeamCreate("team-{SPEC_ID}")
+Lead: Phase 1 (Planning)
+  → Assigns tasks to Builder(s) and Guardian
 
-lead (planner): Phase 1 — Planning
-  → Decomposes SPEC into tasks
-  → Creates task list, assigns to teammates
+Builder: Phase 1.5 (Test Scaffold)
+  → Writes failing tests first (RED)
 
-tester (tester): Phase 1.5 — Test Scaffold
-  → Writes failing tests (RED state)
-
-builder-1 (executor): Phase 2 — Implementation
+Builder: Phase 2 (Implementation)
   → GREEN phase in isolated worktree
-builder-2 (executor): Phase 2 — Implementation (parallel, if needed)
-  → GREEN phase in isolated worktree
+  → Merge back after completion
 
-Main Session: Phase 2.1 — Worktree Merge
-  → Merges worktree branches in task-ID order
-
-guardian (validator): Gate 2 — Validation
-  → Build, test, lint, coverage, file size checks
-
-annotator (annotator): Phase 2.5 — Annotation
+Builder: Phase 2.5 (Annotation)
   → Applies @AX tags to modified files
 
-tester (tester): Phase 3 — Testing
-  → Raises coverage to 85%+
+Guardian: Gate 2 (Validation)
+  → go test -race ./...
+  → Coverage check (85%+)
+  → golangci-lint run
+  → Security audit
 
-reviewer (reviewer) + auditor (security-auditor): Phase 4 — Review (parallel)
-  → TRUST 5 review + OWASP security audit
-
-lead (planner): Consolidation
-  → Merges review verdicts
-  → Final pipeline result
+Lead: Phase 4 (Review)
+  → Consolidates all results
+  → Final quality check
+  → Produces review report
 ```
 
-## Direct Communication Patterns
+## Builder-Guardian Direct Communication (P1-R3)
 
-### Builder → Guardian (Partial Validation)
-
-Builder can request partial validation from guardian without waiting for lead:
+Builder can request partial validation from Guardian without waiting for Lead coordination:
 
 ```python
-# builder-1 → guardian
-SendMessage(to="guardian", message="Please validate pkg/foo/bar.go — security-sensitive change, pre-check before Gate 2")
+# Builder → Guardian (partial validation request)
+SendMessage(to="guardian", message={
+    "type": "partial_validation",
+    "files": ["pkg/foo/bar.go"],
+    "reason": "security-sensitive change"
+})
 
-# guardian → builder-1
-SendMessage(to="builder-1", message="Validation PASS for pkg/foo/bar.go. No issues found.")
+# Guardian → Builder (validation result)
+SendMessage(to="builder", message={
+    "type": "validation_result",
+    "status": "PASS",  # or FAIL
+    "issues": []
+})
 ```
 
-### Lead → Reviewer/Auditor (Consolidated Review)
+All direct interactions are logged in the pipeline log:
 
-```python
-# After reviewer and auditor report verdicts
-# lead consolidates and sends unified fix list to builder
-SendMessage(to="builder-1", message="""
-Consolidated review — REQUEST_CHANGES:
-1. [HIGH] SQL injection risk in pkg/db/query.go:42 (from auditor)
-2. [MEDIUM] Missing error context in pkg/auth/token.go:15 (from reviewer)
-Fix these issues and report back.
-""")
+```
+[P1-R3] builder → guardian: partial_validation request (pkg/foo/bar.go)
+[P1-R3] guardian → builder: PASS
 ```
 
 ## Subagent Fallback Strategy
 
 | Scenario | Action |
 |----------|--------|
-| `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` not set | Error + fallback to subagent pipeline |
-| Builder fails mid-task | Lead re-assigns to another builder or spawns `Agent(subagent_type="executor")` |
-| Guardian fails | Lead spawns `Agent(subagent_type="validator")` as fallback |
-| Reviewer/Auditor fails | Lead spawns corresponding subagent as fallback |
+| `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` not set | Error + fallback guidance to use subagent pipeline |
+| Builder teammate fails mid-task | Lead re-assigns task to another Builder or spawns a subagent |
+| Guardian teammate fails | Lead falls back to subagent validator with `Agent(subagent_type="validator")` |
 | Team creation fails | Abort and fall back to default subagent pipeline |
 
 ## Worktree Isolation
 
-The same worktree isolation rules (R1–R5 from `worktree-isolation.md`) apply:
+The same worktree isolation rules (R1–R5 from `worktree-isolation.md`) apply in Agent Teams mode:
 
-- Each builder teammate works in an independent git worktree
+- Each Builder teammate works in an independent git worktree
 - Maximum 5 simultaneous worktrees
 - GC suppression: `git -c gc.auto=0 <command>` required during parallel execution
 - Exponential backoff on shared resource lock contention (3s → 6s → 12s)
 - Failed worktrees cleaned up with `git worktree remove --force <path>`
 
 **Ref**: SPEC-WORKTREE-001, `@.claude/skills/autopus/worktree-isolation.md`
-
-## Shutdown Protocol
-
-After pipeline completion, lead sends shutdown requests to all active teammates:
-
-```python
-SendMessage(to="builder-1", message={"type": "shutdown_request", "reason": "Pipeline complete"})
-SendMessage(to="tester",    message={"type": "shutdown_request", "reason": "Pipeline complete"})
-SendMessage(to="guardian",  message={"type": "shutdown_request", "reason": "Pipeline complete"})
-# ... for all active teammates
-```

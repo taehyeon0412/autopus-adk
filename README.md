@@ -261,19 +261,20 @@ Same 15 agents. Same 37 skills. Same rules. **Everywhere.**
 
 ---
 
-## 📦 30-Second Install
+## 🚀 Quick Start Guide
+
+Get from zero to your first AI-powered feature in under 5 minutes.
+
+### Step 1 · Install Autopus
 
 ```bash
 curl -sSfL https://raw.githubusercontent.com/Insajin/autopus-adk/main/install.sh | sh
 ```
 
 <details>
-<summary>Other methods</summary>
+<summary>Other install methods</summary>
 
 ```bash
-# Homebrew (coming soon)
-# brew install insajin/autopus/auto
-
 # go install (requires Go 1.26+)
 go install github.com/Insajin/autopus-adk/cmd/auto@latest
 
@@ -284,12 +285,81 @@ cd autopus-adk && make build && make install
 
 </details>
 
-Then, in any project:
+### Step 2 · Initialize Your Project
 
 ```bash
-auto init       # Detect platforms, generate harness
-auto setup      # Generate project context docs
+cd your-project
+auto init
 ```
+
+`auto init` scans your machine for installed AI coding CLIs (Claude Code, Codex, Gemini CLI, Cursor, OpenCode) and generates **native configuration** for each one — rules, skills, agents, and platform-specific settings — all from a single `autopus.yaml`.
+
+```
+✓ Detected: claude-code, gemini-cli
+✓ Generated: .claude/rules/, .claude/skills/, .claude/agents/, CLAUDE.md
+✓ Generated: .gemini/, GEMINI.md
+✓ Created: autopus.yaml
+```
+
+### Step 3 · Set Up Project Context (`/auto setup`)
+
+This is the most important step. **AI agents lose all memory between sessions** — every conversation is their first day on the job. `/auto setup` creates the "onboarding documents" that let agents understand your project instantly.
+
+```bash
+auto setup      # CLI
+/auto setup     # inside AI Coding CLI (e.g., Claude Code)
+```
+
+This analyzes your codebase and generates 5 context documents:
+
+```
+ARCHITECTURE.md                    # Domains, layers, dependency map
+.autopus/project/product.md       # What this project does, core features
+.autopus/project/structure.md     # Directory layout, package roles, entry points
+.autopus/project/tech.md          # Tech stack, build system, testing strategy
+.autopus/project/scenarios.md     # E2E test scenarios extracted from code
+```
+
+> 💡 **Why this matters:** Without these documents, an AI agent looking at your project is like a new hire with no onboarding — they'll guess at architecture, miss conventions, and reinvent patterns that already exist. With `/auto setup`, every agent session starts informed.
+
+### Step 4 · Build Your First Feature
+
+Now you're ready. Describe what you want in plain language:
+
+```bash
+# 1. Plan — AI creates a full SPEC (requirements, tasks, acceptance criteria)
+/auto plan "Add a health check endpoint at GET /healthz"
+
+# 2. Build — 15 agents handle implementation, testing, and review
+/auto go SPEC-HEALTH-001 --auto
+
+# 3. Ship — Sync docs, update SPEC status, commit with decision history
+/auto sync SPEC-HEALTH-001
+```
+
+```
+╭────────────────────────────────────╮
+│ 🐙 Pipeline Complete!              │
+│ SPEC-HEALTH-001: Health Check      │
+│ Tasks: 3/3 │ Coverage: 92%         │
+│ Review: APPROVE                    │
+╰────────────────────────────────────╯
+```
+
+That's it — production-ready code with tests, security audit, and full documentation, driven by three commands.
+
+### Quick Reference
+
+| What you want | Command |
+|--------------|---------|
+| Initialize in a new project | `auto init` |
+| Generate project context | `/auto setup` |
+| Plan a new feature | `/auto plan "description"` |
+| Implement a SPEC | `/auto go SPEC-ID --auto` |
+| Full autonomy + self-healing | `/auto go SPEC-ID --auto --loop` |
+| Fix a bug | `/auto fix "description"` |
+| One-shot plan→build→ship | `/auto dev "description"` |
+| Update docs after changes | `/auto sync SPEC-ID` |
 
 ---
 

@@ -22,10 +22,11 @@ Autopus-ADK (Agentic Development Kit) is a Go CLI tool that installs the Autopus
 | Search | `pkg/search` | Context7 MCP, Exa API, hash-based knowledge search |
 | Orchestra | `pkg/orchestra` | Multi-model orchestration (consensus, pipeline, debate, fastest) with judge-based debate, structured consensus, graceful degradation |
 | Template | `pkg/template` | Go text/template wrapper with custom functions |
-| Detect | `pkg/detect` | Platform binary detection, orchestra provider detection |
+| Detect | `pkg/detect` | Platform binary detection, orchestra provider detection, test runner detection |
 | Version | `pkg/version` | Build metadata (ldflags injection) |
-| SigMap | `pkg/sigmap` | AST-based exported API signature extraction and rendering |
+| SigMap | `pkg/sigmap` | AST-based exported API signature extraction and rendering (Go + TypeScript) |
 | Constraint | `pkg/constraint` | Anti-pattern registry and violation scanning |
+| Pipeline | `pkg/pipeline` | Pipeline state persistence, checkpoint management |
 | Telemetry | `pkg/telemetry` | Pipeline execution telemetry recording and reporting (JSONL) |
 | Cost | `pkg/cost` | Token-based cost estimation and pricing tables |
 | Issue | `pkg/issue` | Auto issue reporter: error context collection, sanitization, GitHub issue submission |
@@ -49,7 +50,8 @@ Autopus-ADK (Agentic Development Kit) is a Go CLI tool that installs the Autopus
 │  pkg/sigmap/     pkg/constraint/    │
 │  pkg/telemetry/  pkg/cost/          │
 │  pkg/experiment/ pkg/lsp/           │
-│  pkg/e2e/        pkg/selfupdate/   │
+│  pkg/e2e/        pkg/selfupdate/    │
+│  pkg/pipeline/                      │
 ├─────────────────────────────────────┤
 │  pkg/config/     pkg/template/      │  Infrastructure
 │  pkg/detect/     pkg/version/       │
@@ -82,6 +84,7 @@ cmd/auto/main.go
         ├→ pkg/e2e/
         ├→ pkg/selfupdate/
         ├→ pkg/detect/
+        ├→ pkg/pipeline/
         └→ pkg/version/
 ```
 
@@ -109,6 +112,12 @@ cmd/auto/main.go
 | PRD Templates | `templates/shared/prd-*.md.tmpl` | PRD Standard (10 sections) and Minimal (5 sections) reference templates |
 | Activator | `pkg/content/activator.go` | Skills auto-activation based on user query and context |
 | SigMap | `pkg/sigmap/extractor.go` | go/ast-based exported API inventory extraction |
+| Pipeline Checkpoint | `pkg/pipeline/checkpoint.go` | YAML-based pipeline state persistence with stale detection |
+| Multi-Language SigMap | `pkg/sigmap/iface.go` | Extractor interface for pluggable language support (Go + TypeScript) |
+| Test Runner Detection | `pkg/detect/testrunner.go` | Auto-detection of test frameworks (jest/vitest/pytest/cargo) |
+| Meta-Agent Builder | `internal/cli/agent_create.go` | Pattern-based agent/skill scaffold generation |
+| Reaction Engine | `internal/cli/react.go` | CI failure detection and fix report generation via gh CLI |
+| Hard Gate | `internal/cli/gate.go` | Mandatory pipeline gate enforcement via auto check --gate |
 | Constraint | `pkg/constraint/checker.go` | Pattern-based anti-pattern violation scanning |
 | Recorder | `pkg/telemetry/recorder.go` | JSONL-based pipeline execution telemetry |
 | Estimator | `pkg/cost/estimator.go` | Token-based cost estimation with 3:1 split ratio |

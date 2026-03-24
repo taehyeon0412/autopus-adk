@@ -45,6 +45,7 @@ func newSkillCmd() *cobra.Command {
 
 	cmd.AddCommand(listCmd)
 	cmd.AddCommand(infoCmd)
+	cmd.AddCommand(newSkillCreateCmd())
 
 	return cmd
 }

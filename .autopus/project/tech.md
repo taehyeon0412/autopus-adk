@@ -80,6 +80,9 @@
 | Worktree Isolation | `content/skills/worktree-isolation.md` | 병렬 executor 워크트리 격리, Phase 2.1 배치 머지 |
 | E2E Scenarios | `pkg/e2e/` | 시나리오 기반 E2E 테스트 생성/실행/검증 (Cobra 추출, 검증 프리미티브, 증분 동기화) |
 | Self-Update | `pkg/selfupdate/` | GitHub Releases 체크, SHA256 검증, atomic replace (stdlib only: net/http, crypto/sha256, archive/tar) |
+| Pipeline Checkpoint | `pkg/pipeline/checkpoint.go` | YAML 기반 파이프라인 상태 체크포인트, stale 감지 |
+| Multi-Language SigMap | `pkg/sigmap/iface.go` | Extractor 인터페이스로 언어별 플러그인 지원 (Go + TypeScript) |
+| Test Runner Detection | `pkg/detect/testrunner.go` | 프로젝트 타입별 테스트 프레임워크 자동 감지 |
 
 ## Configuration
 
