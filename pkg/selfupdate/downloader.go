@@ -86,7 +86,10 @@ func ParseChecksums(data []byte) (map[string]string, error) {
 	return result, nil
 }
 
-// extractBinary extracts the binary from tar.gz archive.
+// binaryName is the expected binary filename inside the archive.
+const binaryName = "auto"
+
+// extractBinary extracts the "auto" binary from tar.gz archive.
 func extractBinary(data []byte, destDir string) (string, error) {
 	gzr, err := gzip.NewReader(bytes.NewReader(data))
 	if err != nil {
@@ -104,29 +107,28 @@ func extractBinary(data []byte, destDir string) (string, error) {
 			return "", err
 		}
 
-		if header.Typeflag == tar.TypeReg {
-			baseName := filepath.Base(header.Name)
-			if baseName == "." || baseName == ".." || baseName == "" {
-				continue
-			}
-			path := filepath.Join(destDir, baseName)
-			f, err := os.Create(path)
-			if err != nil {
-				return "", err
-			}
-			if _, err := io.Copy(f, io.LimitReader(tr, maxExtractSize)); err != nil {
-				f.Close()
-				return "", err
-			}
-			f.Close()
-
-			if err := os.Chmod(path, os.FileMode(header.Mode)); err != nil {
-				return "", err
-			}
-
-			return path, nil
+		baseName := filepath.Base(header.Name)
+		if header.Typeflag != tar.TypeReg || baseName != binaryName {
+			continue
 		}
+
+		path := filepath.Join(destDir, baseName)
+		f, err := os.Create(path)
+		if err != nil {
+			return "", err
+		}
+		if _, err := io.Copy(f, io.LimitReader(tr, maxExtractSize)); err != nil {
+			f.Close()
+			return "", err
+		}
+		f.Close()
+
+		if err := os.Chmod(path, os.FileMode(header.Mode)); err != nil {
+			return "", err
+		}
+
+		return path, nil
 	}
 
-	return "", fmt.Errorf("no binary found in archive")
+	return "", fmt.Errorf("binary %q not found in archive", binaryName)
 }

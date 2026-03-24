@@ -43,7 +43,7 @@ func TestDownloadAndVerify_Success(t *testing.T) {
 	t.Parallel()
 
 	// Given: a tar.gz archive containing a fake binary
-	archiveContent := buildTarGz(t, "autopus-adk", "#!/bin/sh\necho hello")
+	archiveContent := buildTarGz(t, "auto", "#!/bin/sh\necho hello")
 	checksum := fmt.Sprintf("%x", sha256.Sum256(archiveContent))
 	archiveName := "autopus-adk_0.7.0_darwin_arm64.tar.gz"
 	checksumLine := checksum + "  " + archiveName + "\n"
@@ -83,7 +83,7 @@ func TestDownloadAndVerify_ChecksumMismatch(t *testing.T) {
 	t.Parallel()
 
 	// Given: a tar.gz archive with a wrong checksum in checksums.txt
-	archiveContent := buildTarGz(t, "autopus-adk", "#!/bin/sh\necho hello")
+	archiveContent := buildTarGz(t, "auto", "#!/bin/sh\necho hello")
 	archiveName := "autopus-adk_0.7.0_darwin_arm64.tar.gz"
 	wrongChecksum := "0000000000000000000000000000000000000000000000000000000000000000"
 	checksumLine := wrongChecksum + "  " + archiveName + "\n"
@@ -199,7 +199,7 @@ func TestDownloadAndVerify_EmptyArchive(t *testing.T) {
 
 	// Then: error is returned indicating no binary found
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "no binary found")
+	assert.Contains(t, err.Error(), "not found in archive")
 }
 
 // TestParseChecksums verifies that the checksums.txt file format is parsed
