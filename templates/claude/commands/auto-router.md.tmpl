@@ -160,6 +160,7 @@ When displaying the subcommand list (empty `/auto` invocation), use the categori
 | secure | Security audit |
 | stale | Detect stale decisions |
 | verify | Frontend UX verification |
+| test | Run E2E scenarios |
 
 **탐색 & 분석**
 
@@ -1048,6 +1049,42 @@ Usage: `/auto verify`, `/auto verify --report-only`, `/auto verify --viewport mo
 {{else}}
 Frontend UX verification requires Full mode. Run `/auto update` to upgrade.
 {{end}}
+---
+
+## test — Run E2E Scenarios
+
+Execute E2E test scenarios defined in `.autopus/project/scenarios.md` against the project.
+
+Runs the CLI command `auto test run` with appropriate flags. This is a thin wrapper around the Go binary.
+
+### Execution
+
+```bash
+auto test run [flags]
+```
+
+### Flags
+
+| Flag | Description |
+|------|-------------|
+| `-s, --scenario <ID>` | Run only a specific scenario by ID |
+| `--json` | Output results as JSON |
+| `--timeout <duration>` | Per-scenario timeout (default: 30s) |
+| `-v, --verbose` | Show stdout/stderr for each scenario |
+| `--project-dir <path>` | Project root directory (default: current) |
+
+### Output
+
+```
+S1: init              PASS  (0.42s)
+S2: update            PASS  (0.38s)
+S3: doctor            FAIL  exit code 1 (expected 0)
+
+Results: 2/3 passed
+```
+
+Usage: `/auto test`, `/auto test -s init`, `/auto test --json`, `/auto test -v`
+
 ---
 
 ## fix — Fix a Bug
