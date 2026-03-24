@@ -13,8 +13,7 @@ import (
 )
 
 // RunOrchestra는 설정에 따라 오케스트레이션을 실행한다.
-// @AX:ANCHOR: 오케스트레이션의 주 진입점 — 모든 전략 분기가 여기서 시작된다.
-// @AX:REASON: StrategyFunc 맵과 파이프라인/fastest 특수 경로 모두 이 함수를 통해 접근된다.
+// @AX:NOTE [AUTO] [downgraded from ANCHOR — fan_in < 3] 오케스트레이션의 주 진입점 — 2개 호출자 (spec_review, orchestra)
 func RunOrchestra(ctx context.Context, cfg OrchestraConfig) (*OrchestraResult, error) {
 	if len(cfg.Providers) == 0 {
 		return nil, fmt.Errorf("providers 목록이 비어있습니다")

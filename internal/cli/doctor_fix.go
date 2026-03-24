@@ -40,8 +40,7 @@ func runDoctorFix(w io.Writer, deps []detect.DependencyStatus, autoYes bool) err
 }
 
 // runDoctorFixWith is the injectable version used in tests.
-// @AX:ANCHOR [AUTO] central install orchestrator — called by runDoctorFix and directly in tests
-// @AX:REASON: fan_in from doctor.go (via runDoctorFix) and doctor_fix_test.go; logic changes here affect all fix flows
+// @AX:NOTE [AUTO] [downgraded from ANCHOR — fan_in < 3] central install orchestrator — single production caller via runDoctorFix
 func runDoctorFixWith(
 	w io.Writer,
 	deps []detect.DependencyStatus,

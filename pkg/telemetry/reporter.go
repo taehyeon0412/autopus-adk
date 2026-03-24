@@ -10,8 +10,7 @@ import (
 // FormatSummary returns a markdown-formatted summary of a single pipeline run.
 // Output includes SPEC ID, status, quality mode, duration, retry count, and a
 // phases table with per-phase duration, status, and agent summary.
-// @AX:ANCHOR: [AUTO] public API — caller in cmd/auto and future CLI commands depend on this signature
-// @AX:REASON: CLI telemetry summary, pipeline completion display, and compare command all invoke this
+// @AX:NOTE [AUTO] [downgraded from ANCHOR — fan_in < 3] public API — single caller in internal/cli/telemetry.go
 func FormatSummary(run PipelineRun) string {
 	var b strings.Builder
 
