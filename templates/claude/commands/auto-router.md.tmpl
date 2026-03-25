@@ -39,10 +39,14 @@ No project context documents found. Run `/auto setup` to initialize.
 |------|-------------|
 | `--think` | Activate Sequential Thinking MCP for deep analysis mode. Load the `mcp__sequential-thinking__sequentialthinking` tool via ToolSearch, then perform step-by-step reasoning. |
 | `--ultrathink` | Same as `--think` but with higher reasoning effort. |
+| `--auto` | Autonomous mode: skip user confirmations and approval gates. Triage auto-proceeds, Gate 1 skipped, etc. |
+| `--loop` | RALF loop mode: auto-retry failed quality gates with extended iteration limits until PASS or circuit break. |
+| `--multi` | Multi-provider mode: activate orchestra engine for reviews and decisions. |
+| `--quality <value>` | Agent quality mode: `ultra` (all agents Opus) or `balanced` (mixed, default). |
 {{end}}
 ### Routing Rules
 
-1. **Strip global flags**: Separate `--think`, `--ultrathink`, and other global flags from $ARGUMENTS
+1. **Strip global flags**: Separate `--think`, `--ultrathink`, `--auto`, `--loop`, `--multi`, `--quality <value>`, and other global flags from $ARGUMENTS
 2. **Match subcommand**: Use the first remaining word to determine the subcommand
 3. **Triage-based Smart Routing (natural language → difficulty-aware flow)**:
    - If the first word does not match a known subcommand and the remaining text has 2+ words:
@@ -58,11 +62,11 @@ WHEN a natural language request is detected (rule 3 above), THE SYSTEM SHALL ass
 
 Analyze the request text for the following signals:
 
-| Signal | LOW indicators | MEDIUM indicators | HIGH indicators |
-|--------|---------------|-------------------|-----------------|
-| **Change type** | fix, 수정, 고쳐, typo, rename, 오타, 삭제, 로그추가, config | 리팩토링, refactor, 개선, improve, 옵션추가, 확장, extend | 새로운, new, feature, 기능, 모듈, 시스템, 아키텍처, API설계 |
-| **Scope** | specific file/function mentioned | package/module mentioned | "전체", "모든", multi-domain, cross-cutting |
-| **Verb intensity** | change, update, move, remove | add, enhance, restructure | design, build, create, implement (large scope) |
+| Signal | IDEA indicators | LOW indicators | MEDIUM indicators | HIGH indicators |
+|--------|----------------|---------------|-------------------|-----------------|
+| **Change type** | 고민, 생각, idea, brainstorm, 가능할까, 어떻게, 테스트해보고싶어, 탐색, explore | fix, 수정, 고쳐, typo, rename, 오타, 삭제, 로그추가, config | 리팩토링, refactor, 개선, improve, 옵션추가, 확장, extend | 새로운, new, feature, 기능, 모듈, 시스템, 아키텍처, API설계 |
+| **Scope** | unclear or exploratory; no specific file/package | specific file/function mentioned | package/module mentioned | "전체", "모든", multi-domain, cross-cutting |
+| **Verb intensity** | think, consider, wonder, explore, 고민, 검토 | change, update, move, remove | add, enhance, restructure | design, build, create, implement (large scope) |
 
 #### Step 2: Impact Scan (fast, ≤ 5 seconds)
 
@@ -78,6 +82,7 @@ This step is OPTIONAL if the text-based signals are unambiguous. Skip if `--auto
 
 | Difficulty | Criteria (ANY of) | Recommended Flow |
 |-----------|-------------------|------------------|
+| **IDEA** | Exploratory question; "고민", "어떻게 하면", "가능할까"; feasibility check; brainstorm; no clear implementation target | `/auto idea "{desc}"` — brainstorm and evaluate |
 | **LOW** | Single file change; bug fix with known location; config/doc edit; ≤ 1 package affected | `/auto fix "{desc}"` — direct fix, no SPEC |
 | **MEDIUM** | 2-3 files; existing feature extension; single-package refactor; test additions | `/auto plan "{desc}" --skip-prd` — SPEC only, no PRD |
 | **HIGH** | 3+ files across packages; new feature/module; API design; architecture change; multi-domain impact | `/auto plan "{desc}"` — full PRD + SPEC pipeline |
@@ -110,7 +115,8 @@ AskUserQuestion(
     header: "Triage",
     multiSelect: false,
     options: [
-      { label: "바로 수정 (Recommended)", description: "/auto fix — SPEC 없이 직접 수정" },
+      { label: "아이디어 탐색", description: "/auto idea — 브레인스토밍 및 타당성 분석" },
+      { label: "바로 수정", description: "/auto fix — SPEC 없이 직접 수정" },
       { label: "SPEC만 생성", description: "/auto plan --skip-prd — PRD 생략, SPEC만 작성" },
       { label: "PRD + SPEC 전체", description: "/auto plan — PRD 작성 후 SPEC 생성" }
     ]
@@ -131,6 +137,7 @@ WHEN `--auto` IS set, display triage result and auto-proceed:
 #### Triage Override
 
 The user can always force a specific flow by using the subcommand directly:
+- `/auto idea "..."` — skip triage, go directly to idea brainstorm
 - `/auto fix "..."` — skip triage, go directly to fix
 - `/auto plan "..."` — skip triage, go directly to plan
 - `/auto plan "..." --skip-prd` — skip triage, plan without PRD
@@ -145,6 +152,7 @@ When displaying the subcommand list (empty `/auto` invocation), use the categori
 
 | Subcommand | Description |
 |-----------|-------------|
+| idea | Brainstorm and evaluate ideas |
 | plan | Write a SPEC |
 | go | Implement a SPEC |
 | sync | Synchronize documentation |
@@ -312,6 +320,85 @@ Context will be loaded automatically on the next session.
 
 ---
 
+## idea — Brainstorm and Evaluate Ideas
+
+@.claude/skills/autopus/idea.md
+
+Brainstorm ideas using multi-provider orchestra, evaluate with ICE scoring, and save as BS file.
+
+### Flags
+
+| Flag | Description |
+|------|-------------|
+| `--strategy` | Orchestra strategy: debate (default), consensus, pipeline, fastest |
+| `--providers` | Provider list override (default: all configured) |
+
+Global flags `--auto` and `--multi` also apply:
+- `--auto` → auto-chain to `/auto plan --from-idea BS-{ID}` after completion
+- `--multi` → always active for idea (orchestra is the default engine)
+
+Usage: `/auto idea "description"`, `/auto idea "description" --strategy consensus`, `/auto idea "description" --auto`
+
+### Pipeline
+
+#### Step 1: Parse Input
+
+Extract from remaining arguments (after global flag stripping):
+- First quoted or remaining text → `IDEA_DESC`
+- `--strategy <value>` → `STRATEGY` (default: debate)
+- `--providers <list>` → `PROVIDERS` (default: all)
+- `AUTO_MODE` inherited from global `--auto`
+
+#### Step 2: Structure as What/Why/Who/When
+
+Analyze the idea description and structure it:
+- **What**: What to build?
+- **Why**: Why is it needed? (problem/opportunity)
+- **Who**: Who is it for?
+- **When**: When is it needed? (timeline/context)
+
+#### Step 3: Call Orchestra Brainstorm
+
+```bash
+auto orchestra brainstorm "{structured idea}" --strategy {STRATEGY}
+```
+
+If `auto orchestra` is not available, fall back to Sequential Thinking MCP for structured brainstorming within the current session.
+
+#### Step 4: ICE Scoring
+
+Score each idea from the brainstorm output:
+- **Impact** (1-10): How much value does it deliver?
+- **Confidence** (1-10): How certain are we it will work?
+- **Ease** (1-10): How easy is it to implement?
+
+`Score = (Impact × Confidence × Ease) / 100`
+
+Select top N ideas by score.
+
+#### Step 5: Save BS File and Guide Next Steps
+
+Save to `.autopus/brainstorms/BS-{ID}.md` (auto-increment ID if exists).
+
+Display workflow lifecycle bar:
+
+```
+🐙 Workflow: BS-{ID}
+  ● idea  →  ○ plan  →  ○ go  →  ○ sync
+```
+
+If `AUTO_MODE = true`, auto-chain:
+```
+다음 단계: /auto plan --from-idea BS-{ID} (자동 진행)
+```
+
+Otherwise:
+```
+다음 단계: /auto plan --from-idea BS-{ID} "feature description"
+```
+
+---
+
 ## plan — Write a SPEC
 
 @.claude/skills/autopus/planning.md
@@ -322,21 +409,28 @@ Write a SPEC document. Delegate to the `spec-writer` agent to analyze the codeba
 
 | Flag | Description |
 |------|-------------|
-| `--multi` | Enable multi-provider review. Automatically runs multi-provider review after SPEC generation. |
+| `--from-idea <BS-ID>` | Create SPEC from a brainstorm file. Loads `.autopus/brainstorms/BS-{ID}.md` as context for the spec-writer. |
 | `--strategy` | Multi-provider strategy: consensus (default), debate, pipeline, fastest (requires `--multi`) |
 
-Usage: `/auto plan "feature description"`, `/auto plan "feature description" --multi`, `/auto plan "feature description" --multi --strategy debate`
+Global flags `--auto` and `--multi` also apply:
+- `--auto` → skip confirmations
+- `--multi` → enable multi-provider review after SPEC generation
+
+Usage: `/auto plan "feature description"`, `/auto plan --from-idea BS-001`, `/auto plan "feature" --multi --strategy debate`
 
 ### Pipeline (execute in this exact order)
 
 #### [REQUIRED] Step 1: Parse Flags
 
-Extract flags from $ARGUMENTS:
-- Check for `--multi` → `MULTI_FLAG = true/false`
+Global flags (`--auto`, `--loop`, `--multi`, `--quality`) are already stripped. Extract plan-specific flags:
+- Extract `--from-idea <BS-ID>` → `FROM_IDEA = BS-ID` (load brainstorm context)
 - Extract `--strategy <value>` → `STRATEGY = value` (default: consensus)
+- `MULTI_FLAG` ← inherited from global `--multi`
 - Remaining text → `FEATURE_DESC`
 
 #### [REQUIRED] Step 2: Spawn spec-writer Agent
+
+If `FROM_IDEA` is set, read `.autopus/brainstorms/BS-{FROM_IDEA}.md` and include its content as brainstorm context.
 
 Spawn a `spec-writer` agent to generate the SPEC:
 
@@ -346,6 +440,7 @@ Agent(
   prompt = """
     Feature description: {FEATURE_DESC}
     Project directory: {current directory}
+    Brainstorm context: {BS file content if FROM_IDEA is set, otherwise omit}
   """
 )
 ```
@@ -448,17 +543,19 @@ Implement code based on a SPEC document. Follows TDD methodology.
 
 IMPORTANT: You MUST parse these flags from $ARGUMENTS before any other action.
 
-Extract the following flags:
+Global flags (`--auto`, `--loop`, `--multi`, `--quality`) are already stripped. Extract the remaining go-specific flags:
 - `--team` → `TEAMS_MODE = true/false` (Agent Teams)
 - `--solo` → `SOLO_MODE = true/false` (single session, no subagents)
-- `--auto` → `AUTO_MODE = true/false`
-- `--multi` → `MULTI_MODE = true/false`
-- `--quality <value>` → `QUALITY = value` (ultra | balanced)
 - `--strategy <value>` → `STRATEGY = value`
 - `--continue` → `CONTINUE_MODE = true/false`
-- `--loop` → `LOOP_MODE = true/false`
 - `--skip-scaffold` → `SKIP_SCAFFOLD = true/false`
 - Remaining text (non-flag word) → `SPEC_ID`
+
+Inherit from global flags:
+- `AUTO_MODE` ← `--auto`
+- `LOOP_MODE` ← `--loop`
+- `MULTI_MODE` ← `--multi`
+- `QUALITY` ← `--quality`
 
 Determine execution mode:
 - `TEAMS_MODE = true` → Agent Teams mode
