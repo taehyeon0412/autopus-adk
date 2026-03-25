@@ -22,6 +22,11 @@ func RunOrchestra(ctx context.Context, cfg OrchestraConfig) (*OrchestraResult, e
 		return nil, fmt.Errorf("유효하지 않은 전략: %q", cfg.Strategy)
 	}
 
+	// Delegate to pane runner when a non-plain terminal is configured
+	if cfg.Terminal != nil && cfg.Terminal.Name() != "plain" {
+		return RunPaneOrchestra(ctx, cfg)
+	}
+
 	// 타임아웃 설정
 	timeout := cfg.TimeoutSeconds
 	if timeout <= 0 {

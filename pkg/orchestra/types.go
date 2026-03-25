@@ -1,7 +1,11 @@
-// Package orchestra는 다중 코딩 CLI 오케스트레이션 엔진을 제공한다.
+// Package orchestra provides the multi-coding CLI orchestration engine.
 package orchestra
 
-import "time"
+import (
+	"time"
+
+	"github.com/insajin/autopus-adk/pkg/terminal"
+)
 
 // Strategy는 오케스트레이션 전략이다.
 type Strategy string
@@ -63,10 +67,11 @@ type OrchestraResult struct {
 
 // OrchestraConfig는 오케스트레이션 실행 설정이다.
 type OrchestraConfig struct {
-	Providers      []ProviderConfig // 참여 프로바이더 목록
-	Strategy       Strategy         // 실행 전략
-	Prompt         string           // 전달할 프롬프트
-	TimeoutSeconds int              // 타임아웃 (초)
-	JudgeProvider  string           // debate 전략에서 최종 판정 프로바이더
-	DebateRounds   int              // Number of debate rounds (1=no rebuttal, 2=with rebuttal). 0 defaults to 1.
+	Providers      []ProviderConfig  // 참여 프로바이더 목록
+	Strategy       Strategy          // 실행 전략
+	Prompt         string            // 전달할 프롬프트
+	TimeoutSeconds int               // 타임아웃 (초)
+	JudgeProvider  string            // debate 전략에서 최종 판정 프로바이더
+	DebateRounds   int               // Number of debate rounds (1=no rebuttal, 2=with rebuttal). 0 defaults to 1.
+	Terminal       terminal.Terminal // Optional terminal for pane-based execution. Nil means non-interactive mode.
 }

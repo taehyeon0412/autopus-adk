@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/insajin/autopus-adk/pkg/orchestra"
+	"github.com/insajin/autopus-adk/pkg/terminal"
 )
 
 // buildFileContents reads each file and returns formatted content string.
@@ -184,6 +185,7 @@ func runOrchestraCommand(
 		Prompt:         prompt,
 		TimeoutSeconds: timeout,
 		JudgeProvider:  judge,
+		Terminal:       terminal.DetectTerminal(),
 	}
 
 	providerNames := make([]string, len(providers))
