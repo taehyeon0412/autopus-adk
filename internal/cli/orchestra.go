@@ -160,9 +160,13 @@ func runOrchestraCommand(
 		}
 		providers = buildProviderConfigs(names)
 	} else {
-		// Config loaded: resolve strategy and providers with priority
+		// Config loaded: resolve strategy, providers, and judge with priority
 		strategyStr = resolveStrategy(orchConf, commandName, flagStrategy)
 		providers = resolveProviders(orchConf, commandName, flagProviders)
+		// Resolve judge from config when not explicitly set via CLI flag
+		if judge == "" {
+			judge = resolveJudge(orchConf, commandName, "")
+		}
 	}
 
 	s := orchestra.Strategy(strategyStr)

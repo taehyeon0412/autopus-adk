@@ -69,6 +69,18 @@ func resolveProviderNames(conf *config.OrchestraConf, commandName string, flagPr
 	return names
 }
 
+// resolveJudge determines the judge provider to use for debate strategy.
+// Priority order: CLI flag > command-specific config > empty string (no judge).
+func resolveJudge(conf *config.OrchestraConf, commandName string, flagJudge string) string {
+	if flagJudge != "" {
+		return flagJudge
+	}
+	if cmd, ok := conf.Commands[commandName]; ok && cmd.Judge != "" {
+		return cmd.Judge
+	}
+	return ""
+}
+
 // resolveStrategy determines the strategy to use.
 // Priority order: CLI flag > command-specific config > global default > "consensus".
 func resolveStrategy(conf *config.OrchestraConf, commandName string, flagStrategy string) string {

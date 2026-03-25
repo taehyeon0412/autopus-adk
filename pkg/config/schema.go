@@ -111,6 +111,7 @@ type ProviderEntry struct {
 type CommandEntry struct {
 	Strategy  string   `yaml:"strategy"`
 	Providers []string `yaml:"providers,flow"`
+	Judge     string   `yaml:"judge,omitempty"` // provider name to act as debate judge
 }
 
 // ArchitectureConf는 ARCHITECTURE.md 설정이다.

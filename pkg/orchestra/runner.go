@@ -134,6 +134,13 @@ func runParallel(ctx context.Context, cfg OrchestraConfig) ([]ProviderResponse, 
 				Name:  cfg.Providers[r.idx].Name,
 				Error: r.err.Error(),
 			})
+		} else if r.resp.EmptyOutput {
+			// Treat empty stdout (exit 0 but no content) as a failed provider.
+			// This catches silent failures such as wrong CLI flags or interactive mode.
+			failed = append(failed, FailedProvider{
+				Name:  r.resp.Provider,
+				Error: "empty output: provider returned no content (check binary args or prompt_via_args setting)",
+			})
 		} else {
 			responses = append(responses, r.resp)
 		}
@@ -251,20 +258,22 @@ func runProvider(ctx context.Context, provider ProviderConfig, prompt string) (*
 	waitErr := cmd.Wait()
 	duration := time.Since(start)
 
+	output := stdoutBuf.String()
 	resp := &ProviderResponse{
-		Provider: provider.Name,
-		Output:   stdoutBuf.String(),
-		Error:    stderrBuf.String(),
-		Duration: duration,
-		ExitCode: cmd.ExitCode(),
+		Provider:    provider.Name,
+		Output:      output,
+		Error:       stderrBuf.String(),
+		Duration:    duration,
+		ExitCode:    cmd.ExitCode(),
+		EmptyOutput: strings.TrimSpace(output) == "",
 	}
 
-	// 컨텍스트 취소(타임아웃 포함) 여부 확인
+	// Check for context cancellation (includes timeout).
 	if ctx.Err() != nil {
 		resp.TimedOut = true
 	}
 
-	// 프로세스 오류는 TimedOut이 아닌 경우에만 반환
+	// Return error only when process failed and was not timed out.
 	if waitErr != nil && !resp.TimedOut && resp.ExitCode != 0 {
 		return resp, fmt.Errorf("%s 실행 오류 (exit %d): %w", provider.Name, resp.ExitCode, waitErr)
 	}

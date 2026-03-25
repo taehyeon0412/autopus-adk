@@ -36,12 +36,13 @@ type ProviderConfig struct {
 
 // ProviderResponse는 프로바이더 실행 결과이다.
 type ProviderResponse struct {
-	Provider string        // 프로바이더 이름
-	Output   string        // stdout 출력
-	Error    string        // stderr 출력
-	Duration time.Duration // 실행 시간
-	ExitCode int           // 종료 코드
-	TimedOut bool          // 타임아웃 여부
+	Provider    string        // 프로바이더 이름
+	Output      string        // stdout 출력
+	Error       string        // stderr 출력
+	Duration    time.Duration // 실행 시간
+	ExitCode    int           // 종료 코드
+	TimedOut    bool          // 타임아웃 여부
+	EmptyOutput bool          // true when stdout is empty (exit 0 but no content)
 }
 
 // FailedProvider records a provider that failed during execution.
