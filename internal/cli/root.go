@@ -57,6 +57,7 @@ func NewRootCmd() *cobra.Command {
 	root.AddCommand(newAgentCmd())
 	root.AddCommand(newReactCmd())
 	root.AddCommand(newTerminalCmd())
+	root.AddCommand(newPipelineCmd())
 
 	return root
 }

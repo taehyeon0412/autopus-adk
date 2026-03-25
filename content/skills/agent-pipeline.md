@@ -363,6 +363,65 @@ Manual intervention required. Last issue: [Issues content]
 
 Fallback condition: if a subagent fails 2 consecutive times, the main session handles the task directly.
 
+## Pipeline Monitoring Integration
+
+### Log Path Injection (R5)
+
+WHEN spawning agents in any Phase, THE SYSTEM SHALL inject the pipeline log file path into each agent's prompt.
+
+**Injection format:**
+
+```
+## Pipeline Monitor
+Log file: /tmp/autopus-pipeline-{spec-id}.log
+Write structured log entries: [timestamp] [your-role] [phase] message
+```
+
+**Usage in Agent() calls:**
+
+```python
+logger = PipelineLogger(log_dir)
+Agent(
+  subagent_type = "executor",
+  prompt = f"""
+    {logger.prompt_injection()}
+
+    ## Task
+    {task_description}
+  """
+)
+```
+
+### Dashboard Refresh (R4/R8)
+
+WHEN a Phase transition occurs (e.g., Phase 1 → Phase 2), THE SYSTEM SHALL refresh the dashboard pane:
+
+```python
+# After phase transition, refresh dashboard pane
+term.SendCommand(ctx, dashboard_pane_id, f"auto pipeline dashboard {spec_id}")
+```
+
+### Monitor Session Lifecycle
+
+```
+Pipeline Start   → MonitorSession.Start(ctx)  → creates 2 panes (cmux only)
+Phase Transition → logger.LogEvent(event)      → writes to JSONL + text log
+                 → term.SendCommand(dashboard) → refreshes dashboard
+Pipeline End     → MonitorSession.Close(ctx)   → closes panes, removes temp files
+```
+
+### Event Types
+
+| Event | When Emitted |
+|-------|-------------|
+| `phase_start` | Phase begins |
+| `phase_end` | Phase completes |
+| `agent_spawn` | Agent is spawned |
+| `agent_done` | Agent finishes |
+| `checkpoint` | Checkpoint saved |
+| `error` | Error occurs |
+| `blocker` | Blocker detected |
+
 ## Harness-Only Task Handling
 
 When all tasks modify only `.md` files:
