@@ -76,7 +76,8 @@ AI 코딩 CLI 플랫폼(Claude Code, Codex, Gemini CLI, OpenCode, Cursor)에 Aut
 ## Use Cases
 
 1. **새 프로젝트 부트스트랩**: `auto init`으로 하네스 설치, `auto setup`으로 문서 생성
-2. **PRD→SPEC 기반 개발**: `/auto plan` → PRD 생성 → SPEC 생성 → `auto spec review` → TDD 구현
+2. **아이디어 발산 → SPEC 기반 개발**: `/auto idea "설명"` → BS 파일 생성 → `/auto plan --from-idea BS-{ID}` → SPEC → TDD 구현
+3. **PRD→SPEC 기반 개발**: `/auto plan` → PRD 생성 → SPEC 생성 → `auto spec review` → TDD 구현
 3. **의사결정 추적**: Lore 커밋으로 Why/Decision/Alternatives 기록
 4. **아키텍처 관리**: `auto arch generate`로 구조 분석, `auto arch lint`로 규칙 검증
 5. **멀티-모델 리뷰**: `auto orchestra review`로 다중 AI 모델 합의 기반 코드 리뷰
