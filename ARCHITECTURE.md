@@ -122,6 +122,7 @@ cmd/auto/main.go
 | Recorder | `pkg/telemetry/recorder.go` | JSONL-based pipeline execution telemetry |
 | Estimator | `pkg/cost/estimator.go` | Token-based cost estimation with 3:1 split ratio |
 | Brainstorm | `internal/cli/orchestra_brainstorm.go` | Multi-provider SCAMPER/HMW brainstorming with divergence-preserving judge and ICE scoring |
+| Idea Workflow | `.claude/skills/autopus/idea.md` | Independent idea brainstorming subccommand (`/auto idea`) with BS file output and plan chaining |
 | Experiment Loop | `pkg/experiment/` + `.claude/skills/autopus/experiment.md` | Skill-orchestrated autonomous iteration loop with CLI utility commands for metric execution, git state management, circuit breaking, and simplicity scoring |
 | E2E Scenarios | `pkg/e2e/` + `pkg/setup/scenarios.go` | User-facing E2E scenario generation (Cobra extraction), execution engine, verification primitives, incremental sync |
 | Self-Update | `pkg/selfupdate/` + `internal/cli/update.go` | GitHub Releases API check, SHA256 checksum verification, atomic binary replacement via os.Rename |

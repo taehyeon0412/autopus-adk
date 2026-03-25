@@ -189,9 +189,10 @@ autopus-adk/
 │   └── cursor/                  #   Cursor
 ├── content/                     # 임베디드 콘텐츠
 │   ├── agents/                  #   에이전트 정의 (16, deep-worker 추가)
-│   ├── skills/                  #   스킬 정의 (37, agent-teams, adaptive-quality, agent-presets 추가)
+│   ├── skills/                  #   스킬 정의 (38, idea 추가)
 │   │   ├── worktree-isolation.md #     워크트리 격리 스킬
-│   │   └── agent-pipeline.md    #     에이전트 파이프라인 스킬
+│   │   ├── agent-pipeline.md    #     에이전트 파이프라인 스킬
+│   │   └── idea.md              #     아이디어 발산 스킬
 │   ├── hooks/                   #   훅 스크립트
 │   ├── rules/                   #   프로젝트 규칙
 │   ├── rules/                   #   프로젝트 규칙
@@ -201,6 +202,7 @@ autopus-adk/
 │   └── autopus.yaml             #   기본 설정
 ├── .autopus/                    # 프로젝트 워크스페이스
 │   ├── specs/                   #   SPEC 문서
+│   ├── brainstorms/             #   브레인스토밍 결과 (BS-{ID}.md)
 │   └── project/                 #   프로젝트 컨텍스트 문서
 ├── Makefile                     # 빌드 자동화
 ├── .goreleaser.yaml             # 릴리즈 자동화
