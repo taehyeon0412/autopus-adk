@@ -163,6 +163,41 @@ result_t1 = Agent(subagent_type="executor", prompt="Implement T1: ...")
 Agent(subagent_type="executor", prompt="Implement T2. T1 result: {result_t1}")
 ```
 
+### Phase 2 Profile Injection
+
+WHEN executor agents are spawned in Phase 2, THE SYSTEM SHALL inject the assigned profile into each executor's prompt.
+
+**Injection procedure:**
+1. Read the task's assigned Profile from the planner's assignment table
+2. Load the profile: check `.autopus/profiles/executor/{profile}.md` first (Tier 2/3), then `content/profiles/executor/{profile}.md` (Tier 1)
+3. If `extends` is set, resolve the base profile and merge Instructions
+4. Prepend the merged profile content to the executor prompt:
+
+```
+Agent(
+  subagent_type = "executor",
+  prompt = """
+    ## Stack Profile
+    {merged_profile_instructions}
+
+    ## Task
+    {task_description}
+  """
+)
+```
+
+5. If no profile is assigned or found, proceed without injection (R6 graceful fallback)
+
+**Profile loading priority:**
+1. `.autopus/profiles/executor/{name}.md` — custom/generated (Tier 2/3)
+2. `content/profiles/executor/{name}.md` — builtin (Tier 1)
+
+**`/auto setup` Profile Generation:**
+WHEN `/auto setup` detects frameworks (via `DetectFramework()`), THE SYSTEM SHALL spawn an explorer agent per detected framework to generate a profile markdown file at `.autopus/profiles/executor/{framework}.md`. The generated profile must include:
+- Valid frontmatter with `extends: {language_stack}`
+- Framework-specific tools, test runner, linter
+- Idiomatic patterns and completion criteria
+
 ### Phase 2.1: Worktree Merge
 
 WHEN all parallel executors complete, THE SYSTEM SHALL merge their worktree branches into the working branch before proceeding to Gate 2.

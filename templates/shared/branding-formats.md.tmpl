@@ -107,6 +107,32 @@ After `sync` completes:
   ✓ plan  →  ✓ go  →  ● sync
 ```
 
+**With idea stage** (when `--from-idea` or `--idea` flag is used):
+
+After `idea` completes:
+```
+🐙 Workflow: BS-{ID}
+  ● idea  →  ○ plan  →  ○ go  →  ○ sync
+```
+
+After `plan` completes (from idea):
+```
+🐙 Workflow: BS-{ID} → {SPEC-ID}
+  ✓ idea  →  ● plan  →  ○ go  →  ○ sync
+```
+
+After `go` completes (from idea):
+```
+🐙 Workflow: BS-{ID} → {SPEC-ID}
+  ✓ idea  →  ✓ plan  →  ● go  →  ○ sync
+```
+
+After `sync` completes (from idea):
+```
+🐙 Workflow: BS-{ID} → {SPEC-ID}
+  ✓ idea  →  ✓ plan  →  ✓ go  →  ● sync
+```
+
 ---
 
 ## A3: Agent Result Format

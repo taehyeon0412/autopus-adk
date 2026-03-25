@@ -76,7 +76,9 @@ autopus-adk/
 │   │   ├── ax.go                #     @AX 어노테이션
 │   │   ├── intent.go            #     인텐트 라우팅
 │   │   ├── activator.go            #     스킬 자동 활성화 엔진
-│   │   └── activator_context.go    #     활성화 컨텍스트 빌더
+│   │   ├── activator_context.go    #     활성화 컨텍스트 빌더
+│   │   ├── profiles.go             #     프로파일 로딩/파싱/합성/머지 (3-tier)
+│   │   └── profiles_test.go        #     프로파일 로직 테스트
 │   ├── setup/                   #   프로젝트 문서화
 │   │   ├── engine.go            #     Generate/Update/Validate
 │   │   ├── scenarios.go         #     E2E 시나리오 생성 헬퍼 (setup 통합)
@@ -175,7 +177,9 @@ autopus-adk/
 │   │   └── types.go             #     PipelineState, PhaseResult 타입
 │   ├── detect/                  #   플랫폼 감지
 │   │   ├── detect.go
-│   │   └── testrunner.go        #     테스트 러너 자동 감지 (jest/vitest/pytest/cargo)
+│   │   ├── testrunner.go        #     테스트 러너 자동 감지 (jest/vitest/pytest/cargo)
+│   │   ├── framework.go         #     프레임워크 감지 (14개 시그널 테이블)
+│   │   └── framework_test.go    #     프레임워크 감지 테스트
 │   ├── plugin/                  #   플러그인 인터페이스
 │   │   └── plugin.go
 │   └── version/                 #   버전 정보
@@ -193,8 +197,9 @@ autopus-adk/
 │   │   ├── worktree-isolation.md #     워크트리 격리 스킬
 │   │   ├── agent-pipeline.md    #     에이전트 파이프라인 스킬
 │   │   └── idea.md              #     아이디어 발산 스킬
+│   ├── profiles/                #   프로파일 정의
+│   │   └── executor/            #     executor 내장 프로파일 (go, typescript, python, rust, frontend)
 │   ├── hooks/                   #   훅 스크립트
-│   ├── rules/                   #   프로젝트 규칙
 │   ├── rules/                   #   프로젝트 규칙
 │   │   └── worktree-safety.md   #     워크트리 안전 규칙
 │   └── methodology/             #   TDD/DDD 가이드 (.yaml)

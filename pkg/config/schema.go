@@ -76,6 +76,19 @@ type HarnessConfig struct {
 	Context       ContextConf       `yaml:"context,omitempty"`
 	Telemetry     TelemetryConf     `yaml:"telemetry,omitempty"`
 	IssueReport   IssueReportConf   `yaml:"issue_report,omitempty"`
+	Profiles      ProfilesConf      `yaml:"profiles,omitempty"`
+}
+
+// ProfilesConf holds profile configuration for agents.
+type ProfilesConf struct {
+	Executor ExecutorProfileConf `yaml:"executor,omitempty"`
+}
+
+// ExecutorProfileConf holds executor profile settings.
+type ExecutorProfileConf struct {
+	Default   string                            `yaml:"default,omitempty"`
+	CustomDir string                            `yaml:"custom_dir,omitempty"`
+	Override  map[string]map[string]interface{} `yaml:"override,omitempty"`
 }
 
 // OrchestraConf는 다중 모델 오케스트레이션 설정이다 (Full 전용).

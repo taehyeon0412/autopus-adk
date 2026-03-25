@@ -100,6 +100,32 @@ planner 또는 orchestrator가 이 에이전트를 spawn할 때 반드시 아래
 - **Files**: 신규 파일은 `(new)`, 기존 파일은 현재 줄 수와 핵심 인터페이스 요약 포함
 - **Constraints**: 수정 금지 파일, 의존 금지 패키지 등 범위 제한 사항 명시
 
+## Stack Profile
+
+When a profile is assigned to this task, the profile content is prepended to the prompt before the Task section.
+
+### Profile Format
+
+The profile provides stack-specific guidance:
+- **Tools**: Build tools, test runners, linters for this stack
+- **Idioms**: Language/framework-specific patterns to follow
+- **Completion Criteria**: Stack-specific quality checks
+
+### How to Use
+
+1. Read the Stack Profile section at the top of your prompt
+2. Apply the stack-specific tools and patterns during implementation
+3. Use the profile's completion criteria IN ADDITION to the standard completion criteria
+4. If the profile specifies a test framework, use it instead of the default
+
+### Extended Profiles
+
+When a framework profile extends a language profile, both are included:
+- Language profile Instructions appear first (base patterns)
+- Framework profile Instructions appear second (framework-specific overrides)
+
+Follow framework-specific guidance when it conflicts with language-level guidance.
+
 ## 완료 보고 형식
 
 작업 완료 후 아래 구조로 결과를 반환한다. 호출자(planner/orchestrator)가 이 형식을 파싱하여 다음 단계를 결정한다.

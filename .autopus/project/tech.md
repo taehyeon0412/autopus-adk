@@ -83,6 +83,8 @@
 | Pipeline Checkpoint | `pkg/pipeline/checkpoint.go` | YAML 기반 파이프라인 상태 체크포인트, stale 감지 |
 | Multi-Language SigMap | `pkg/sigmap/iface.go` | Extractor 인터페이스로 언어별 플러그인 지원 (Go + TypeScript) |
 | Test Runner Detection | `pkg/detect/testrunner.go` | 프로젝트 타입별 테스트 프레임워크 자동 감지 |
+| Executor Profile | `pkg/content/profiles.go` + `content/profiles/executor/*.md` | 3-tier 프로파일 시스템 (builtin/generated/custom), extends 합성, 스택별 executor 프롬프트 주입 |
+| Framework Detection | `pkg/detect/framework.go` | 시그널 기반 14개 프레임워크 자동 감지 (config file, package.json, go.mod, Cargo.toml) |
 | Idea Workflow | `.claude/skills/autopus/idea.md` | 멀티 프로바이더 브레인스토밍 + ICE 스코어링 + BS 파일 + plan 체이닝 |
 
 ## Configuration

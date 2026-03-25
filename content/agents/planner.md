@@ -143,22 +143,45 @@ When `adaptive: false`, balanced mode uses sonnet for all tasks regardless of co
 
 Refer to cost estimator for token/cost projection per model tier before finalizing the plan.
 
+## Profile Assignment
+
+When the SPEC project uses the Executor Profile System, assign a profile to each task in the assignment table.
+
+### Matching Heuristic
+
+| File Pattern | Stack | Profile |
+|---|---|---|
+| *.go | go | go (or framework: gin, echo, chi) |
+| *.ts, *.tsx, *.js, *.jsx | typescript | typescript (or framework: nextjs, nuxtjs, nestjs, react, vue, svelte) |
+| *.py | python | python (or framework: fastapi, django, flask) |
+| *.rs | rust | rust (or framework: axum) |
+| *.css, *.scss, *.html | frontend | frontend |
+
+### Priority
+1. Framework profile (if `.autopus/profiles/executor/{framework}.md` exists)
+2. Language profile (builtin `content/profiles/executor/{stack}.md`)
+3. No profile (existing executor definition only)
+
+### Assignment Table Column
+Add a `Profile` column to the assignment table.
+
 ## 에이전트 할당 표 출력 형식
 
 태스크 분해 완료 후 아래 형식으로 실행 계획을 출력합니다.
 
 ```markdown
-| Task | Agent | Dependencies | Files | Mode | Complexity |
-|------|-------|-------------|-------|------|-----------|
-| T1 | executor | - | pkg/foo/bar.go | parallel | LOW |
-| T2 | executor | T1 | pkg/foo/baz.go | sequential | MEDIUM |
-| T3 | tester | T1,T2 | pkg/foo/*_test.go | sequential | HIGH |
+| Task | Agent | Dependencies | Files | Profile | Mode | Complexity |
+|------|-------|-------------|-------|---------|------|-----------|
+| T1 | executor | - | pkg/foo/bar.go | go | parallel | LOW |
+| T2 | executor | T1 | pkg/foo/baz.go | go | sequential | MEDIUM |
+| T3 | tester | T1,T2 | pkg/foo/*_test.go | - | sequential | HIGH |
 ```
 
 - **Task**: plan.md의 태스크 ID (T1, T2, ...)
 - **Agent**: 할당된 에이전트 이름
 - **Dependencies**: 선행 완료 필요 태스크 (없으면 `-`)
 - **Files**: 주요 수정 대상 파일 목록
+- **Profile**: 매칭된 executor profile 이름 (없으면 `-`)
 - **Mode**: `parallel` (병렬 실행 가능) 또는 `sequential` (순차 실행 필요)
 - **Complexity**: `HIGH` / `MEDIUM` / `LOW` — Adaptive Quality model selection 기준
 

@@ -145,6 +145,7 @@ When displaying the subcommand list (empty `/auto` invocation), use the categori
 
 | Subcommand | Description |
 |-----------|-------------|
+| idea | Multi-provider idea brainstorming |
 | plan | Write a SPEC |
 | go | Implement a SPEC |
 | sync | Synchronize documentation |
@@ -312,6 +313,77 @@ Context will be loaded automatically on the next session.
 
 ---
 
+## idea — Multi-Provider Idea Discussion
+
+@.claude/skills/autopus/idea.md
+
+Generate and explore ideas using multi-provider brainstorming before writing a SPEC.
+
+### Flags
+
+| Flag | Description |
+|------|-------------|
+| `--strategy` | Orchestration strategy: debate (default), consensus, pipeline, fastest |
+| `--providers` | Comma-separated provider list (e.g., claude,gemini) |
+| `--auto` | Auto-chain: after idea completes, automatically proceed to plan |
+
+Usage: `/auto idea "feature description"`, `/auto idea "feature description" --strategy debate`, `/auto idea "feature" --auto`
+
+### Pipeline (execute in this exact order)
+
+#### [REQUIRED] Step 1: Parse Input
+
+Extract flags from $ARGUMENTS:
+- Extract `--strategy <value>` → `STRATEGY = value` (default from autopus.yaml, fallback: debate)
+- Extract `--providers <value>` → `PROVIDERS = value` (default from autopus.yaml)
+- Extract `--auto` → `AUTO_CHAIN = true/false`
+- Remaining text → `IDEA_DESC`
+
+#### [REQUIRED] Step 2: Structure Idea
+
+Analyze `IDEA_DESC` and structure as:
+- **What**: Core idea description
+- **Why**: Motivation and problem being solved
+- **Who**: Target users/beneficiaries
+- **When**: Timeline or urgency
+
+#### [REQUIRED] Step 3: Run Multi-Provider Brainstorm
+
+Call the existing CLI command via Bash:
+
+```bash
+auto orchestra brainstorm "{structured idea}" --strategy {STRATEGY} [--providers {PROVIDERS}]
+```
+
+WHILE brainstorm runs, per-provider timeout from `autopus.yaml → orchestra.timeout_seconds` applies.
+WHERE a provider fails, graceful degradation proceeds with remaining providers.
+
+#### [REQUIRED] Step 4: Save Results
+
+1. Determine next BS-ID: scan `.autopus/brainstorms/` for existing `BS-*.md` files, auto-increment
+2. Create `.autopus/brainstorms/` directory if it doesn't exist
+3. Save brainstorm result to `.autopus/brainstorms/BS-{ID}.md` with the format defined in the idea skill
+
+#### [REQUIRED] Step 5: Completion Guidance
+
+Display the workflow lifecycle bar:
+
+```
+🐙 Workflow: BS-{ID}
+  ● idea  →  ○ plan  →  ○ go  →  ○ sync
+```
+
+Then show next step guidance:
+
+```
+BS-{ID} 생성됨
+다음 단계: /auto plan --from-idea BS-{ID} "feature description"
+```
+
+WHEN `AUTO_CHAIN = true`: skip display, automatically proceed to `/auto plan --from-idea BS-{ID} "{IDEA_DESC}"`.
+
+---
+
 ## plan — Write a SPEC
 
 @.claude/skills/autopus/planning.md
@@ -324,8 +396,9 @@ Write a SPEC document. Delegate to the `spec-writer` agent to analyze the codeba
 |------|-------------|
 | `--multi` | Enable multi-provider review. Automatically runs multi-provider review after SPEC generation. |
 | `--strategy` | Multi-provider strategy: consensus (default), debate, pipeline, fastest (requires `--multi`) |
+| `--from-idea <BS-ID>` | Load brainstorm insights from BS file as spec-writer context |
 
-Usage: `/auto plan "feature description"`, `/auto plan "feature description" --multi`, `/auto plan "feature description" --multi --strategy debate`
+Usage: `/auto plan "feature description"`, `/auto plan --from-idea BS-001 "feature"`, `/auto plan "feature description" --multi`, `/auto plan "feature description" --multi --strategy debate`
 
 ### Pipeline (execute in this exact order)
 
@@ -334,6 +407,7 @@ Usage: `/auto plan "feature description"`, `/auto plan "feature description" --m
 Extract flags from $ARGUMENTS:
 - Check for `--multi` → `MULTI_FLAG = true/false`
 - Extract `--strategy <value>` → `STRATEGY = value` (default: consensus)
+- Extract `--from-idea <BS-ID>` → `FROM_IDEA = BS-ID` (default: none)
 - Remaining text → `FEATURE_DESC`
 
 #### [REQUIRED] Step 2: Spawn spec-writer Agent
@@ -346,6 +420,27 @@ Agent(
   prompt = """
     Feature description: {FEATURE_DESC}
     Project directory: {current directory}
+  """
+)
+```
+
+WHEN `FROM_IDEA` is set:
+- Read `.autopus/brainstorms/{FROM_IDEA}.md`
+- If file not found: print error "BS-{ID}를 찾을 수 없습니다" and list existing BS files, then stop
+- Include brainstorm insights in spec-writer prompt:
+
+```
+Agent(
+  subagent_type = "spec-writer",
+  prompt = """
+    Feature description: {FEATURE_DESC}
+    Project directory: {current directory}
+
+    Brainstorm context (from {FROM_IDEA}):
+    {contents of .autopus/brainstorms/{FROM_IDEA}.md}
+
+    Use the brainstorm insights — especially the top-ranked ideas and
+    recommended direction — to inform the SPEC requirements.
   """
 )
 ```
@@ -395,6 +490,7 @@ auto spec review {SPEC-ID} --strategy {STRATEGY}
 Before displaying completion output, verify ALL steps were evaluated:
 
 - [ ] Step 1: Parse Flags — completed
+- [ ] Step 1.5: FROM_IDEA context loaded — completed OR N/A (no --from-idea)
 - [ ] Step 2: Spawn spec-writer Agent — completed, SPEC-ID extracted
 - [ ] Step 3: Review Gate Decision — evaluated (result: Step 4 or INTENDED SKIP)
 - [ ] Step 4: Multi-Provider Review — completed OR [INTENDED SKIP]
@@ -405,6 +501,13 @@ IF any item is unchecked → return to that step. Do NOT display Completion Guid
 
 Display the workflow lifecycle bar:
 
+WHEN `FROM_IDEA` is set:
+```
+🐙 Workflow: BS-{FROM_IDEA} → {SPEC-ID}
+  ✓ idea  →  ● plan  →  ○ go  →  ○ sync
+```
+
+WHEN `FROM_IDEA` is NOT set:
 ```
 🐙 Workflow: {SPEC-ID}
   ● plan  →  ○ go  →  ○ sync
@@ -1336,25 +1439,56 @@ Execute the complete plan → go → sync cycle in one command.
 
 ### Pipeline
 
+WHEN `--idea` flag is set:
+0. Run `idea` with the feature description → get BS-ID
+1. Run `plan --from-idea BS-{ID}` with the feature description → get SPEC-ID
+2. Run `go SPEC-ID --auto --loop` → implement
+3. Run `sync SPEC-ID` → synchronize documentation
+
+WHEN `--idea` flag is NOT set (existing behavior):
 1. Run `plan` with the feature description → get SPEC-ID
 2. Run `go SPEC-ID --auto --loop` → implement
 3. Run `sync SPEC-ID` → synchronize documentation
 
 Display the workflow lifecycle bar between each stage:
 
-After plan:
+After idea (only with --idea):
+```
+🐙 Workflow: BS-{ID}
+  ● idea  →  ○ plan  →  ○ go  →  ○ sync
+```
+
+After plan (with --idea):
+```
+🐙 Workflow: BS-{ID} → {SPEC-ID}
+  ✓ idea  →  ● plan  →  ○ go  →  ○ sync
+```
+
+After plan (without --idea):
 ```
 🐙 Workflow: {SPEC-ID}
   ● plan  →  ○ go  →  ○ sync
 ```
 
-After go:
+After go (with --idea):
+```
+🐙 Workflow: BS-{ID} → {SPEC-ID}
+  ✓ idea  →  ✓ plan  →  ● go  →  ○ sync
+```
+
+After go (without --idea):
 ```
 🐙 Workflow: {SPEC-ID}
   ✓ plan  →  ● go  →  ○ sync
 ```
 
-After sync:
+After sync (with --idea):
+```
+🐙 Workflow: BS-{ID} → {SPEC-ID}
+  ✓ idea  →  ✓ plan  →  ✓ go  →  ● sync
+```
+
+After sync (without --idea):
 ```
 🐙 Workflow: {SPEC-ID}
   ✓ plan  →  ✓ go  →  ● sync
@@ -1368,8 +1502,9 @@ After sync:
 | `--solo` | Run `go` in single session mode (no subagents) |
 | `--quality` | Quality mode: ultra or balanced |
 | `--multi` | Enable multi-provider review in all stages |
+| `--idea` | Include idea phase: idea → plan → go → sync (full 4-stage cycle) |
 
-Usage: `/auto dev "feature description"`, `/auto dev "feature description" --team`, `/auto dev "feature description" --quality ultra`
+Usage: `/auto dev "feature description"`, `/auto dev "feature description" --idea`, `/auto dev "feature description" --team`, `/auto dev "feature description" --quality ultra`
 
 
 ---

@@ -61,6 +61,8 @@ AI 코딩 CLI 플랫폼(Claude Code, Codex, Gemini CLI, OpenCode, Cursor)에 Aut
 | Reaction Engine | `auto react check/apply` | CI 실패 감지, 로그 분석, 수정 보고서 생성 |
 | Multi-Language SigMap | `auto setup` | TypeScript 시그니처 추출 (Go + TS 지원) |
 | Test Runner Detection | `auto setup` | jest/vitest/pytest/cargo 테스트 러너 자동 감지 |
+| Executor Profile | `/auto setup` / `/auto go` | 3-tier 프로파일 시스템 — 내장(언어 5개) + 자동 생성(프레임워크) + 커스텀, extends 합성, 스택별 executor 프롬프트 동적 주입 |
+| Framework Detection | `/auto setup` | 14개 프레임워크 시그널 감지 (Next.js, Nuxt, NestJS, FastAPI, Django, Flask, Gin, Echo, Chi, Axum, React, Vue, Svelte) |
 | Deep Worker | `/auto go` (agent) | 장시간 자율 탐색+구현 에이전트 |
 
 ## Supported Platforms
