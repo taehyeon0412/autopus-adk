@@ -168,6 +168,7 @@ When displaying the subcommand list (empty `/auto` invocation), use the categori
 | secure | Security audit |
 | stale | Detect stale decisions |
 | verify | Frontend UX verification |
+| browse | Browser automation (agent-browser) |
 | test | Run E2E scenarios |
 
 **탐색 & 분석**
@@ -1256,6 +1257,83 @@ Usage: `/auto verify`, `/auto verify --report-only`, `/auto verify --viewport mo
 {{else}}
 Frontend UX verification requires Full mode. Run `/auto update` to upgrade.
 {{end}}
+---
+
+## browse — Browser Automation
+
+@.claude/skills/autopus/browser-automation.md
+
+Open a browser and interact with web pages using the agent-browser CLI. Designed for AI agents to directly navigate, inspect, and verify web UIs — including production environments.
+
+### Prerequisites
+
+agent-browser must be installed: `npm install -g agent-browser && agent-browser install`
+
+### Pipeline
+
+#### [REQUIRED] Step 1: Open URL (MUST call Bash tool)
+
+```bash
+agent-browser open <url>
+```
+
+If no URL is provided, use the project's production URL from project context or ask the user.
+
+WHEN `--headed` flag is set, add `--headed` to the open command to show browser window.
+
+#### [REQUIRED] Step 2: Snapshot — Get Accessibility Tree
+
+```bash
+agent-browser snapshot
+```
+
+Parse the snapshot output to identify interactive elements (`@e1`, `@e2`, etc.) and their roles (button, switch, input, heading, etc.).
+
+#### [REQUIRED] Step 3: Act & Verify
+
+Based on the user's intent, interact with elements and verify results:
+
+```bash
+agent-browser click @e3              # Interact
+agent-browser wait 1000              # Wait for state change
+agent-browser snapshot               # Re-check state
+agent-browser screenshot /tmp/result.png  # Visual evidence
+```
+
+Use the Read tool to view captured screenshots and analyze them visually.
+
+#### [OPTIONAL] Step 4: Report
+
+Summarize findings:
+
+```
+🐙 Browse ───────────────────────────
+  URL: {url}
+  검증 항목: {N}개
+  결과: {PASS | WARN | FAIL}
+
+  상세:
+  - {component}: {status} — {description}
+```
+
+### Flags
+
+| Flag | Description |
+|------|-------------|
+| `--url <url>` | Target URL (default: production URL from project context) |
+| `--headed` | Show browser window (default: headless) |
+| `--login` | Perform login flow before testing |
+| `--screenshot` | Capture screenshots at each step |
+| `--viewport <size>` | Viewport size: desktop (default), mobile, or WxH |
+
+### Safety Rules
+
+- **Read-only by default**: Do not click destructive actions (delete, remove, reset) unless explicitly requested
+- **Production caution**: Warn before performing write operations on production environments
+- **Screenshot evidence**: Capture screenshots before and after state-changing actions
+
+Usage: `/auto browse`, `/auto browse --url https://example.com/settings`, `/auto browse --headed --login`
+
 ---
 
 ## test — Run E2E Scenarios
