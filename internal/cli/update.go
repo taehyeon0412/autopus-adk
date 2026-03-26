@@ -21,7 +21,7 @@ import (
 
 func newUpdateCmd() *cobra.Command {
 	var dir string
-	var selfFlag, checkOnly, force bool
+	var selfFlag, checkOnly, force, yesFlag bool
 	var targetVersion string
 
 	cmd := &cobra.Command{
@@ -57,9 +57,11 @@ func newUpdateCmd() *cobra.Command {
 				}
 			}
 
-			// 프로젝트 설정 프롬프트 (미설정 항목만)
-			promptLanguageSettings(cmd, dir, cfg)
-			warnParentRuleConflicts(cmd, dir, cfg)
+			// 프로젝트 설정 프롬프트 (미설정 항목만, --yes 시 스킵)
+			if !yesFlag {
+				promptLanguageSettings(cmd, dir, cfg)
+				warnParentRuleConflicts(cmd, dir, cfg)
+			}
 
 			ctx := context.Background()
 			updated := 0
@@ -98,6 +100,7 @@ func newUpdateCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&checkOnly, "check", false, "업데이트 가능 여부만 확인 (다운로드하지 않음)")
 	cmd.Flags().BoolVar(&force, "force", false, "같은 버전이라도 재설치 또는 개발 빌드 업데이트 강제")
 	cmd.Flags().StringVar(&targetVersion, "version", "", "특정 버전 설치 (기본값: 최신 버전)")
+	cmd.Flags().BoolVarP(&yesFlag, "yes", "y", false, "모든 프롬프트를 기본값으로 자동 수락")
 	return cmd
 }
 

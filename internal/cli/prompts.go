@@ -9,13 +9,23 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 
 	"github.com/insajin/autopus-adk/pkg/config"
 	"github.com/insajin/autopus-adk/pkg/detect"
 )
 
+// isStdinTTY reports whether stdin is an interactive terminal.
+func isStdinTTY() bool {
+	return term.IsTerminal(int(os.Stdin.Fd()))
+}
+
 // promptYesNo는 유저에게 yes/no 질문을 하고 결과를 반환한다.
 func promptYesNo(out io.Writer, question string, defaultNo bool) bool {
+	// Non-interactive: return default without blocking on stdin
+	if !isStdinTTY() {
+		return !defaultNo
+	}
 	hint := "(y/N)"
 	if !defaultNo {
 		hint = "(Y/n)"
@@ -33,6 +43,10 @@ func promptYesNo(out io.Writer, question string, defaultNo bool) bool {
 
 // promptChoice는 유저에게 번호 선택을 요청하고 결과를 반환한다.
 func promptChoice(out io.Writer, question string, options []string, defaultIdx int) int {
+	// Non-interactive: return default without blocking on stdin
+	if !isStdinTTY() {
+		return defaultIdx
+	}
 	fmt.Fprintf(out, "\n  %s\n", question)
 	for i, opt := range options {
 		marker := "  "
