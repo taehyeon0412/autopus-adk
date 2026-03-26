@@ -23,6 +23,19 @@ func ValidateSpecID(id string) error {
 	return nil
 }
 
+// @AX:ANCHOR [AUTO] @AX:REASON: public API contract — PipelineMonitor is implemented by MonitorSession and TeamMonitorSession; changing this interface requires updating all implementors
+// PipelineMonitor is the common interface for pipeline monitoring sessions.
+// Both MonitorSession and TeamMonitorSession implement this interface.
+type PipelineMonitor interface {
+	Start(ctx context.Context) error
+	UpdateAgent(name, status string)
+	Close(ctx context.Context) error
+	LogPath() string
+}
+
+// Compile-time interface compliance checks.
+var _ PipelineMonitor = (*MonitorSession)(nil)
+
 // MonitorState tracks the current phase and agent statuses for the dashboard.
 type MonitorState struct {
 	Phase  string
@@ -124,4 +137,9 @@ func (m *MonitorSession) LogPath() string {
 // State returns the current monitor state.
 func (m *MonitorSession) State() MonitorState {
 	return m.state
+}
+
+// UpdateAgent updates the status of an agent in the monitor state.
+func (m *MonitorSession) UpdateAgent(name, status string) {
+	m.state.Agents[name] = status
 }
