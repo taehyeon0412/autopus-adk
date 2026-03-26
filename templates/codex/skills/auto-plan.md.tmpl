@@ -11,11 +11,21 @@
 
 ```
 @auto-plan "기능 설명"
+@auto-plan "기능 설명" --skip-prd
+@auto-plan "기능 설명" --prd-mode minimal
 ```
+
+### 플래그
+
+| Flag | Description |
+|------|-------------|
+| `--skip-prd` | PRD 생성 건너뛰고 바로 SPEC 작성. MEDIUM 난이도 권장. |
+| `--prd-mode <mode>` | PRD 모드: `standard` (10섹션, 기본값) 또는 `minimal` (5섹션). |
 
 ## 출력
 
-`.autopus/specs/SPEC-{DOMAIN}-{NUMBER}/` 디렉터리에 4개 파일 저장:
+`.autopus/specs/SPEC-{DOMAIN}-{NUMBER}/` 디렉터리에 파일 저장:
+- `prd.md` — PRD 문서 (`--skip-prd` 시 생략)
 - `spec.md` — 메인 SPEC (요구사항 포함)
 - `plan.md` — 구현 계획
 - `acceptance.md` — 인수 기준
@@ -39,6 +49,17 @@
 2. 기존 패턴, 의존성, 데이터 흐름을 파악합니다
 3. 유사한 기존 구현(reference implementation)을 찾습니다
 4. 발견 내용을 기록합니다 (이후 단계에서 참조)
+
+### Step 1.5: PRD 생성 (조건부)
+
+`--skip-prd`가 설정되지 않은 경우, SPEC 작성 전에 PRD를 생성합니다.
+
+- **Standard 모드** (10섹션): 새 기능, cross-team, 공개 API — `templates/shared/prd-standard.md.tmpl`
+- **Minimal 모드** (5섹션): 소규모 변경, 내부 도구 — `templates/shared/prd-minimal.md.tmpl`
+
+PRD는 `.autopus/specs/SPEC-{ID}/prd.md`에 저장되며, 이후 SPEC 작성 시 컨텍스트로 활용됩니다.
+
+`--skip-prd` 설정 시 이 단계를 건너뜁니다.
 
 ### SPEC 문서 스캐폴딩
 

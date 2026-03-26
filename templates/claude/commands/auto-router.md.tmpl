@@ -497,6 +497,8 @@ Write a SPEC document. Delegate to the `spec-writer` agent to analyze the codeba
 | Flag | Description |
 |------|-------------|
 | `--from-idea <BS-ID>` | Create SPEC from a brainstorm file. Loads `.autopus/brainstorms/BS-{ID}.md` as context for the spec-writer. |
+| `--skip-prd` | Skip PRD generation and go straight to SPEC. Recommended for MEDIUM difficulty tasks. |
+| `--prd-mode <mode>` | PRD mode: `standard` (10 sections, default for HIGH) or `minimal` (5 sections). |
 | `--strategy` | Multi-provider strategy: consensus (default), debate, pipeline, fastest (requires `--multi`) |
 | `--target <module>` | Target submodule for SPEC storage (e.g., `autopus-adk`). Auto-detected if omitted. |
 
@@ -504,7 +506,7 @@ Global flags `--auto` and `--multi` also apply:
 - `--auto` → skip confirmations
 - `--multi` → enable multi-provider review after SPEC generation
 
-Usage: `/auto plan "feature description"`, `/auto plan --from-idea BS-001`, `/auto plan "feature" --multi --strategy debate`
+Usage: `/auto plan "feature description"`, `/auto plan --from-idea BS-001`, `/auto plan "feature" --skip-prd`, `/auto plan "feature" --prd-mode minimal`, `/auto plan "feature" --multi --strategy debate`
 
 ### Pipeline (execute in this exact order)
 
@@ -512,14 +514,70 @@ Usage: `/auto plan "feature description"`, `/auto plan --from-idea BS-001`, `/au
 
 Global flags (`--auto`, `--loop`, `--multi`, `--quality`) are already stripped. Extract plan-specific flags:
 - Extract `--from-idea <BS-ID>` → `FROM_IDEA = BS-ID` (load brainstorm context)
+- Extract `--skip-prd` → `SKIP_PRD = true/false` (default: false)
+- Extract `--prd-mode <value>` → `PRD_MODE = value` (default: standard)
 - Extract `--strategy <value>` → `STRATEGY = value` (default: consensus)
 - Extract `--target <module>` → `TARGET_MODULE` (auto-detect if omitted)
 - `MULTI_FLAG` ← inherited from global `--multi`
 - Remaining text → `FEATURE_DESC`
 
+#### [CONDITIONAL] Step 1.5: Generate PRD
+
+@.claude/skills/autopus/prd.md
+
+```
+┌─────────────────────────────────────────────┐
+│ SKIP_PRD == true?                           │
+├──────────┬──────────────────────────────────┤
+│ TRUE     │ FALSE                            │
+│ ↓        │ ↓                                │
+│ Step 2   │ Generate PRD, then Step 2        │
+│ [SKIP]   │                                  │
+└──────────┴──────────────────────────────────┘
+```
+
+WHEN `SKIP_PRD = false`, THE SYSTEM SHALL generate a PRD before spawning the spec-writer:
+
+1. **Determine PRD mode**: Use `PRD_MODE` (default: `standard`). If `--prd-mode` is not set, auto-select based on scope:
+   - Single package / small change → `minimal` (5 sections)
+   - Multi-package / new feature / API design → `standard` (10 sections)
+
+2. **Spawn planner agent** to generate the PRD:
+
+```
+Agent(
+  subagent_type = "planner",
+  prompt = """
+    Phase: PRD Generation (Step 1.5)
+    Feature description: {FEATURE_DESC}
+    Target module: {TARGET_MODULE or auto-detect}
+    PRD mode: {PRD_MODE}
+    Template: templates/shared/prd-{PRD_MODE}.md.tmpl
+    Brainstorm context: {BS file content if FROM_IDEA is set, otherwise omit}
+
+    Generate a PRD following the prd skill (prd.md):
+    1. Analyze the request (What/Why/Who/When)
+    2. Collect codebase context (related files, existing patterns, prior SPECs)
+    3. Author PRD sections using the {PRD_MODE} template
+    4. Run quality validation checklist
+    5. Save to {TARGET_MODULE}/.autopus/specs/SPEC-{ID}/prd.md
+
+    Return: SPEC-ID, PRD file path, and quality checklist result.
+  """
+)
+```
+
+3. **Extract SPEC-ID** from the planner's output. This SPEC-ID will be reused by the spec-writer in Step 2.
+
+WHEN `SKIP_PRD = true` → [INTENDED SKIP: Step 1.5]. Proceed directly to Step 2.
+
+> **⏭ POST-STEP**: PRD generated (or skipped). NEXT REQUIRED STEP: Step 2: Spawn spec-writer Agent. Do NOT skip to Completion.
+
 #### [REQUIRED] Step 2: Spawn spec-writer Agent
 
 If `FROM_IDEA` is set, search for the BS file: check `.autopus/brainstorms/BS-{FROM_IDEA}.md` (top-level) then `*/.autopus/brainstorms/BS-{FROM_IDEA}.md` (submodules). Include its content as brainstorm context.
+
+If Step 1.5 generated a PRD, include the PRD file path and SPEC-ID as context for the spec-writer.
 
 Spawn a `spec-writer` agent to generate the SPEC:
 
@@ -531,11 +589,12 @@ Agent(
     Target module: {TARGET_MODULE or auto-detect}
     Project directory: {current directory}
     Brainstorm context: {BS file content if FROM_IDEA is set, otherwise omit}
+    PRD context: {PRD file path and SPEC-ID if Step 1.5 was executed, otherwise omit}
   """
 )
 ```
 
-Extract the **SPEC-ID** (e.g., SPEC-UX-001) from the agent's output.
+Extract the **SPEC-ID** (e.g., SPEC-UX-001) from the agent's output. If Step 1.5 already created a SPEC-ID, the spec-writer MUST reuse the same SPEC-ID.
 
 > **⏭ POST-AGENT**: spec-writer returned. NEXT REQUIRED STEP: [CONDITIONAL] Step 3: Review Gate Decision. Do NOT skip to Completion.
 
@@ -580,6 +639,7 @@ auto spec review {SPEC-ID} --strategy {STRATEGY}
 Before displaying completion output, verify ALL steps were evaluated:
 
 - [ ] Step 1: Parse Flags — completed
+- [ ] Step 1.5: Generate PRD — completed OR [INTENDED SKIP: --skip-prd]
 - [ ] Step 2: Spawn spec-writer Agent — completed, SPEC-ID extracted
 - [ ] Step 3: Review Gate Decision — evaluated (result: Step 4 or INTENDED SKIP)
 - [ ] Step 4: Multi-Provider Review — completed OR [INTENDED SKIP]
