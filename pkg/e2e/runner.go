@@ -15,7 +15,8 @@ import (
 type RunnerOptions struct {
 	ProjectDir   string        // project root directory
 	AutoBuild    bool          // auto-build binary before first run
-	BuildCommand string        // build command (e.g., "go build -o auto .")
+	BuildCommand string        // build command (e.g., "go build -o auto .") — legacy single-build
+	Builds       []BuildEntry  // multi-build entries; takes precedence over BuildCommand
 	Timeout      time.Duration // per-scenario timeout (default: 30s)
 }
 
@@ -43,9 +44,12 @@ func (r *RunnerResult) WorkDirExists() (bool, error) {
 
 // Runner executes E2E scenarios.
 type Runner struct {
-	opts      RunnerOptions
-	buildOnce sync.Once
-	buildErr  error
+	opts        RunnerOptions
+	buildOnce   sync.Once            // legacy single-build once guard
+	buildErr    error                // legacy single-build error
+	buildOnceMu sync.Mutex           // protects buildOnceMap and buildErrMap
+	buildOnceMap map[string]*sync.Once // per-label build once guards
+	buildErrMap  map[string]error      // per-label build errors
 }
 
 // @AX:NOTE [AUTO] @AX:REASON: magic constant — 30s default per-scenario timeout; adjust for slow integration tests or network-dependent scenarios
@@ -62,22 +66,13 @@ func NewRunner(opts RunnerOptions) *Runner {
 func (r *Runner) Run(scenario Scenario) (*RunnerResult, error) {
 	result := &RunnerResult{}
 
-	// @AX:WARN [AUTO] @AX:REASON: sync.Once closure — buildErr assigned inside Do() without mutex; safe only because buildOnce guarantees single execution; do not add concurrent access to buildErr outside Do()
-	// Auto-build if enabled (only once per Runner instance).
-	if r.opts.AutoBuild && r.opts.BuildCommand != "" {
-		builtThisCall := false
-		r.buildOnce.Do(func() {
-			cmd := exec.Command("sh", "-c", r.opts.BuildCommand)
-			cmd.Dir = r.opts.ProjectDir
-			if err := cmd.Run(); err != nil {
-				r.buildErr = err
-			}
-			builtThisCall = true
-		})
-		if r.buildErr != nil {
-			return nil, fmt.Errorf("auto-build failed: %w", r.buildErr)
+	// Auto-build if enabled.
+	if r.opts.AutoBuild {
+		built, err := r.runBuild(scenario)
+		if err != nil {
+			return nil, err
 		}
-		result.BuildOccurred = builtThisCall
+		result.BuildOccurred = built
 	}
 
 	// Create isolated temp directory for this run.
@@ -134,6 +129,83 @@ func (r *Runner) Run(scenario Scenario) (*RunnerResult, error) {
 	result.Pass = allPass
 
 	return result, nil
+}
+
+// runBuild handles build execution for a scenario.
+// Multi-build path: matches scenario section to a BuildEntry, runs per-label once.
+// Legacy path: uses BuildCommand with a single sync.Once.
+// Returns (true, nil) when a build was triggered this call.
+func (r *Runner) runBuild(scenario Scenario) (bool, error) {
+	// Multi-build path: Builds takes precedence over BuildCommand.
+	if len(r.opts.Builds) > 0 {
+		matched := MatchBuild(scenario, r.opts.Builds)
+		if matched == nil {
+			// No matching build for this scenario — skip build (R5).
+			return false, nil
+		}
+		return r.runLabeledBuild(*matched)
+	}
+
+	// Legacy fallback: single BuildCommand (R4).
+	if r.opts.BuildCommand == "" {
+		return false, nil
+	}
+	builtThisCall := false
+	r.buildOnce.Do(func() {
+		cmd := exec.Command("sh", "-c", r.opts.BuildCommand)
+		cmd.Dir = r.opts.ProjectDir
+		if err := cmd.Run(); err != nil {
+			r.buildErr = err
+		}
+		builtThisCall = true
+	})
+	if r.buildErr != nil {
+		return false, fmt.Errorf("auto-build failed: %w", r.buildErr)
+	}
+	return builtThisCall, nil
+}
+
+// @AX:WARN [AUTO] @AX:REASON: concurrent map + sync.Once — buildOnceMu guards buildOnceMap/buildErrMap; lock ordering: acquire buildOnceMu, read/init map, release, then call once.Do
+// runLabeledBuild runs a build for a specific label, using per-label Once caching.
+func (r *Runner) runLabeledBuild(entry BuildEntry) (bool, error) {
+	label := entry.Label
+	if label == "" {
+		label = "__default__"
+	}
+
+	r.buildOnceMu.Lock()
+	if r.buildOnceMap == nil {
+		r.buildOnceMap = make(map[string]*sync.Once)
+		r.buildErrMap = make(map[string]error)
+	}
+	once, ok := r.buildOnceMap[label]
+	if !ok {
+		once = &sync.Once{}
+		r.buildOnceMap[label] = once
+	}
+	r.buildOnceMu.Unlock()
+
+	builtThisCall := false
+	once.Do(func() {
+		buildDir := ResolveBuildDir(r.opts.ProjectDir, entry)
+		cmd := exec.Command("sh", "-c", entry.Command)
+		cmd.Dir = buildDir
+		if err := cmd.Run(); err != nil {
+			r.buildOnceMu.Lock()
+			r.buildErrMap[label] = err
+			r.buildOnceMu.Unlock()
+		}
+		builtThisCall = true
+	})
+
+	r.buildOnceMu.Lock()
+	buildErr := r.buildErrMap[label]
+	r.buildOnceMu.Unlock()
+
+	if buildErr != nil {
+		return false, fmt.Errorf("auto-build failed (label=%s): %w", label, buildErr)
+	}
+	return builtThisCall, nil
 }
 
 // evaluatePrimitive evaluates a single verification primitive string against the result.

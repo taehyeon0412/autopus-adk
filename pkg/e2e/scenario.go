@@ -21,6 +21,7 @@ type Scenario struct {
 	Verify       []string // verification primitives
 	Depends      string   // dependency (e.g., "S1" or "N/A")
 	Status       string   // active | deprecated | skip
+	Section      string   // section header (e.g., "ADK CLI Scenarios")
 }
 
 // ScenarioSet represents a complete scenarios.md document.
@@ -28,7 +29,8 @@ type ScenarioSet struct {
 	ProjectName string
 	ProjectType string // CLI | API | Frontend | Library
 	Binary      string
-	Build       string
+	Build       string       // raw build line (backward compat)
+	Builds      []BuildEntry // parsed build entries
 	Scenarios   []Scenario
 }
 
@@ -37,7 +39,8 @@ var (
 	reTitle       = regexp.MustCompile(`^# E2E Scenarios — (.+)$`)
 	reProjectType = regexp.MustCompile(`^## Project Type: (.+)$`)
 	reBinary      = regexp.MustCompile(`^## Binary: (.+)$`)
-	reBuild       = regexp.MustCompile(`^## Build: (.+)$`)
+	reBuild       = regexp.MustCompile(`^## Build:\s*(.*)$`)
+	reSection     = regexp.MustCompile(`^## (.+)$`)
 	reScenHeader  = regexp.MustCompile(`^### S(\d+): ([^—]+) — (.+)$`)
 	reField       = regexp.MustCompile(`^- \*\*([^*]+)\*\*: (.*)$`)
 )
@@ -49,6 +52,7 @@ func ParseScenarios(content []byte) (*ScenarioSet, error) {
 	lines := strings.Split(string(content), "\n")
 
 	var current *Scenario
+	var currentSection string
 	for _, line := range lines {
 		if m := reTitle.FindStringSubmatch(line); m != nil {
 			set.ProjectName = m[1]
@@ -63,7 +67,13 @@ func ParseScenarios(content []byte) (*ScenarioSet, error) {
 			continue
 		}
 		if m := reBuild.FindStringSubmatch(line); m != nil {
-			set.Build = m[1]
+			raw := strings.TrimSpace(m[1])
+			set.Build = raw
+			set.Builds = ParseBuildLine(raw)
+			continue
+		}
+		if m := reSection.FindStringSubmatch(line); m != nil {
+			currentSection = m[1]
 			continue
 		}
 		if m := reScenHeader.FindStringSubmatch(line); m != nil {
@@ -75,6 +85,7 @@ func ParseScenarios(content []byte) (*ScenarioSet, error) {
 				Number:      n,
 				ID:          strings.TrimSpace(m[2]),
 				Description: strings.TrimSpace(m[3]),
+				Section:     currentSection,
 			}
 			continue
 		}
@@ -120,7 +131,7 @@ func RenderScenarios(set *ScenarioSet) ([]byte, error) {
 	buf.WriteString("\n")
 	fmt.Fprintf(&buf, "## Project Type: %s\n", set.ProjectType)
 	fmt.Fprintf(&buf, "## Binary: %s\n", set.Binary)
-	fmt.Fprintf(&buf, "## Build: %s\n", set.Build)
+	fmt.Fprintf(&buf, "## Build: %s\n", renderBuildLine(set))
 
 	for _, s := range set.Scenarios {
 		buf.WriteString("\n")
@@ -135,4 +146,21 @@ func RenderScenarios(set *ScenarioSet) ([]byte, error) {
 	}
 
 	return buf.Bytes(), nil
+}
+
+// renderBuildLine produces the build line string from a ScenarioSet.
+// Uses Builds slice when populated; falls back to raw Build string.
+func renderBuildLine(set *ScenarioSet) string {
+	if len(set.Builds) == 0 {
+		return set.Build
+	}
+	parts := make([]string, len(set.Builds))
+	for i, b := range set.Builds {
+		if b.Label != "" {
+			parts[i] = b.Command + " (" + b.Label + ")"
+		} else {
+			parts[i] = b.Command
+		}
+	}
+	return strings.Join(parts, ", ")
 }

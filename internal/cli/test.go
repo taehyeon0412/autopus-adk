@@ -94,15 +94,16 @@ func runAutoTest(cmd *cobra.Command, scenarioID string, jsonOut bool, timeout ti
 		return nil
 	}
 
-	// Resolve build command from scenario set.
-	// Auto-build is enabled when buildCmd is present in the scenario set.
+	// Resolve build configuration from scenario set.
+	// Multi-build (Builds) takes precedence; legacy single BuildCommand as fallback.
 	buildCmd := set.Build
-	autoBuild := buildCmd != ""
+	autoBuild := len(set.Builds) > 0 || buildCmd != ""
 
 	runnerOpts := e2e.RunnerOptions{
 		ProjectDir:   projectDir,
 		AutoBuild:    autoBuild,
 		BuildCommand: buildCmd,
+		Builds:       set.Builds,
 		Timeout:      timeout,
 	}
 	runner := e2e.NewRunner(runnerOpts)
