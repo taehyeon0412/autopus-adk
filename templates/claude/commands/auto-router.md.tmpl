@@ -199,10 +199,44 @@ Agents are re-initialized on every session, so these documents provide continuit
 
 ### Pipeline
 
-1. **Analyze codebase**: Use Explore agent to analyze the full project structure
-2. **Generate/update ARCHITECTURE.md**: Run `auto arch generate` or have the agent analyze and write it directly
-3. **Generate/update project docs**: Create 4 files under `.autopus/project/`
-4. **Generate/update scenarios.md**: Analyze codebase to extract user-facing E2E test scenarios (SPEC-E2E-001 R1)
+#### [REQUIRED] Step 1: Analyze Codebase (MUST call Agent tool)
+
+IMPORTANT: You MUST spawn an Explore agent to analyze the project. Do NOT skip to Step 2 without calling Agent tool.
+
+```
+Agent(
+  subagent_type = "explorer",
+  mode = "plan",
+  prompt = """
+    Explore the full project structure. Return:
+    - Directory layout and package roles
+    - Tech stack (languages, frameworks, build tools)
+    - Entry points and exported APIs
+    - Architecture patterns and domain boundaries
+  """
+)
+```
+
+> **⏭ POST-STEP**: Explorer returned. NEXT REQUIRED STEP: Step 2: Generate ARCHITECTURE.md. Do NOT skip to Completion.
+
+#### [REQUIRED] Step 2: Generate/Update ARCHITECTURE.md
+
+Write or overwrite `ARCHITECTURE.md` based on the explorer's analysis. Include domains, layers, dependency map, and rule violations.
+
+> **⏭ POST-STEP**: ARCHITECTURE.md written. NEXT REQUIRED STEP: Step 3: Generate project docs. Do NOT skip to Completion.
+
+#### [REQUIRED] Step 3: Generate/Update Project Docs
+
+Create or update the 4 files under `.autopus/project/` using the explorer's output:
+- `product.md` — project name, description, core features, use cases, mode
+- `structure.md` — directory structure, package roles, entry points, file stats
+- `tech.md` — tech stack, build, testing, architecture patterns
+
+> **⏭ POST-STEP**: Project docs written. NEXT REQUIRED STEP: Step 4: Generate scenarios.md. Do NOT skip to Completion.
+
+#### [REQUIRED] Step 4: Generate/Update scenarios.md
+
+Analyze codebase to extract user-facing E2E test scenarios (SPEC-E2E-001 R1).
 
 ### Output Files
 
@@ -306,6 +340,17 @@ The agent explores and analyzes the codebase directly:
 
 Usage: `/auto setup`
 
+### [REQUIRED] Pre-Completion Verification
+
+Before displaying the completion message, verify ALL steps were executed:
+
+- [ ] Step 1: Explore agent called — codebase analyzed
+- [ ] Step 2: ARCHITECTURE.md written/updated
+- [ ] Step 3: `.autopus/project/` docs written (product.md, structure.md, tech.md)
+- [ ] Step 4: scenarios.md written
+
+IF any item is unchecked → return to that step. Do NOT display Completion Message.
+
 ### Completion Message
 
 ```
@@ -341,7 +386,7 @@ Usage: `/auto idea "description"`, `/auto idea "description" --strategy consensu
 
 ### Pipeline
 
-#### Step 1: Parse Input
+#### [REQUIRED] Step 1: Parse Input
 
 Extract from remaining arguments (after global flag stripping):
 - First quoted or remaining text → `IDEA_DESC`
@@ -349,7 +394,7 @@ Extract from remaining arguments (after global flag stripping):
 - `--providers <list>` → `PROVIDERS` (default: all)
 - `AUTO_MODE` inherited from global `--auto`
 
-#### Step 2: Structure as What/Why/Who/When
+#### [REQUIRED] Step 2: Structure as What/Why/Who/When
 
 Analyze the idea description and structure it:
 - **What**: What to build?
@@ -357,15 +402,26 @@ Analyze the idea description and structure it:
 - **Who**: Who is it for?
 - **When**: When is it needed? (timeline/context)
 
-#### Step 3: Call Orchestra Brainstorm
+#### [REQUIRED] Step 3: Call Orchestra Brainstorm (MUST call Bash tool)
+
+IMPORTANT: You MUST execute this step via the Bash tool. Do NOT skip to Step 4 or fall back without attempting.
 
 ```bash
 auto orchestra brainstorm "{structured idea}" --strategy {STRATEGY}
 ```
 
-If `auto orchestra` is not available, fall back to Sequential Thinking MCP for structured brainstorming within the current session.
+- `--multi` flag is ALWAYS active for idea — orchestra is the default engine
+- `--ultrathink` combines with orchestra: run orchestra first, then use Sequential Thinking to deepen the judge's analysis
 
-#### Step 4: ICE Scoring
+**Fallback rule**: Only if the Bash call returns an error (binary not found, provider config missing, etc.):
+1. Display the exact error message to the user
+2. Ask: "Orchestra 실행 실패. Sequential Thinking으로 fallback할까요?"
+3. If user approves (or `--auto` mode), proceed with Sequential Thinking as fallback
+4. Mark the BS file with `**Providers**: fallback (orchestra unavailable)`
+
+> **⏭ POST-STEP**: Orchestra returned. NEXT REQUIRED STEP: Step 4: ICE Scoring. Do NOT skip to Step 5.
+
+#### [REQUIRED] Step 4: ICE Scoring
 
 Score each idea from the brainstorm output:
 - **Impact** (1-10): How much value does it deliver?
@@ -376,7 +432,18 @@ Score each idea from the brainstorm output:
 
 Select top N ideas by score.
 
-#### Step 5: Save BS File and Guide Next Steps
+#### [REQUIRED] Pre-Completion Verification
+
+Before saving BS file, verify ALL steps were executed:
+
+- [ ] Step 1: Parse Input — completed
+- [ ] Step 2: Structure as What/Why/Who/When — completed
+- [ ] Step 3: Orchestra Brainstorm — Bash tool called (or fallback approved by user)
+- [ ] Step 4: ICE Scoring — completed with orchestra output (not self-generated)
+
+IF any item is unchecked → return to that step. Do NOT proceed to Step 5.
+
+#### [REQUIRED] Step 5: Save BS File and Guide Next Steps
 
 Save to `.autopus/brainstorms/BS-{ID}.md` (auto-increment ID if exists).
 
@@ -1131,11 +1198,51 @@ Verify frontend UX changes using VLM-powered visual analysis and Playwright E2E 
 
 ### Pipeline
 
-Phase 0: Change Analysis → git diff → impact scope
-Phase 1: Test Gen/Heal → generate/repair Playwright tests
-Phase 2: Test Runner → execute tests, capture screenshots
-Phase 3: VLM Verifier → semantic visual check (PASS/WARN/FAIL)
-Phase 4: Reporter → fix issues, produce report
+#### [REQUIRED] Phase 0: Change Analysis
+
+Run `git diff` to determine impact scope. Identify which UI components and pages were modified.
+
+> **⏭ POST-PHASE**: Change scope identified. NEXT REQUIRED STEP: Phase 1: Test Gen/Heal. Do NOT skip to Completion.
+
+#### [REQUIRED] Phase 1: Test Gen/Heal
+
+Generate new Playwright tests or repair existing ones based on the change scope from Phase 0.
+
+> **⏭ POST-PHASE**: Tests generated/repaired. NEXT REQUIRED STEP: Phase 2: Test Runner. Do NOT skip to Completion.
+
+#### [REQUIRED] Phase 2: Test Runner (MUST call Bash tool)
+
+IMPORTANT: You MUST execute Playwright tests via the Bash tool. Do NOT simulate test results.
+
+```bash
+npx playwright test
+```
+
+**Fallback rule**: Only if the Bash call returns an error, display the exact error to the user and ask for fallback approval.
+
+> **⏭ POST-PHASE**: Tests executed, screenshots captured. NEXT REQUIRED STEP: Phase 3: VLM Verifier. Do NOT skip to Completion.
+
+#### [REQUIRED] Phase 3: VLM Verifier
+
+Perform semantic visual analysis on captured screenshots. Return PASS/WARN/FAIL per component.
+
+> **⏭ POST-PHASE**: Visual verification complete. NEXT REQUIRED STEP: Phase 4: Reporter. Do NOT skip to Completion.
+
+#### [REQUIRED] Phase 4: Reporter
+
+Apply fixes (unless `--report-only`) and produce the verification report.
+
+### [REQUIRED] Pre-Completion Verification
+
+Before displaying the final report, verify ALL phases were executed:
+
+- [ ] Phase 0: Change Analysis — git diff run, scope identified
+- [ ] Phase 1: Test Gen/Heal — Playwright tests generated/repaired
+- [ ] Phase 2: Test Runner — Bash tool called with `npx playwright test` (not simulated)
+- [ ] Phase 3: VLM Verifier — visual analysis completed
+- [ ] Phase 4: Reporter — report produced
+
+IF any item is unchecked → return to that phase. Do NOT display completion output.
 
 ### Flags
 
@@ -1157,11 +1264,15 @@ Execute E2E test scenarios defined in `.autopus/project/scenarios.md` against th
 
 Runs the CLI command `auto test run` with appropriate flags. This is a thin wrapper around the Go binary.
 
-### Execution
+### [REQUIRED] Execution (MUST call Bash tool)
+
+IMPORTANT: You MUST call the Bash tool to run `auto test run`. Do NOT simulate test results. Do NOT display mock output without executing the actual CLI command.
 
 ```bash
 auto test run [flags]
 ```
+
+**Fallback rule**: Only if the Bash call returns an error (binary not found, scenarios.md missing, etc.), display the exact error to the user and ask for fallback approval.
 
 ### Flags
 
@@ -1193,6 +1304,53 @@ Usage: `/auto test`, `/auto test -s init`, `/auto test --json`, `/auto test -v`
 
 Reproduce the bug and fix it with minimal changes. Uses a Reproduction-First approach.
 
+### Pipeline
+
+#### [REQUIRED] Step 1: Reproduce — Write a Failing Test
+
+IMPORTANT: You MUST write a failing test that reproduces the bug before making any code changes. Do NOT skip to the fix.
+
+- Write the minimal test case that demonstrates the failure
+- Confirm it fails: `go test ./... -run TestXxx`
+- If no test is possible (e.g., CLI-only), document the reproduction steps explicitly
+
+> **⏭ POST-STEP**: Failing test written. NEXT REQUIRED STEP: Step 2: Root Cause Analysis. Do NOT skip to Step 3.
+
+#### [REQUIRED] Step 2: Root Cause Analysis
+
+- Trace the failure path through the code
+- Identify the root cause (not just the symptom)
+- Document the cause in one sentence before proceeding
+
+> **⏭ POST-STEP**: Root cause identified. NEXT REQUIRED STEP: Step 3: Minimal Fix. Do NOT skip to Completion.
+
+#### [REQUIRED] Step 3: Minimal Fix
+
+Apply the smallest change that fixes the root cause. Avoid scope creep.
+
+> **⏭ POST-STEP**: Fix applied. NEXT REQUIRED STEP: Step 4: Verify. Do NOT skip to Completion.
+
+#### [REQUIRED] Step 4: Verify (MUST call Bash tool)
+
+IMPORTANT: You MUST run the test suite via the Bash tool. Do NOT assume the fix works without running tests.
+
+```bash
+go test -race ./...
+```
+
+**Fallback rule**: Only if the Bash call returns an error, display the exact error to the user and ask for fallback approval.
+
+### [REQUIRED] Pre-Completion Verification
+
+Before reporting the fix as complete, verify ALL steps were executed:
+
+- [ ] Step 1: Failing test written (or reproduction steps documented)
+- [ ] Step 2: Root cause identified and documented
+- [ ] Step 3: Minimal fix applied
+- [ ] Step 4: Bash tool called — `go test -race ./...` passed
+
+IF any item is unchecked → return to that step. Do NOT report completion.
+
 Usage: `/auto fix "bug description"`, `/auto fix --file path/to/file.go`
 
 ---
@@ -1220,6 +1378,38 @@ Usage: `/auto map`, `/auto map path/to/package`
 
 Review changed code against TRUST 5 criteria (Tested, Readable, Unified, Secured, Trackable).
 
+### Pipeline
+
+#### [REQUIRED] Step 1: Run Automated Gates (MUST call Bash tool)
+
+IMPORTANT: You MUST run automated quality checks via the Bash tool before the TRUST 5 analysis.
+
+```bash
+go test -race ./... && golangci-lint run
+```
+
+**Fallback rule**: Only if the Bash call returns an error, display the exact error to the user and ask for fallback approval.
+
+> **⏭ POST-STEP**: Automated gates complete. NEXT REQUIRED STEP: Step 2: TRUST 5 Analysis. Do NOT skip to Completion.
+
+#### [REQUIRED] Step 2: TRUST 5 Analysis
+
+Analyze all changed files against each TRUST dimension:
+- **T**ested: test coverage, edge cases
+- **R**eadable: naming, complexity, comments
+- **U**nified: style consistency, patterns
+- **S**ecured: input validation, secrets, OWASP
+- **T**rackable: @AX tags, Lore entries, SPEC refs
+
+### [REQUIRED] Pre-Completion Verification
+
+Before displaying the review verdict, verify ALL steps were executed:
+
+- [ ] Step 1: Bash tool called — `go test -race ./...` and `golangci-lint run` ran (not skipped)
+- [ ] Step 2: TRUST 5 analysis completed for all changed files
+
+IF any item is unchecked → return to that step. Do NOT display the verdict.
+
 Usage: `/auto review`, `/auto review HEAD~3..HEAD`, `/auto review --pr 123`
 {{end}}
 
@@ -1235,17 +1425,58 @@ Review a SPEC document using multiple providers (claude, gemini, etc.) to valida
 
 ### Pipeline
 
-1. **Load SPEC**: Load `.autopus/specs/SPEC-{ID}/spec.md` and extract requirements
-2. **Collect code context**: If `auto_collect_context: true`, gather relevant source code
-3. **Run multi-provider review**: Execute independent reviews with configured providers
-4. **Merge verdicts**: Determine final verdict according to strategy (debate, consensus)
-5. **Save results**: Write `review.md` to the SPEC directory
+#### [REQUIRED] Step 1: Load SPEC
+
+Load `.autopus/specs/SPEC-{ID}/spec.md` and extract requirements. Verify the file exists before proceeding.
+
+> **⏭ POST-STEP**: SPEC loaded. NEXT REQUIRED STEP: Step 2: Collect Code Context. Do NOT skip to Completion.
+
+#### [REQUIRED] Step 2: Collect Code Context
+
+If `auto_collect_context: true` in `autopus.yaml`, gather relevant source code files referenced by the SPEC.
+
+> **⏭ POST-STEP**: Context collected. NEXT REQUIRED STEP: Step 3: Run Multi-Provider Review. Do NOT skip to Completion.
+
+#### [REQUIRED] Step 3: Run Multi-Provider Review (MUST call Bash tool)
+
+IMPORTANT: You MUST execute the multi-provider review via the Bash tool. Do NOT simulate review results.
+
+```bash
+auto spec review {SPEC-ID} --strategy {STRATEGY}
+```
+
+**Fallback rule**: Only if the Bash call returns an error (binary not found, provider config missing, etc.), display the exact error to the user and ask for fallback approval.
+
+> **⏭ POST-STEP**: Multi-provider review returned. NEXT REQUIRED STEP: Step 4: Merge Verdicts. Do NOT skip to Completion.
+
+#### [REQUIRED] Step 4: Merge Verdicts
+
+Determine final verdict according to the configured strategy (debate, consensus):
+- **PASS** → proceed to Step 5
+- **REVISE** → return finding list to user, apply fixes, re-run (up to 2 iterations)
+- **REJECT** → return finding list, guide user to redesign
+
+#### [REQUIRED] Step 5: Save Results
+
+Write `review.md` to `.autopus/specs/SPEC-{ID}/` with the full verdict and findings. Update SPEC status if PASS.
 
 ### Verdict Criteria
 
 - **PASS**: SPEC approved, update status to "approved"
 - **REVISE**: Revision needed, return with finding list
 - **REJECT**: Fundamental redesign required
+
+### [REQUIRED] Pre-Completion Verification
+
+Before displaying final output, verify ALL steps were executed:
+
+- [ ] Step 1: SPEC loaded
+- [ ] Step 2: Code context collected (or skipped if `auto_collect_context: false`)
+- [ ] Step 3: Bash tool called — `auto spec review` ran (not simulated)
+- [ ] Step 4: Verdicts merged, final verdict determined
+- [ ] Step 5: `review.md` written, SPEC status updated
+
+IF any item is unchecked → return to that step. Do NOT display completion output.
 
 Usage: `/auto spec review SPEC-ID`, `/auto spec review SPEC-ID --strategy debate --timeout 180`
 {{end}}
@@ -1259,6 +1490,39 @@ Usage: `/auto spec review SPEC-ID`, `/auto spec review SPEC-ID --strategy debate
 @.claude/skills/autopus/security-audit.md
 
 Detect security vulnerabilities in the codebase and suggest fixes. Includes OWASP Top 10 coverage.
+
+### Pipeline
+
+#### [REQUIRED] Step 1: Run govulncheck (MUST call Bash tool)
+
+IMPORTANT: You MUST run `govulncheck` via the Bash tool. Do NOT skip static analysis.
+
+```bash
+govulncheck ./...
+```
+
+**Fallback rule**: Only if the Bash call returns an error (tool not installed, etc.), display the exact error to the user and ask for fallback approval. If user approves fallback, proceed with manual analysis only and note the gap.
+
+> **⏭ POST-STEP**: govulncheck complete. NEXT REQUIRED STEP: Step 2: OWASP Analysis. Do NOT skip to Completion.
+
+#### [REQUIRED] Step 2: OWASP Analysis
+
+Analyze the codebase for OWASP Top 10 vulnerabilities relevant to the detected tech stack:
+- A01: Broken Access Control
+- A02: Cryptographic Failures
+- A03: Injection
+- A04: Insecure Design
+- A05: Security Misconfiguration
+- Others as applicable
+
+### [REQUIRED] Pre-Completion Verification
+
+Before displaying the security report, verify ALL steps were executed:
+
+- [ ] Step 1: Bash tool called — `govulncheck ./...` ran (not skipped)
+- [ ] Step 2: OWASP analysis completed for the detected tech stack
+
+IF any item is unchecked → return to that step. Do NOT display the report.
 
 Usage: `/auto secure`, `/auto secure --owasp`, `/auto secure --secrets`
 {{end}}
@@ -1282,14 +1546,62 @@ Usage: `/auto stale`, `/auto stale --lore`, `/auto stale --ax`
 
 Synchronize code and documentation after implementation is complete. Updates SPEC status and related documents.
 
-Sync targets:
-- Update SPEC status (completed)
-- Update project context documents (ARCHITECTURE.md + `.autopus/project/*`)
-- Update API documentation
-- Manage @AX tag lifecycle (CYCLE tracking, TODO escalation, ANCHOR verification)
-{{if .IsFullMode}}
-- Capture Lore records
-- Update CHANGELOG.md{{end}}
+### [REQUIRED] Sync Target 1: Update SPEC Status
+
+If a SPEC-ID is provided, update `.autopus/specs/SPEC-{ID}/spec.md` status to `completed`.
+
+> **⏭ POST-TARGET**: SPEC status updated. NEXT REQUIRED TARGET: Sync Target 2: Project Docs. Do NOT skip to Lore Commit.
+
+### [REQUIRED] Sync Target 2: Update Project Context Documents
+
+Detect structural changes in the codebase and update:
+- `ARCHITECTURE.md` — reflect new packages/dependencies
+- `.autopus/project/structure.md` — reflect directory/file changes
+- `.autopus/project/tech.md` — reflect dependency/build changes
+- `.autopus/project/product.md` — reflect new features/commands
+
+> **⏭ POST-TARGET**: Project docs updated. NEXT REQUIRED TARGET: Sync Target 3: @AX Lifecycle. Do NOT skip to Lore Commit.
+
+### [REQUIRED] Sync Target 3: @AX Tag Lifecycle Management
+
+Manage @AX tag lifecycle (CYCLE tracking, TODO escalation, ANCHOR verification) — see rules below.
+
+> **⏭ POST-TARGET**: @AX lifecycle managed. NEXT REQUIRED TARGET: Sync Target 4: CHANGELOG. Do NOT skip to Lore Commit.
+
+### [REQUIRED] Sync Target 4: Update CHANGELOG.md
+
+Append the change summary to `CHANGELOG.md` (create if absent).
+
+### [REQUIRED] Sync Target 5: Lore Commit (MUST call Bash tool)
+
+IMPORTANT: You MUST run git operations via the Bash tool. Do NOT skip the commit step.
+
+Run git status, stage files, and commit in Lore format:
+
+```bash
+git status
+git add .autopus/specs/ ARCHITECTURE.md .autopus/project/ CHANGELOG.md
+git commit -m "$(cat <<'EOF'
+docs(<scope>): sync SPEC-{ID} 문서 및 상태 갱신
+...
+🐙 Autopus <noreply@autopus.co>
+EOF
+)"
+```
+
+**Skip commit when**: `git status` reports no changes — print a notice only.
+
+### [REQUIRED] Pre-Completion Verification
+
+Before displaying the completion bar, verify ALL sync targets were completed:
+
+- [ ] Sync Target 1: SPEC status updated (or N/A — no SPEC-ID provided)
+- [ ] Sync Target 2: Project context docs updated
+- [ ] Sync Target 3: @AX lifecycle managed
+- [ ] Sync Target 4: CHANGELOG.md updated
+- [ ] Sync Target 5: Bash tool called — git commit ran (or skipped due to no changes)
+
+IF any item is unchecked → return to that target. Do NOT display Completion Guidance.
 
 ### Project Document Update
 
@@ -1448,29 +1760,49 @@ Execute the complete plan → go → sync cycle in one command.
 
 ### Pipeline
 
-1. Run `plan` with the feature description → get SPEC-ID
-2. Run `go SPEC-ID --auto --loop` → implement
-3. Run `sync SPEC-ID` → synchronize documentation
+#### [REQUIRED] Stage 1: Plan (MUST call plan subcommand)
 
-Display the workflow lifecycle bar between each stage:
+Run the `plan` pipeline with the feature description. Extract the SPEC-ID from the output.
 
-After plan:
+Display after completion:
 ```
 🐙 Workflow: {SPEC-ID}
   ● plan  →  ○ go  →  ○ sync
 ```
 
-After go:
+> **⏭ POST-STAGE**: plan complete, SPEC-ID extracted. NEXT REQUIRED STAGE: Stage 2: Go. Do NOT skip to Completion.
+
+#### [REQUIRED] Stage 2: Go (MUST call go subcommand)
+
+Run the `go` pipeline with `--auto --loop` flags using the SPEC-ID from Stage 1.
+
+Display after completion:
 ```
 🐙 Workflow: {SPEC-ID}
   ✓ plan  →  ● go  →  ○ sync
 ```
 
-After sync:
+> **⏭ POST-STAGE**: go complete. NEXT REQUIRED STAGE: Stage 3: Sync. Do NOT skip to Completion.
+
+#### [REQUIRED] Stage 3: Sync (MUST call sync subcommand)
+
+Run the `sync` pipeline with the SPEC-ID.
+
+Display after completion:
 ```
 🐙 Workflow: {SPEC-ID}
   ✓ plan  →  ✓ go  →  ● sync
 ```
+
+### [REQUIRED] Pre-Completion Verification
+
+Before displaying the final milestone output, verify ALL stages were completed:
+
+- [ ] Stage 1: plan — SPEC-ID created
+- [ ] Stage 2: go — implementation pipeline completed
+- [ ] Stage 3: sync — documentation synchronized, Lore commit made
+
+IF any item is unchecked → return to that stage. Do NOT display the milestone box.
 
 ### Flags
 

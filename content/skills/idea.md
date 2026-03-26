@@ -46,9 +46,9 @@ auto_chain = flags.auto    # default: false
 - **Who**: 누구를 위한 것인가? (대상 사용자)
 - **When**: 언제 필요한가? (타임라인/맥락)
 
-### Step 3: Call Orchestra Brainstorm
+### [REQUIRED] Step 3: Call Orchestra Brainstorm (MUST call Bash tool)
 
-Bash 툴로 CLI 호출:
+IMPORTANT: 이 단계는 반드시 Bash 툴로 CLI를 실행해야 합니다. Sequential Thinking이나 단일 모델 시뮬레이션으로 대체 금지.
 
 ```bash
 auto orchestra brainstorm "{structured idea}" --strategy {strategy}
@@ -56,6 +56,9 @@ auto orchestra brainstorm "{structured idea}" --strategy {strategy}
 
 - `orchestra.timeout_seconds` 설정에서 프로바이더별 타임아웃 적용
 - 프로바이더 실패 시 graceful degradation — 나머지 프로바이더 결과로 계속 진행
+- Bash 호출이 에러를 반환한 경우에만 사용자에게 fallback 여부를 확인
+
+> **⏭ POST-STEP**: Orchestra 결과 수신 후 Step 4로 진행. Step 5로 건너뛰지 말 것.
 
 ### Step 4: ICE Scoring and Top N Selection
 
