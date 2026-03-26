@@ -75,4 +75,5 @@ type OrchestraConfig struct {
 	JudgeProvider  string            // debate 전략에서 최종 판정 프로바이더
 	DebateRounds   int               // Number of debate rounds (1=no rebuttal, 2=with rebuttal). 0 defaults to 1.
 	Terminal       terminal.Terminal // Optional terminal for pane-based execution. Nil means non-interactive mode.
+	NoDetach       bool              // @AX:NOTE [AUTO] REQ-1 — when true, disable auto-detach even on pane terminals; maps to CLI --no-detach flag
 }

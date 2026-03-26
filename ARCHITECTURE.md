@@ -20,7 +20,7 @@ Autopus-ADK (Agentic Development Kit) is a Go CLI tool that installs the Autopus
 | Lore | `pkg/lore` | 9-trailer decision protocol, query, validation |
 | LSP | `pkg/lsp` | Language server detection, hover, completion, diagnostics |
 | Search | `pkg/search` | Context7 MCP, Exa API, hash-based knowledge search |
-| Orchestra | `pkg/orchestra` | Multi-model orchestration (consensus, pipeline, debate, fastest) with judge-based debate, structured consensus, graceful degradation |
+| Orchestra | `pkg/orchestra` | Multi-model orchestration (consensus, pipeline, debate, fastest) with judge-based debate, structured consensus, graceful degradation, detach mode (async job execution on pane terminals) |
 | Template | `pkg/template` | Go text/template wrapper with custom functions |
 | Detect | `pkg/detect` | Platform binary detection, orchestra provider detection, test runner detection |
 | Version | `pkg/version` | Build metadata (ldflags injection) |
@@ -124,6 +124,8 @@ cmd/auto/main.go
 | Recorder | `pkg/telemetry/recorder.go` | JSONL-based pipeline execution telemetry |
 | Estimator | `pkg/cost/estimator.go` | Token-based cost estimation with 3:1 split ratio |
 | Brainstorm | `internal/cli/orchestra_brainstorm.go` | Multi-provider SCAMPER/HMW brainstorming with divergence-preserving judge and ICE scoring |
+| Detach Mode | `pkg/orchestra/detach.go` | Auto-detach on pane terminals (cmux/tmux), async job execution with sentinel-based status tracking |
+| Job Persistence | `pkg/orchestra/job.go` | Job serialization, status tracking (running/partial/done/timeout/error), stale job GC |
 | Idea Workflow | `.claude/skills/autopus/idea.md` | Independent idea brainstorming subccommand (`/auto idea`) with BS file output and plan chaining |
 | Experiment Loop | `pkg/experiment/` + `.claude/skills/autopus/experiment.md` | Skill-orchestrated autonomous iteration loop with CLI utility commands for metric execution, git state management, circuit breaking, and simplicity scoring |
 | E2E Scenarios | `pkg/e2e/` + `pkg/setup/scenarios.go` | User-facing E2E scenario generation (Cobra extraction), execution engine, verification primitives, incremental sync |

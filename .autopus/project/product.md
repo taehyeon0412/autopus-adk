@@ -30,6 +30,7 @@ AI 코딩 CLI 플랫폼(Claude Code, Codex, Gemini CLI, OpenCode, Cursor)에 Aut
 | Decision Tracking | `auto lore` | Git trailer 기반 의사결정 추적 (9-trailer 프로토콜) |
 | Documentation | `auto setup` | 프로젝트 컨텍스트 문서 생성/업데이트 |
 | Multi-Model | `auto orchestra` | 다중 AI 모델 오케스트레이션 (consensus/debate/pipeline/fastest) — config 연동, judge 판정, 구조화 합의, graceful degradation |
+| Orchestra Detach | `auto orchestra status/wait/result` | pane 터미널(cmux/tmux) 감지 시 auto-detach 비동기 실행, Job 상태 추적, 결과 수집, stale job GC |
 | Brainstorming | `auto orchestra brainstorm` | 멀티 프로바이더 SCAMPER/HMW 브레인스토밍 — divergence-preserving judge, ICE 스코어링 |
 | Idea Brainstorm | `/auto idea` | 독립적 아이디어 발산 서브커맨드 — `auto orchestra brainstorm` 활용, BS 파일 저장, plan 체이닝 (`--from-idea`, `--auto`) |
 | Agent Pipeline | `/auto go --team` | 멀티에이전트 파이프라인 (planner→tester(scaffold)→executor→annotator→tester→validator→reviewer+security-auditor) |

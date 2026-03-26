@@ -5,26 +5,13 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/insajin/autopus-adk/pkg/orchestra"
 	"github.com/insajin/autopus-adk/pkg/terminal"
 )
-
-// buildFileContents reads each file and returns formatted content string.
-func buildFileContents(files []string) string {
-	var sb strings.Builder
-	for _, f := range files {
-		content, err := os.ReadFile(f)
-		if err != nil {
-			fmt.Fprintf(&sb, "--- %s (읽기 실패: %v) ---\n\n", f, err)
-			continue
-		}
-		fmt.Fprintf(&sb, "--- %s ---\n```\n%s\n```\n\n", f, string(content))
-	}
-	return sb.String()
-}
 
 // newOrchestraCmd creates the orchestra root command.
 // @AX:NOTE: [AUTO] [downgraded from ANCHOR — fan_in < 3] orchestra 서브커맨드 트리의 루트
@@ -40,6 +27,9 @@ func newOrchestraCmd() *cobra.Command {
 	cmd.AddCommand(newOrchestraPlanCmd())
 	cmd.AddCommand(newOrchestraSecureCmd())
 	cmd.AddCommand(newOrchestraBrainstormCmd())
+	cmd.AddCommand(newOrchestraJobStatusCmd())
+	cmd.AddCommand(newOrchestraJobWaitCmd())
+	cmd.AddCommand(newOrchestraJobResultCmd())
 
 	return cmd
 }
@@ -51,6 +41,7 @@ func newOrchestraReviewCmd() *cobra.Command {
 		providers []string
 		timeout   int
 		judge     string
+		noDetach  bool
 	)
 
 	cmd := &cobra.Command{
@@ -62,7 +53,7 @@ func newOrchestraReviewCmd() *cobra.Command {
 			flagStrategy := flagStringIfChanged(cmd, "strategy", strategy)
 			flagProviders := flagStringSliceIfChanged(cmd, "providers", providers)
 			prompt := buildReviewPrompt(args)
-			return runOrchestraCommand(cmd.Context(), "review", flagStrategy, flagProviders, timeout, judge, prompt)
+			return runOrchestraCommand(cmd.Context(), "review", flagStrategy, flagProviders, timeout, judge, prompt, noDetach)
 		},
 	}
 
@@ -70,6 +61,7 @@ func newOrchestraReviewCmd() *cobra.Command {
 	cmd.Flags().StringSliceVarP(&providers, "providers", "p", nil, "사용할 프로바이더 목록")
 	cmd.Flags().IntVarP(&timeout, "timeout", "t", 120, "타임아웃 (초)")
 	cmd.Flags().StringVar(&judge, "judge", "", "debate 전략에서 최종 판정 프로바이더")
+	cmd.Flags().BoolVar(&noDetach, "no-detach", false, "Disable auto-detach mode")
 
 	return cmd
 }
@@ -140,7 +132,11 @@ func runOrchestraCommand(
 	timeout int,
 	judge string,
 	prompt string,
+	noDetach ...bool,
 ) error {
+	// @AX:NOTE [AUTO] REQ-11 opportunistic GC — fires on every orchestra invocation; 1h TTL
+	_, _ = orchestra.CleanupStaleJobs(os.TempDir(), 1*time.Hour)
+
 	// Attempt to load config; fall back to hardcoded defaults on failure
 	orchConf, configErr := loadOrchestraConfig()
 
@@ -179,6 +175,7 @@ func runOrchestraCommand(
 		return fmt.Errorf("사용 가능한 프로바이더가 없습니다")
 	}
 
+	nd := len(noDetach) > 0 && noDetach[0]
 	cfg := orchestra.OrchestraConfig{
 		Providers:      providers,
 		Strategy:       s,
@@ -186,6 +183,7 @@ func runOrchestraCommand(
 		TimeoutSeconds: timeout,
 		JudgeProvider:  judge,
 		Terminal:       terminal.DetectTerminal(),
+		NoDetach:       nd,
 	}
 
 	providerNames := make([]string, len(providers))
@@ -193,6 +191,21 @@ func runOrchestraCommand(
 		providerNames[i] = p.Name
 	}
 	fmt.Fprintf(os.Stderr, "전략: %s, 프로바이더: %s\n", strategyStr, strings.Join(providerNames, ", "))
+
+	// @AX:NOTE [AUTO] REQ-1 auto-detach branch — returns job ID to stdout, status to stderr; skips RunOrchestra
+	termName := ""
+	if cfg.Terminal != nil {
+		termName = cfg.Terminal.Name()
+	}
+	if orchestra.ShouldDetach(termName, isStdoutTTY(), cfg.NoDetach) {
+		jobID, err := orchestra.RunPaneOrchestraDetached(ctx, cfg)
+		if err != nil {
+			return fmt.Errorf("detach mode failed: %w", err)
+		}
+		fmt.Fprintf(os.Stderr, "Detached: job %s\n", jobID)
+		fmt.Printf("%s\n", jobID)
+		return nil
+	}
 
 	result, err := orchestra.RunOrchestra(ctx, cfg)
 	if err != nil {
@@ -238,44 +251,3 @@ func defaultProviders() []string {
 	return []string{"claude", "codex", "gemini"}
 }
 
-// buildReviewPrompt builds the review prompt, including file contents if provided.
-func buildReviewPrompt(files []string) string {
-	if len(files) == 0 {
-		return "현재 프로젝트의 코드를 리뷰해주세요. 품질, 가독성, 잠재적 버그를 중심으로 분석하세요."
-	}
-	var sb strings.Builder
-	sb.WriteString("다음 파일들을 코드 리뷰해주세요:\n\n")
-	sb.WriteString(buildFileContents(files))
-	sb.WriteString("품질, 가독성, 잠재적 버그를 중심으로 분석하세요.")
-	return sb.String()
-}
-
-// buildSecurePrompt builds the security analysis prompt, including file contents if provided.
-func buildSecurePrompt(files []string) string {
-	if len(files) == 0 {
-		return "현재 프로젝트의 보안 취약점을 분석해주세요. OWASP Top 10을 기준으로 검토하세요."
-	}
-	var sb strings.Builder
-	sb.WriteString("다음 파일들의 보안 취약점을 분석해주세요:\n\n")
-	sb.WriteString(buildFileContents(files))
-	sb.WriteString("OWASP Top 10을 기준으로 검토하세요.")
-	return sb.String()
-}
-
-// flagStringIfChanged returns the flag value only if the flag was explicitly set.
-// Returns empty string when using default (not changed).
-func flagStringIfChanged(cmd *cobra.Command, name, value string) string {
-	if cmd.Flags().Changed(name) {
-		return value
-	}
-	return ""
-}
-
-// flagStringSliceIfChanged returns the flag value only if the flag was explicitly set.
-// Returns nil when using default (not changed).
-func flagStringSliceIfChanged(cmd *cobra.Command, name string, value []string) []string {
-	if cmd.Flags().Changed(name) {
-		return value
-	}
-	return nil
-}

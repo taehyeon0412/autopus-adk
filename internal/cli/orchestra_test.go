@@ -12,7 +12,7 @@ import (
 )
 
 // TestNewOrchestraCmd_SubcommandRegistration verifies that newOrchestraCmd
-// registers exactly 4 subcommands: review, plan, secure, brainstorm.
+// registers all expected subcommands including detach job management commands.
 func TestNewOrchestraCmd_SubcommandRegistration(t *testing.T) {
 	t.Parallel()
 
@@ -21,7 +21,7 @@ func TestNewOrchestraCmd_SubcommandRegistration(t *testing.T) {
 	assert.Equal(t, "orchestra", cmd.Use)
 
 	subCmds := cmd.Commands()
-	require.Len(t, subCmds, 4)
+	require.Len(t, subCmds, 7)
 
 	names := make([]string, len(subCmds))
 	for i, sc := range subCmds {
@@ -31,6 +31,9 @@ func TestNewOrchestraCmd_SubcommandRegistration(t *testing.T) {
 	assert.Contains(t, names, "plan")
 	assert.Contains(t, names, "secure")
 	assert.Contains(t, names, "brainstorm")
+	assert.Contains(t, names, "status")
+	assert.Contains(t, names, "wait")
+	assert.Contains(t, names, "result")
 }
 
 // TestNewOrchestraReviewCmd_Flags verifies that review cmd registers all expected flags.

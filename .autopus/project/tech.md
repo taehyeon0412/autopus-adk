@@ -66,6 +66,8 @@
 | Debate | `pkg/orchestra/debate.go` | 2-phase debate + judge 판정 |
 | Consensus | `pkg/orchestra/consensus.go` | 구조화 키 기반 합의 추출 |
 | Graceful Degradation | `pkg/orchestra/runner.go` | 부분 실패 시 성공 응답으로 계속 진행 |
+| Detach Mode | `pkg/orchestra/detach.go` | pane 터미널 감지 시 비동기 Job 실행 (auto-detach), ShouldDetach() 판정 |
+| Job Persistence | `pkg/orchestra/job.go` | Job 직렬화/역직렬화, sentinel 기반 상태 추적, stale job GC |
 | Template | `pkg/template/` | Go template 렌더링 |
 | Factory | `pkg/config/defaults.go` | Full/Lite 설정 생성 |
 | Marker Update | `pkg/adapter/manifest.go` | AUTOPUS:BEGIN/END 부분 업데이트 |
@@ -168,6 +170,9 @@
 | Review Strategy | debate (claude + codex + gemini) |
 | Brainstorm Strategy | debate (claude + codex + gemini) |
 | Secure Strategy | consensus (claude + gemini) |
+| Detach Mode | Auto-detach on pane terminals (cmux/tmux), --no-detach override |
+| Job Commands | status, wait, result (--cleanup) |
+| Stale Job GC | Opportunistic cleanup of jobs older than 1 hour |
 
 ## Frontend Verification
 

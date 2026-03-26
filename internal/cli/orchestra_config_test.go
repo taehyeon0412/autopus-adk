@@ -165,3 +165,56 @@ func TestResolveStrategy_FallbackConsensus(t *testing.T) {
 	s := resolveStrategy(conf, "plan", "")
 	assert.Equal(t, "consensus", s)
 }
+
+func TestResolveJudge_FlagOverride(t *testing.T) {
+	t.Parallel()
+
+	conf := &config.OrchestraConf{
+		Commands: map[string]config.CommandEntry{
+			"review": {Judge: "gemini"},
+		},
+	}
+
+	// CLI flag overrides config
+	j := resolveJudge(conf, "review", "claude")
+	assert.Equal(t, "claude", j)
+}
+
+func TestResolveJudge_CommandConfig(t *testing.T) {
+	t.Parallel()
+
+	conf := &config.OrchestraConf{
+		Commands: map[string]config.CommandEntry{
+			"review": {Judge: "gemini"},
+		},
+	}
+
+	// No flag: command config used
+	j := resolveJudge(conf, "review", "")
+	assert.Equal(t, "gemini", j)
+}
+
+func TestResolveJudge_NoConfig(t *testing.T) {
+	t.Parallel()
+
+	conf := &config.OrchestraConf{
+		Commands: map[string]config.CommandEntry{},
+	}
+
+	// No flag, no command config: empty string
+	j := resolveJudge(conf, "review", "")
+	assert.Equal(t, "", j)
+}
+
+func TestResolveJudge_CommandWithoutJudge(t *testing.T) {
+	t.Parallel()
+
+	conf := &config.OrchestraConf{
+		Commands: map[string]config.CommandEntry{
+			"review": {Strategy: "debate"}, // judge field empty
+		},
+	}
+
+	j := resolveJudge(conf, "review", "")
+	assert.Equal(t, "", j)
+}

@@ -21,9 +21,11 @@ autopus-adk/
 │   ├── lsp.go                   #   auto lsp: LSP 연동
 │   ├── search.go                #   auto search: 지식 검색
 │   ├── skill.go                 #   auto skill: 스킬 관리
-│   ├── orchestra.go             #   auto orchestra: 멀티-모델
+│   ├── orchestra.go             #   auto orchestra: 멀티-모델 (--no-detach, auto-detach 분기)
 │   ├── orchestra_brainstorm.go  #   auto orchestra brainstorm: 멀티-프로바이더 브레인스토밍
 │   ├── orchestra_config.go      #   orchestra config 연동 로직
+│   ├── orchestra_job.go         #   auto orchestra status/wait/result: Job 관리 서브커맨드
+│   ├── orchestra_helpers.go     #   orchestra CLI 헬퍼 함수
 │   ├── setup.go                 #   auto setup: 프로젝트 문서
 │   ├── hash.go                  #   auto hash: 해시 계산
 │   ├── status.go                #   auto status: SPEC 대시보드
@@ -121,7 +123,10 @@ autopus-adk/
 │   │   ├── runner.go            #     실행기 (graceful degradation)
 │   │   ├── strategy.go          #     전략 구현
 │   │   ├── debate.go            #     2-phase debate + judge 판정
-│   │   └── consensus.go         #     구조화 합의 추출
+│   │   ├── consensus.go         #     구조화 합의 추출
+│   │   ├── job.go               #     Job struct, persistence, status, cleanup
+│   │   ├── detach.go            #     Detach mode entry, ShouldDetach() 판정
+│   │   └── pane_runner.go       #     Pane 오케스트레이션, RunPaneOrchestraDetached()
 │   ├── template/                #   템플릿 엔진
 │   │   ├── engine.go            #     Go template 래퍼
 │   │   └── funcmap.go           #     커스텀 함수
