@@ -3,9 +3,9 @@ package config
 
 // defaultProviderEntries holds the canonical default settings for known orchestra providers.
 var defaultProviderEntries = map[string]ProviderEntry{
-	"claude": {Binary: "claude", Args: []string{"--print"}},
-	"codex":  {Binary: "codex", Args: []string{"--quiet"}, PromptViaArgs: true},
-	"gemini": {Binary: "gemini", Args: []string{}, PromptViaArgs: true},
+	"claude": {Binary: "claude", Args: []string{"--print"}, PaneArgs: []string{"--print"}},
+	"codex":  {Binary: "codex", Args: []string{"--quiet"}, PaneArgs: []string{"--quiet"}, PromptViaArgs: true},
+	"gemini": {Binary: "gemini", Args: []string{}, PaneArgs: []string{}, PromptViaArgs: true},
 }
 
 

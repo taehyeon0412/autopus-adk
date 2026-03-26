@@ -63,9 +63,9 @@ func DefaultFullConfig(projectName string) *HarnessConfig {
 			DefaultStrategy: "consensus",
 			TimeoutSeconds:  120,
 			Providers: map[string]ProviderEntry{
-				"claude": {Binary: "claude", Args: []string{"--print"}},
-				"codex":  {Binary: "codex", Args: []string{"--quiet"}, PromptViaArgs: true},
-				"gemini": {Binary: "gemini", Args: []string{}, PromptViaArgs: true},
+				"claude": {Binary: "claude", Args: []string{"--print"}, PaneArgs: []string{"--print"}},
+				"codex":  {Binary: "codex", Args: []string{"--quiet"}, PaneArgs: []string{"--quiet"}, PromptViaArgs: true},
+				"gemini": {Binary: "gemini", Args: []string{}, PaneArgs: []string{}, PromptViaArgs: true},
 			},
 			Commands: map[string]CommandEntry{
 				"review": {Strategy: "debate", Providers: []string{"claude", "codex", "gemini"}},

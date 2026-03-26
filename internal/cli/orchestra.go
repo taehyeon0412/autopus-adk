@@ -210,11 +210,11 @@ func buildProviderConfigs(names []string) []orchestra.ProviderConfig {
 	// Known provider mappings: binary + default args
 	knownProviders := map[string]orchestra.ProviderConfig{
 		// claude: non-interactive mode via stdin
-		"claude": {Name: "claude", Binary: "claude", Args: []string{"-p"}, PromptViaArgs: false},
+		"claude": {Name: "claude", Binary: "claude", Args: []string{"-p"}, PaneArgs: []string{"-p"}, PromptViaArgs: false},
 		// codex: quiet mode via stdin
-		"codex": {Name: "codex", Binary: "codex", Args: []string{"-q"}, PromptViaArgs: false},
+		"codex": {Name: "codex", Binary: "codex", Args: []string{"-q"}, PaneArgs: []string{"-q"}, PromptViaArgs: false},
 		// gemini: prompt passed as last argument (not stdin)
-		"gemini": {Name: "gemini", Binary: "gemini", Args: []string{"-p"}, PromptViaArgs: true},
+		"gemini": {Name: "gemini", Binary: "gemini", Args: []string{"-p"}, PaneArgs: []string{"-p"}, PromptViaArgs: true},
 	}
 
 	var result []orchestra.ProviderConfig

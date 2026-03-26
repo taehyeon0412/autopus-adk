@@ -148,18 +148,19 @@ func TestWaitForSentinel_Timeout(t *testing.T) {
 	assert.ErrorIs(t, waitForSentinel(ctx, path), context.DeadlineExceeded)
 }
 
-// TestStripNonInteractiveFlags_QuietAndNonInteractive covers --quiet and --non-interactive.
-func TestStripNonInteractiveFlags_QuietAndNonInteractive(t *testing.T) {
+// TestPaneArgs_FallbackToArgs covers the fallback to Args when PaneArgs is unset.
+func TestPaneArgs_FallbackToArgs(t *testing.T) {
 	t.Parallel()
-	got := stripNonInteractiveFlags([]string{"--quiet", "--non-interactive", "--model", "opus"})
+	p := ProviderConfig{Args: []string{"--model", "opus"}}
+	got := paneArgs(p)
 	assert.Equal(t, []string{"--model", "opus"}, got)
 }
 
-// TestStripNonInteractiveFlags_EmptyInput covers nil/empty input.
-func TestStripNonInteractiveFlags_EmptyInput(t *testing.T) {
+// TestPaneArgs_EmptyBothNil covers nil Args and nil PaneArgs.
+func TestPaneArgs_EmptyBothNil(t *testing.T) {
 	t.Parallel()
-	assert.Empty(t, stripNonInteractiveFlags(nil))
-	assert.Empty(t, stripNonInteractiveFlags([]string{}))
+	assert.Nil(t, paneArgs(ProviderConfig{}))
+	assert.Empty(t, paneArgs(ProviderConfig{Args: []string{}}))
 }
 
 // TestRandomHex_UniqueAndLength verifies randomHex output properties.

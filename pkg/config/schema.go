@@ -104,6 +104,7 @@ type OrchestraConf struct {
 type ProviderEntry struct {
 	Binary        string   `yaml:"binary"`
 	Args          []string `yaml:"args,flow"`
+	PaneArgs      []string `yaml:"pane_args,flow,omitempty"`
 	PromptViaArgs bool     `yaml:"prompt_via_args,omitempty"`
 }
 

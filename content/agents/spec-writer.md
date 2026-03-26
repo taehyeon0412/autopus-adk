@@ -24,7 +24,18 @@ SPEC 문서를 생성하는 전문 에이전트입니다.
 
 ## 역할
 
-사용자의 기능 요청을 받아 코드베이스를 분석하고, `.autopus/specs/SPEC-{DOMAIN}-{NUMBER}/`에 4개 파일을 생성합니다.
+사용자의 기능 요청을 받아 코드베이스를 분석하고, **git root**의 `.autopus/specs/SPEC-{DOMAIN}-{NUMBER}/`에 4개 파일을 생성합니다.
+
+## SPEC 저장 위치 규칙
+
+SPEC은 반드시 **현재 git root** 기준으로 저장합니다.
+
+1. `git rev-parse --show-toplevel`로 git root를 감지
+2. `{git-root}/.autopus/specs/`에 SPEC 디렉토리 생성
+3. SPEC ID는 **해당 git root 내에서만** 유일하면 됨
+4. 기존 SPEC ID 스캔: `{git-root}/.autopus/specs/SPEC-{DOMAIN}-*` 패턴으로 중복 방지
+
+이 규칙은 monorepo, submodule, 독립 repo 모든 경우에 동일하게 적용됩니다.
 
 ## 입력
 
@@ -35,10 +46,11 @@ SPEC 문서를 생성하는 전문 에이전트입니다.
 
 ## 작업 절차
 
-### 1. 코드베이스 분석
+### 1. Git Root 감지 및 코드베이스 분석
 
+- `git rev-parse --show-toplevel`로 git root 경로 확인
+- `{git-root}/.autopus/specs/` 에서 기존 SPEC ID 스캔 (DOMAIN, NUMBER 중복 방지)
 - `go.mod` 또는 `package.json` 등에서 프로젝트 타입 파악
-- 기존 `.autopus/specs/` 확인하여 DOMAIN 키워드와 NUMBER 중복 방지
 - 관련 소스 코드 탐색 (Grep, Glob)
 - 기존 패턴과 컨벤션 파악
 
@@ -108,7 +120,7 @@ SPEC 문서를 생성하는 전문 에이전트입니다.
 
 ### 4. 디렉토리 생성
 
-`.autopus/specs/SPEC-{DOMAIN}-{NUMBER}/` 디렉토리를 생성하고 4개 파일을 작성합니다.
+`{git-root}/.autopus/specs/SPEC-{DOMAIN}-{NUMBER}/` 디렉토리를 생성하고 4개 파일을 작성합니다. 프롬프트에 프로젝트 디렉토리가 명시된 경우에도 SPEC 저장 경로는 반드시 git root 기준입니다.
 
 ## 출력
 

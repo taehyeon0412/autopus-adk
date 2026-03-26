@@ -162,30 +162,20 @@ func collectPaneResults(ctx context.Context, panes []paneInfo, start time.Time) 
 	return responses, failed
 }
 
-// stripNonInteractiveFlags removes flags only needed for non-interactive mode.
-func stripNonInteractiveFlags(args []string) []string {
-	skip := map[string]bool{
-		"-p":                true,
-		"--print":           true,
-		"-q":                true,
-		"--quiet":           true,
-		"--non-interactive": true,
+// paneArgs returns the args to use in pane mode for the given provider.
+// Uses PaneArgs if set; otherwise falls back to Args unchanged.
+func paneArgs(p ProviderConfig) []string {
+	if len(p.PaneArgs) > 0 {
+		return p.PaneArgs
 	}
-	result := make([]string, 0, len(args))
-	for _, a := range args {
-		if !skip[a] {
-			result = append(result, a)
-		}
-	}
-	return result
+	return p.Args
 }
 
 // buildPaneCommand constructs the shell command to execute in a pane.
 // SEC-001/SEC-004: all arguments are shell-escaped to prevent injection.
 func buildPaneCommand(provider ProviderConfig, prompt, outputFile string) string {
-	cleaned := stripNonInteractiveFlags(provider.Args)
 	// SEC-004: escape each arg individually
-	args := shellEscapeArgs(cleaned)
+	args := shellEscapeArgs(paneArgs(provider))
 
 	// SEC-006: escape binary path to prevent shell metacharacter injection
 	binary := shellEscapeArg(provider.Binary)

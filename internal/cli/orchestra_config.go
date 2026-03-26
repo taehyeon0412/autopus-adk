@@ -42,6 +42,7 @@ func resolveProviders(conf *config.OrchestraConf, commandName string, flagProvid
 			Name:          name,
 			Binary:        entry.Binary,
 			Args:          entry.Args,
+			PaneArgs:      entry.PaneArgs,
 			PromptViaArgs: entry.PromptViaArgs,
 		})
 	}

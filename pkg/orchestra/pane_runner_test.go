@@ -66,15 +66,15 @@ func TestPaneRunner_PlainTerminal_FallsBack(t *testing.T) {
 }
 
 // TestPaneRunner_SendsInteractiveCommand verifies that each pane receives
-// an interactive CLI command with non-interactive flags removed. (R3)
+// a command using PaneArgs when set, or Args as-is when PaneArgs is nil. (R3)
 func TestPaneRunner_SendsInteractiveCommand(t *testing.T) {
 	t.Parallel()
 
-	// Given: a cmux terminal and a provider with non-interactive flags
+	// Given: a cmux terminal and a provider with PaneArgs set (no -p/-q in pane mode)
 	mock := newCmuxMock()
 	cfg := OrchestraConfig{
 		Providers: []ProviderConfig{
-			{Name: "claude", Binary: "claude", Args: []string{"-p", "--json", "-q"}},
+			{Name: "claude", Binary: "claude", Args: []string{"-p", "--json", "-q"}, PaneArgs: []string{"--json"}},
 		},
 		Strategy:       StrategyConsensus,
 		Prompt:         "write tests",
@@ -85,7 +85,7 @@ func TestPaneRunner_SendsInteractiveCommand(t *testing.T) {
 	// When: pane runner executes
 	_, err := RunPaneOrchestra(context.Background(), cfg)
 
-	// Then: command sent to pane should NOT contain -p or -q flags
+	// Then: command sent to pane should use PaneArgs (--json only, no -p or -q)
 	require.NoError(t, err)
 	require.Len(t, mock.sendCommandCalls, 1)
 	sentCmd := mock.sendCommandCalls[0].Cmd
@@ -203,27 +203,42 @@ func TestPaneRunner_Timeout_ForceClosesPane(t *testing.T) {
 	assert.NotEmpty(t, mock.closeCalls, "timed-out pane should be force-closed")
 }
 
-// TestPaneRunner_StripNonInteractiveFlags verifies that non-interactive
-// flags (-p, -q, --print, --quiet) are stripped from provider args. (R3)
-func TestPaneRunner_StripNonInteractiveFlags(t *testing.T) {
+// TestPaneRunner_PaneArgs verifies that paneArgs returns PaneArgs when set,
+// and falls back to Args when PaneArgs is nil/empty. (R3)
+func TestPaneRunner_PaneArgs(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
 		name     string
-		args     []string
+		provider ProviderConfig
 		expected []string
 	}{
-		{"strip -p flag", []string{"-p", "prompt text"}, []string{"prompt text"}},
-		{"strip -q flag", []string{"-q", "--model", "opus"}, []string{"--model", "opus"}},
-		{"strip --print flag", []string{"--print", "--json"}, []string{"--json"}},
-		{"no flags to strip", []string{"--model", "opus"}, []string{"--model", "opus"}},
-		{"strip multiple flags", []string{"-p", "-q", "--print"}, []string{}},
+		{
+			name:     "uses PaneArgs when set",
+			provider: ProviderConfig{Args: []string{"-p"}, PaneArgs: []string{"--json"}},
+			expected: []string{"--json"},
+		},
+		{
+			name:     "falls back to Args when PaneArgs nil",
+			provider: ProviderConfig{Args: []string{"--model", "opus"}, PaneArgs: nil},
+			expected: []string{"--model", "opus"},
+		},
+		{
+			name:     "falls back to Args when PaneArgs empty",
+			provider: ProviderConfig{Args: []string{"--model", "opus"}, PaneArgs: []string{}},
+			expected: []string{"--model", "opus"},
+		},
+		{
+			name:     "both nil returns nil",
+			provider: ProviderConfig{},
+			expected: nil,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := stripNonInteractiveFlags(tt.args)
+			got := paneArgs(tt.provider)
 			assert.Equal(t, tt.expected, got)
 		})
 	}

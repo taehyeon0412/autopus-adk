@@ -25,6 +25,16 @@ level1_metadata: "멀티 프로바이더 아이디어 토론, SCAMPER/HMW/ICE, B
 - `--providers` — 사용할 프로바이더 목록 (기본값: orchestra 설정 전체)
 - `--auto` — 완료 후 `/auto plan --from-idea BS-{ID}` 자동 체이닝
 
+## 저장 위치 규칙
+
+BS 파일은 반드시 **현재 git root** 기준으로 저장합니다.
+
+1. `git rev-parse --show-toplevel`로 git root를 감지
+2. `{git-root}/.autopus/brainstorms/`에 BS 파일 생성
+3. BS ID는 해당 git root 내에서 자동 증분
+
+이 규칙은 monorepo, submodule, 독립 repo 모든 경우에 동일하게 적용됩니다.
+
 ## 5단계 파이프라인
 
 ### Step 1: Parse Input and Flags
@@ -78,11 +88,11 @@ auto orchestra brainstorm "{structured idea}" --strategy {strategy}
 
 BS-{ID} 파일 저장 후 Workflow Lifecycle 바 표시 및 다음 단계 안내.
 
-**ID 자동 증분**: `.autopus/brainstorms/BS-{ID}.md` 파일이 이미 존재하면 ID를 증분합니다.
+**ID 자동 증분**: `{git-root}/.autopus/brainstorms/BS-{ID}.md` 파일이 이미 존재하면 ID를 증분합니다.
 
 ## BS 파일 형식
 
-`.autopus/brainstorms/BS-{ID}.md`:
+`{git-root}/.autopus/brainstorms/BS-{ID}.md`:
 
 ```markdown
 # BS-{ID}: {title}
