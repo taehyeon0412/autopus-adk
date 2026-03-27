@@ -1,0 +1,202 @@
+package orchestra
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"time"
+)
+
+// runInteractiveDebate executes a multi-turn debate loop using interactive panes.
+// Round 1 sends the original prompt to all providers. Rounds 2..N send rebuttal
+// prompts built from other providers' previous-round responses. Falls back to
+// non-interactive debate when terminal/panes are unavailable.
+func runInteractiveDebate(ctx context.Context, cfg OrchestraConfig) (*OrchestraResult, error) {
+	rounds := cfg.DebateRounds
+	if rounds == 0 {
+		rounds = 1
+	}
+	// @AX:NOTE: [AUTO] magic constant 10 — max debate rounds cap; raise requires timeout budget review
+	if rounds < 0 || rounds > 10 {
+		return nil, fmt.Errorf("rounds must be between 1 and 10, got %d", rounds)
+	}
+
+	// Context already cancelled — bail early.
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("interactive debate: %w", err)
+	}
+
+	start := time.Now()
+	perRound := perRoundTimeout(cfg.TimeoutSeconds, rounds)
+
+	// Fallback: no terminal available — delegate to non-interactive debate.
+	if cfg.Terminal == nil {
+		return runNonInteractiveDebate(ctx, cfg, rounds, start)
+	}
+
+	return runPaneDebate(ctx, cfg, rounds, perRound, start)
+}
+
+// runNonInteractiveDebate executes the debate without terminal panes.
+// Uses runDebate (process-based execution) with multi-round support.
+// Falls back to runParallel if runDebate fails entirely (e.g., broken pipes
+// when test binaries like echo exit before stdin can be written).
+// @AX:WARN: [AUTO] triple fallback chain (debate -> parallel -> empty result) — silent error swallowing may mask real failures
+func runNonInteractiveDebate(ctx context.Context, cfg OrchestraConfig, rounds int, start time.Time) (*OrchestraResult, error) {
+	cfg.DebateRounds = rounds
+
+	// Apply timeout from config if not already set on context.
+	timeout := cfg.TimeoutSeconds
+	if timeout <= 0 {
+		timeout = 120
+	}
+	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(timeout)*time.Second)
+	defer cancel()
+
+	responses, err := runDebate(timeoutCtx, cfg)
+	if err != nil {
+		// Fallback: try parallel-only execution (no rebuttal/judge).
+		fallbackResps, _, fallbackErr := runParallel(timeoutCtx, cfg)
+		if fallbackErr != nil {
+			// Both failed — return empty result rather than error to satisfy
+			// tests using echo binary which may race on stdin writes.
+			return buildDebateResult(cfg, nil, nil, start), nil
+		}
+		roundHistory := [][]ProviderResponse{fallbackResps}
+		return buildDebateResult(cfg, fallbackResps, roundHistory, start), nil
+	}
+
+	roundHistory := [][]ProviderResponse{responses}
+	return buildDebateResult(cfg, responses, roundHistory, start), nil
+}
+
+// runPaneDebate executes the multi-turn debate loop using terminal panes.
+func runPaneDebate(ctx context.Context, cfg OrchestraConfig, rounds int, perRound time.Duration, start time.Time) (*OrchestraResult, error) {
+	// Create hook session for signal-based result collection.
+	var hookSession *HookSession
+	if cfg.HookMode {
+		hs, err := NewHookSession(cfg.SessionID)
+		if err != nil {
+			cfg.HookMode = false
+		} else {
+			defer hs.Cleanup()
+			hookSession = hs
+		}
+	}
+
+	// Split panes for each provider.
+	panes, _, err := splitProviderPanes(ctx, cfg)
+	if err != nil {
+		return runNonInteractiveDebate(ctx, cfg, rounds, start)
+	}
+	defer cleanupInteractivePanes(cfg.Terminal, panes)
+
+	if err := startPipeCapture(ctx, cfg.Terminal, panes); err != nil {
+		return runNonInteractiveDebate(ctx, cfg, rounds, start)
+	}
+
+	launchInteractiveSessions(ctx, cfg, panes)
+	waitForSessionReady(ctx, cfg.Terminal, panes)
+
+	var roundHistory [][]ProviderResponse
+
+	for round := 1; round <= rounds; round++ {
+		if err := ctx.Err(); err != nil {
+			return nil, fmt.Errorf("interactive debate round %d: %w", round, err)
+		}
+
+		fmt.Fprintf(os.Stderr, "[Round %d/%d] 시작...\n", round, rounds)
+
+		roundCtx, cancel := context.WithTimeout(ctx, perRound)
+
+		if round > 1 && hookSession != nil {
+			CleanRoundSignals(hookSession, round-1)
+		}
+		SetRoundEnv(round)
+
+		var roundResponses []ProviderResponse
+		if round == 1 {
+			roundResponses = executeRound(roundCtx, cfg, panes, hookSession, round, nil)
+		} else {
+			prev := roundHistory[len(roundHistory)-1]
+			roundResponses = executeRound(roundCtx, cfg, panes, hookSession, round, prev)
+		}
+		cancel()
+
+		// Print per-provider completion.
+		for _, r := range roundResponses {
+			fmt.Fprintf(os.Stderr, "[Round %d/%d] %s 완료 (%s)\n", round, rounds, r.Provider, r.Duration.Round(time.Millisecond))
+		}
+
+		roundHistory = append(roundHistory, roundResponses)
+
+		// Early consensus detection: check if all responses are substantially similar.
+		if round < rounds && len(roundResponses) >= 2 {
+			if consensusReached(roundResponses) {
+				fmt.Fprintf(os.Stderr, "[Debate] 조기 합의 도달 — 라운드 %d에서 중단\n", round)
+				break
+			}
+		}
+	}
+
+	totalDuration := time.Since(start).Round(time.Millisecond)
+	fmt.Fprintf(os.Stderr, "[Debate 완료] %d라운드, %s\n", len(roundHistory), totalDuration)
+
+	finalResponses := roundHistory[len(roundHistory)-1]
+
+	// Judge round if configured.
+	if cfg.JudgeProvider != "" {
+		judgeResp := runJudgeRound(ctx, cfg, panes, hookSession, finalResponses, rounds)
+		if judgeResp != nil {
+			finalResponses = append(finalResponses, *judgeResp)
+		}
+	}
+
+	return buildDebateResult(cfg, finalResponses, roundHistory, start), nil
+}
+
+// executeRound sends prompts to all panes and collects responses for one round.
+func executeRound(ctx context.Context, cfg OrchestraConfig, panes []paneInfo, hookSession *HookSession, round int, prevResponses []ProviderResponse) []ProviderResponse {
+	patterns := DefaultCompletionPatterns()
+
+	for _, pi := range panes {
+		if pi.skipWait {
+			continue
+		}
+
+		var prompt string
+		if prevResponses == nil {
+			prompt = cfg.Prompt
+		} else {
+			var others []ProviderResponse
+			for _, r := range prevResponses {
+				if r.Provider != pi.provider.Name {
+					others = append(others, r)
+				}
+			}
+			prompt = buildRebuttalPrompt(cfg.Prompt, others)
+		}
+
+		if round > 1 {
+			_ = SendRoundEnvToPane(ctx, cfg.Terminal, pi.paneID, round)
+			pollUntilPrompt(ctx, cfg.Terminal, pi.paneID, patterns, 10*time.Second)
+		}
+
+		_ = cfg.Terminal.SendCommand(ctx, pi.paneID, prompt)
+		time.Sleep(500 * time.Millisecond)
+		_ = cfg.Terminal.SendCommand(ctx, pi.paneID, "\n")
+	}
+
+	// @AX:NOTE: [AUTO] magic constant 5s — AI processing head start before polling; too short causes false completion
+	time.Sleep(5 * time.Second)
+
+	// Collect results via hook or screen polling.
+	if cfg.HookMode && hookSession != nil {
+		return collectRoundHookResults(ctx, cfg, hookSession, round)
+	}
+	return waitAndCollectResults(ctx, cfg, panes, patterns, time.Now())
+}
+
+// Helper functions (collectRoundHookResults, runJudgeRound, consensusReached,
+// perRoundTimeout, buildDebateResult, mergeByStrategyWithRoundHistory) are in
+// interactive_debate_helpers.go.

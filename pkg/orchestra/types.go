@@ -60,8 +60,9 @@ type OrchestraResult struct {
 	Responses       []ProviderResponse // 개별 프로바이더 응답
 	Merged          string             // 병합된 최종 결과
 	Duration        time.Duration      // 전체 실행 시간
-	Summary         string             // 전략별 요약 (합의율, 파이프라인 단계 등)
-	FailedProviders []FailedProvider   // Providers that failed during execution
+	Summary         string               // 전략별 요약 (합의율, 파이프라인 단계 등)
+	FailedProviders []FailedProvider     // Providers that failed during execution
+	RoundHistory    [][]ProviderResponse // Per-round provider responses for debate strategy
 }
 
 // OrchestraConfig는 오케스트레이션 실행 설정이다.

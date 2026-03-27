@@ -6,6 +6,9 @@ if (!sessId) process.exit(0);
 import { existsSync, writeFileSync, mkdirSync } from "fs";
 import { join } from "path";
 
+// Validate session ID to prevent path traversal (alphanumeric, hyphen, underscore only).
+if (!/^[a-zA-Z0-9_-]+$/.test(sessId)) process.exit(0);
+
 const sessDir = join("/tmp/autopus", sessId);
 if (!existsSync(sessDir)) process.exit(0);
 
@@ -27,6 +30,13 @@ process.stdin.on("end", () => {
     exit_code: 0,
   });
 
-  writeFileSync(join(sessDir, "opencode-result.json"), result, { mode: 0o600 });
-  writeFileSync(join(sessDir, "opencode-done"), "", { mode: 0o644 });
+  // Use round-scoped file names when AUTOPUS_ROUND is set (integer-only validation).
+  const round = process.env.AUTOPUS_ROUND;
+  const validRound = round && /^\d+$/.test(round) ? round : null;
+  const suffix = validRound ? `-round${validRound}` : '';
+  const resultFile = `opencode${suffix}-result.json`;
+  const doneFile = `opencode${suffix}-done`;
+
+  writeFileSync(join(sessDir, resultFile), result, { mode: 0o600 });
+  writeFileSync(join(sessDir, doneFile), "", { mode: 0o600 });
 });

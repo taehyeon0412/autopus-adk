@@ -28,7 +28,7 @@ judge 모델이 ICE 점수로 아이디어를 통합하고 증폭합니다.`,
 			flagProviders := flagStringSliceIfChanged(cmd, "providers", providers)
 			keepRelay, _ := cmd.Flags().GetBool("keep-relay-output")
 			prompt := buildBrainstormPrompt(args[0])
-			return runOrchestraCommand(cmd.Context(), "brainstorm", flagStrategy, flagProviders, timeout, judge, prompt, noDetach, keepRelay)
+			return runOrchestraCommand(cmd.Context(), "brainstorm", flagStrategy, flagProviders, timeout, judge, prompt, 0, noDetach, keepRelay)
 		},
 	}
 

@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+
+	"github.com/insajin/autopus-adk/pkg/orchestra"
 )
 
 // buildFileContents reads each file and returns formatted content string.
@@ -64,6 +66,18 @@ func flagStringSliceIfChanged(cmd *cobra.Command, name string, value []string) [
 	return nil
 }
 
+// resolveRounds returns the effective debate round count.
+// Default: 2 for debate strategy when --rounds not specified, 1 for others.
+func resolveRounds(strategy string, rounds int) int {
+	if rounds > 0 {
+		return rounds
+	}
+	if strategy == "debate" {
+		return 2
+	}
+	return 0
+}
+
 // isStdoutTTY returns true if stdout is a terminal device.
 // @AX:NOTE [AUTO] REQ-1 TTY detection — used by auto-detach decision; returns false in CI/pipe contexts
 func isStdoutTTY() bool {
@@ -72,4 +86,53 @@ func isStdoutTTY() bool {
 		return false
 	}
 	return fi.Mode()&os.ModeCharDevice != 0
+}
+
+// buildProviderConfigs converts provider names to ProviderConfig slice.
+// This is the hardcoded fallback used when config is unavailable.
+// @AX:NOTE: [AUTO] hardcoded provider registry — add new providers here and in agenticArgs when expanding provider support
+func buildProviderConfigs(names []string) []orchestra.ProviderConfig {
+	knownProviders := map[string]orchestra.ProviderConfig{
+		"claude":   {Name: "claude", Binary: "claude", Args: []string{"-p", "--model", "opus", "--effort", "high"}, PaneArgs: []string{"-p", "--model", "opus", "--effort", "high"}, PromptViaArgs: false},
+		"codex":    {Name: "codex", Binary: "codex", Args: []string{"-q"}, PaneArgs: []string{"-q"}, PromptViaArgs: false},
+		"gemini":   {Name: "gemini", Binary: "gemini", Args: []string{"-m", "gemini-3.1-pro-preview"}, PaneArgs: []string{"-m", "gemini-3.1-pro-preview"}, PromptViaArgs: true},
+		"opencode": {Name: "opencode", Binary: "opencode", Args: []string{"run", "-m", "openai/gpt-5.4"}, PaneArgs: []string{"run", "-m", "openai/gpt-5.4"}, PromptViaArgs: true},
+	}
+
+	var result []orchestra.ProviderConfig
+	for _, name := range names {
+		if p, ok := knownProviders[name]; ok {
+			result = append(result, p)
+		} else {
+			result = append(result, orchestra.ProviderConfig{
+				Name:   name,
+				Binary: name,
+				Args:   []string{},
+			})
+		}
+	}
+	return result
+}
+
+// defaultProviders returns the hardcoded default provider list.
+func defaultProviders() []string {
+	return []string{"claude", "codex", "gemini"}
+}
+
+// isHookModeAvailable checks whether hook-based result collection can be used.
+// Returns true only when at least one provider has its hook/plugin registered.
+func isHookModeAvailable() bool {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return false
+	}
+	claudeSettings := home + "/.claude/settings.json"
+	data, err := os.ReadFile(claudeSettings)
+	if err != nil {
+		return false
+	}
+	if strings.Contains(string(data), "autopus") && strings.Contains(string(data), "Stop") {
+		return true
+	}
+	return false
 }

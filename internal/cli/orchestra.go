@@ -54,7 +54,7 @@ func newOrchestraReviewCmd() *cobra.Command {
 			flagProviders := flagStringSliceIfChanged(cmd, "providers", providers)
 			keepRelay, _ := cmd.Flags().GetBool("keep-relay-output")
 			prompt := buildReviewPrompt(args)
-			return runOrchestraCommand(cmd.Context(), "review", flagStrategy, flagProviders, timeout, judge, prompt, noDetach, keepRelay)
+			return runOrchestraCommand(cmd.Context(), "review", flagStrategy, flagProviders, timeout, judge, prompt, 0, noDetach, keepRelay)
 		},
 	}
 
@@ -74,6 +74,7 @@ func newOrchestraPlanCmd() *cobra.Command {
 		strategy  string
 		providers []string
 		timeout   int
+		rounds    int
 		noDetach  bool
 	)
 
@@ -86,15 +87,16 @@ func newOrchestraPlanCmd() *cobra.Command {
 			flagStrategy := flagStringIfChanged(cmd, "strategy", strategy)
 			flagProviders := flagStringSliceIfChanged(cmd, "providers", providers)
 			keepRelay, _ := cmd.Flags().GetBool("keep-relay-output")
-			// Use raw user prompt for interactive mode; wrap for non-interactive
+			resolvedRounds := resolveRounds(flagStrategy, rounds)
 			prompt := args[0]
-			return runOrchestraCommand(cmd.Context(), "plan", flagStrategy, flagProviders, timeout, "", prompt, noDetach, keepRelay)
+			return runOrchestraCommand(cmd.Context(), "plan", flagStrategy, flagProviders, timeout, "", prompt, resolvedRounds, noDetach, keepRelay)
 		},
 	}
 
 	cmd.Flags().StringVarP(&strategy, "strategy", "s", "", "오케스트레이션 전략 (consensus|pipeline|debate|fastest|relay)")
 	cmd.Flags().StringSliceVarP(&providers, "providers", "p", nil, "사용할 프로바이더 목록")
 	cmd.Flags().IntVarP(&timeout, "timeout", "t", 120, "타임아웃 (초)")
+	cmd.Flags().IntVar(&rounds, "rounds", 0, "debate 라운드 수 (1-10, debate 전략 전용)")
 	cmd.Flags().BoolVar(&noDetach, "no-detach", false, "Disable auto-detach mode")
 	cmd.Flags().Bool("keep-relay-output", false, "relay 전략 실행 후 임시 파일 보존")
 
@@ -119,7 +121,7 @@ func newOrchestraSecureCmd() *cobra.Command {
 			flagProviders := flagStringSliceIfChanged(cmd, "providers", providers)
 			keepRelay, _ := cmd.Flags().GetBool("keep-relay-output")
 			prompt := buildSecurePrompt(args)
-			return runOrchestraCommand(cmd.Context(), "secure", flagStrategy, flagProviders, timeout, "", prompt, noDetach, keepRelay)
+			return runOrchestraCommand(cmd.Context(), "secure", flagStrategy, flagProviders, timeout, "", prompt, 0, noDetach, keepRelay)
 		},
 	}
 
@@ -135,7 +137,7 @@ func newOrchestraSecureCmd() *cobra.Command {
 // runOrchestraCommand resolves config and runs the orchestration.
 // It loads autopus.yaml first, resolves strategy and providers via config,
 // and falls back to buildProviderConfigs when config is unavailable.
-// @AX:ANCHOR: [AUTO] fan_in=4 CLI callers (review, plan, secure, brainstorm); variadic boolFlags order is load-bearing
+// @AX:ANCHOR: [AUTO] fan_in=4 CLI callers (review, plan, secure, brainstorm); rounds param added for debate strategy
 func runOrchestraCommand(
 	ctx context.Context,
 	commandName string,
@@ -144,6 +146,7 @@ func runOrchestraCommand(
 	timeout int,
 	judge string,
 	prompt string,
+	rounds int,
 	boolFlags ...bool,
 ) error {
 	// @AX:NOTE [AUTO] REQ-11 opportunistic GC — fires on every orchestra invocation; 1h TTL
@@ -187,6 +190,14 @@ func runOrchestraCommand(
 		return fmt.Errorf("사용 가능한 프로바이더가 없습니다")
 	}
 
+	// Validate --rounds: must be 1-10 and only with debate strategy
+	if rounds > 0 && s != orchestra.StrategyDebate {
+		return fmt.Errorf("--rounds는 debate 전략에서만 사용할 수 있습니다")
+	}
+	if rounds > 10 {
+		return fmt.Errorf("--rounds 값은 1-10 범위여야 합니다 (입력: %d)", rounds)
+	}
+
 	// @AX:WARN: [AUTO] positional variadic bool extraction — boolFlags[0]=noDetach, boolFlags[1]=keepRelay; order must match all callers
 	nd := len(boolFlags) > 0 && boolFlags[0]
 	keepRelay := len(boolFlags) > 1 && boolFlags[1]
@@ -212,6 +223,7 @@ func runOrchestraCommand(
 		Prompt:          prompt,
 		TimeoutSeconds:  timeout,
 		JudgeProvider:   judge,
+		DebateRounds:    rounds,
 		Terminal:        term,
 		NoDetach:        nd,
 		KeepRelayOutput: keepRelay,
@@ -251,61 +263,5 @@ func runOrchestraCommand(
 	return nil
 }
 
-// buildProviderConfigs converts provider names to ProviderConfig slice.
-// This is the hardcoded fallback used when config is unavailable.
-// @AX:NOTE: [AUTO] hardcoded provider registry — add new providers here and in agenticArgs when expanding provider support
-func buildProviderConfigs(names []string) []orchestra.ProviderConfig {
-	// Known provider mappings: binary + default args
-	knownProviders := map[string]orchestra.ProviderConfig{
-		// claude: opus with effort high
-		"claude": {Name: "claude", Binary: "claude", Args: []string{"-p", "--model", "opus", "--effort", "high"}, PaneArgs: []string{"-p", "--model", "opus", "--effort", "high"}, PromptViaArgs: false},
-		// codex: quiet mode via stdin (legacy — prefer opencode)
-		"codex": {Name: "codex", Binary: "codex", Args: []string{"-q"}, PaneArgs: []string{"-q"}, PromptViaArgs: false},
-		// gemini: gemini-3.1-pro-preview
-		"gemini": {Name: "gemini", Binary: "gemini", Args: []string{"-m", "gemini-3.1-pro-preview"}, PaneArgs: []string{"-m", "gemini-3.1-pro-preview"}, PromptViaArgs: true},
-		// opencode: gpt-5.4 via OpenAI OAuth
-		"opencode": {Name: "opencode", Binary: "opencode", Args: []string{"run", "-m", "openai/gpt-5.4"}, PaneArgs: []string{"run", "-m", "openai/gpt-5.4"}, PromptViaArgs: true},
-	}
 
-	var result []orchestra.ProviderConfig
-	for _, name := range names {
-		if p, ok := knownProviders[name]; ok {
-			result = append(result, p)
-		} else {
-			// Unknown provider: use name as binary
-			result = append(result, orchestra.ProviderConfig{
-				Name:   name,
-				Binary: name,
-				Args:   []string{},
-			})
-		}
-	}
-	return result
-}
-
-// defaultProviders returns the hardcoded default provider list.
-func defaultProviders() []string {
-	return []string{"claude", "codex", "gemini"}
-}
-
-// isHookModeAvailable checks whether hook-based result collection can be used.
-// Returns true only when at least one provider has its hook/plugin registered.
-// Checks Claude Code Stop hook in settings, Gemini AfterAgent hook, and opencode plugin.
-func isHookModeAvailable() bool {
-	// Check Claude Code settings for Stop hook
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return false
-	}
-	claudeSettings := home + "/.claude/settings.json"
-	data, err := os.ReadFile(claudeSettings)
-	if err != nil {
-		return false
-	}
-	// Simple check: if "hooks" key has content beyond empty object
-	if strings.Contains(string(data), "autopus") && strings.Contains(string(data), "Stop") {
-		return true
-	}
-	return false
-}
 

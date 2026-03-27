@@ -20,6 +20,16 @@ if [ ! -d "$SESSION_DIR" ]; then
   exit 0
 fi
 
+# Determine round-scoped file names when AUTOPUS_ROUND is set (integer-only).
+case "${AUTOPUS_ROUND:-}" in *[!0-9]*) AUTOPUS_ROUND="" ;; esac
+if [ -n "$AUTOPUS_ROUND" ]; then
+  RESULT_FILE="${SESSION_DIR}/gemini-round${AUTOPUS_ROUND}-result.json"
+  DONE_FILE="${SESSION_DIR}/gemini-round${AUTOPUS_ROUND}-done"
+else
+  RESULT_FILE="${SESSION_DIR}/gemini-result.json"
+  DONE_FILE="${SESSION_DIR}/gemini-done"
+fi
+
 # Read hook JSON from stdin and extract prompt_response via python3.
 # Input is passed via stdin (not argv) to avoid shell injection.
 python3 -c "
@@ -31,9 +41,9 @@ if not msg:
 result = {'output': msg, 'exit_code': 0}
 with open(sys.argv[1], 'w') as f:
     json.dump(result, f)
-" "${SESSION_DIR}/gemini-result.json"
+" "${RESULT_FILE}"
 
-chmod 600 "${SESSION_DIR}/gemini-result.json"
+chmod 600 "${RESULT_FILE}"
 
 # Write done signal (empty file).
-: > "${SESSION_DIR}/gemini-done"
+: > "${DONE_FILE}"

@@ -73,6 +73,36 @@ func (s *HookSession) WaitForDone(timeout time.Duration, providers ...string) er
 	}
 }
 
+// WaitForDoneRound polls for the round-scoped done signal file.
+// When round > 0, uses RoundSignalName to generate the filename;
+// otherwise falls back to the standard provider-done format.
+func (s *HookSession) WaitForDoneRound(timeout time.Duration, provider string, round int) error {
+	if round > 0 {
+		doneName := RoundSignalName(provider, round, "done")
+		return s.waitForFile(timeout, doneName)
+	}
+	return s.WaitForDone(timeout, provider)
+}
+
+// waitForFile polls for a specific file at 200ms intervals until timeout.
+func (s *HookSession) waitForFile(timeout time.Duration, filename string) error {
+	deadline := time.After(timeout)
+	ticker := time.NewTicker(200 * time.Millisecond)
+	defer ticker.Stop()
+
+	path := filepath.Join(s.sessionDir, filename)
+	for {
+		select {
+		case <-deadline:
+			return fmt.Errorf("timeout waiting for %s in session %s", filename, s.sessionID)
+		case <-ticker.C:
+			if _, err := os.Stat(path); err == nil {
+				return nil
+			}
+		}
+	}
+}
+
 // ReadResult reads and parses the provider-specific "{provider}-result.json" from the session directory.
 func (s *HookSession) ReadResult(providers ...string) (*HookResult, error) {
 	// Use provider-specific result file if provider name is given (R1 protocol)
@@ -81,6 +111,32 @@ func (s *HookSession) ReadResult(providers ...string) (*HookResult, error) {
 		resultName = sanitizeProviderName(providers[0]) + "-result.json"
 	}
 	data, err := os.ReadFile(filepath.Join(s.sessionDir, resultName))
+	if err != nil {
+		return nil, fmt.Errorf("read result file: %w", err)
+	}
+
+	var result HookResult
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, fmt.Errorf("parse result json: %w", err)
+	}
+
+	return &result, nil
+}
+
+// ReadResultRound reads the round-scoped result file for a provider.
+// When round > 0, uses RoundSignalName to generate the filename;
+// otherwise falls back to the standard provider-result.json format.
+func (s *HookSession) ReadResultRound(provider string, round int) (*HookResult, error) {
+	if round > 0 {
+		resultName := RoundSignalName(provider, round, "result.json")
+		return s.readResultFile(resultName)
+	}
+	return s.ReadResult(provider)
+}
+
+// readResultFile reads and parses a named result file from the session directory.
+func (s *HookSession) readResultFile(filename string) (*HookResult, error) {
+	data, err := os.ReadFile(filepath.Join(s.sessionDir, filename))
 	if err != nil {
 		return nil, fmt.Errorf("read result file: %w", err)
 	}

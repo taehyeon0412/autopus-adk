@@ -22,6 +22,11 @@ func RunInteractivePaneOrchestra(ctx context.Context, cfg OrchestraConfig) (*Orc
 		return RunPaneOrchestra(ctx, cfg)
 	}
 
+	// Debate strategy with multi-round: delegate to interactive debate loop.
+	if cfg.Strategy == StrategyDebate && cfg.DebateRounds >= 2 {
+		return runInteractiveDebate(ctx, cfg)
+	}
+
 	start := time.Now()
 	timeout := cfg.TimeoutSeconds
 	if timeout <= 0 {
