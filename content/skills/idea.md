@@ -30,11 +30,12 @@ level1_metadata: "멀티 프로바이더 아이디어 토론, SCAMPER/HMW/ICE, B
 BS 파일은 **대상 모듈** 기준으로 저장합니다.
 
 1. 아이디어 설명에서 관련 코드를 검색하여 대상 서브모듈을 자동 감지
-2. `{target-module}/.autopus/brainstorms/`에 BS 파일 생성
-3. 감지 실패 시 CWD 기준 `.autopus/brainstorms/`에 저장
-4. BS ID는 프로젝트 전체에서 유일해야 함: `.autopus/brainstorms/BS-*` AND `*/.autopus/brainstorms/BS-*` 스캔
+2. **단일 모듈 대상**: `{target-module}/.autopus/brainstorms/`에 BS 파일 생성
+3. **크로스-모듈 (2+ 모듈)**: 루트 `.autopus/brainstorms/`에 BS 파일 생성 (meta repo 커밋 대상)
+4. 감지 실패 시 루트 `.autopus/brainstorms/`에 저장
+5. BS ID는 프로젝트 전체에서 유일해야 함: `.autopus/brainstorms/BS-*` AND `*/.autopus/brainstorms/BS-*` 스캔
 
-이 규칙은 monorepo, submodule, 독립 repo 모든 경우에 동일하게 적용됩니다.
+Ref: `.claude/rules/autopus/doc-storage.md` for full storage rules.
 
 ## 5단계 파이프라인
 

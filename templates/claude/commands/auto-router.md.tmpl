@@ -1768,26 +1768,59 @@ Manage @AX tag lifecycle (CYCLE tracking, TODO escalation, ANCHOR verification) 
 
 Append the change summary to `CHANGELOG.md` (create if absent).
 
-### [REQUIRED] Sync Target 5: Lore Commit (MUST call Bash tool)
+### [REQUIRED] Sync Target 5: 2-Phase Lore Commit (MUST call Bash tool)
 
 IMPORTANT: You MUST run git operations via the Bash tool. Do NOT skip the commit step.
 
-Run git status, stage files, and commit in Lore format:
+The workspace may use a **meta repo** pattern: the root project directory is a git repo that tracks project-level documents, while each subdirectory can be an independent git repo. Sync commits MUST be split into two phases when this pattern is detected.
 
-WHEN TARGET_MODULE is not '.', use `git -C {TARGET_MODULE}` for git operations targeting the submodule.
+**Detection**: Run `git rev-parse --show-toplevel` at root AND at `{TARGET_MODULE}`. If they differ, this is a multi-repo workspace — use 2-Phase Commit. If they are the same (or TARGET_MODULE is '.'), use single-phase commit.
+
+#### Phase A: Module Commit (submodule changes)
+
+WHEN TARGET_MODULE is not '.', commit SPEC and module-specific files to the submodule repo:
 
 ```bash
-git status
-git add {SPEC_DIR} ARCHITECTURE.md .autopus/project/ CHANGELOG.md
-git commit -m "$(cat <<'EOF'
+git -C {TARGET_MODULE} status
+git -C {TARGET_MODULE} add {SPEC_DIR relative to TARGET_MODULE} {module-specific changed files}
+git -C {TARGET_MODULE} diff --cached --quiet || git -C {TARGET_MODULE} commit -m "$(cat <<'EOF'
 docs(<scope>): sync SPEC-{ID} 문서 및 상태 갱신
-...
+
+SPEC 구현 완료에 따른 모듈 내 문서 동기화.
+
+Why: SPEC 구현 완료 후 모듈 문서 일관성 유지
+Decision: 모듈 repo에 SPEC 관련 파일만 커밋
+Ref: SPEC-{ID}
+
 🐙 Autopus <noreply@autopus.co>
 EOF
 )"
 ```
 
-**Skip commit when**: `git status` reports no changes — print a notice only.
+#### Phase B: Meta Commit (root-level documents)
+
+WHEN multi-repo workspace is detected, ALWAYS check and commit root-level document changes to the meta repo:
+
+```bash
+git status
+git add ARCHITECTURE.md .autopus/project/ CHANGELOG.md
+git diff --cached --quiet || git commit -m "$(cat <<'EOF'
+docs(meta): sync 루트 프로젝트 문서 갱신
+
+프로젝트 컨텍스트 문서를 최신 코드 상태에 맞게 동기화.
+
+Why: 서브모듈 변경에 따른 루트 문서 일관성 유지
+Decision: meta repo에 프로젝트 전체 문서만 커밋
+
+🐙 Autopus <noreply@autopus.co>
+EOF
+)"
+```
+
+**Phase skip rules:**
+- Phase A: skip when TARGET_MODULE is '.' (root-only sync) or no module files changed
+- Phase B: skip when not a multi-repo workspace, or `git diff --cached --quiet` (no root files changed)
+- Both phases: skip when `git status` reports no changes — print a notice only
 
 ### [REQUIRED] Pre-Completion Verification
 
@@ -1797,7 +1830,7 @@ Before displaying the completion bar, verify ALL sync targets were completed:
 - [ ] Sync Target 2: Project context docs updated
 - [ ] Sync Target 3: @AX lifecycle managed
 - [ ] Sync Target 4: CHANGELOG.md updated
-- [ ] Sync Target 5: Bash tool called — git commit ran (or skipped due to no changes)
+- [ ] Sync Target 5: 2-Phase Lore Commit — Phase A (module) + Phase B (meta) ran (or skipped due to no changes)
 
 IF any item is unchecked → return to that target. Do NOT display Completion Guidance.
 
@@ -1831,49 +1864,22 @@ On sync, manage @AX tag lifecycle across the codebase:
 3. Remove orphaned NOTE tags
 
 {{if .IsFullMode}}
-### Lore Commit
+### Lore Commit (2-Phase)
 
-After all sync targets are complete, commit the changed files in Lore format.
+Sync Target 5 handles the actual commits. This section provides additional commit guidelines.
 
-**Determining files to commit:**
-1. Check changed/added files with `git status`
-2. Stage SPEC-related files ({SPEC_DIR}) and project docs (`ARCHITECTURE.md`, `.autopus/project/*`)
-3. If implementation code changes are included, stage those files as well
+**2-Phase Commit flow:**
+1. **Phase A** — Module repo: SPEC files and module-specific changes → `git -C {TARGET_MODULE} commit`
+2. **Phase B** — Meta repo: root-level project docs → `git commit` (at workspace root)
 
-**Commit message templates:**
-
-With SPEC-ID:
-```
-docs(<scope>): sync SPEC-{ID} 문서 및 상태 갱신
-
-SPEC 구현 완료에 따른 문서 동기화.
-상태를 completed로 갱신하고 프로젝트 컨텍스트 문서를 업데이트.
-
-Why: SPEC 구현 완료 후 코드와 문서의 일관성 유지
-Decision: sync 워크플로우에서 커밋까지 자동 수행
-Ref: SPEC-{ID}
-
-🐙 Autopus <noreply@autopus.co>
-```
-
-Without SPEC-ID:
-```
-docs(sync): 프로젝트 문서 동기화
-
-코드베이스 변경사항을 프로젝트 컨텍스트 문서에 반영.
-
-Why: 문서와 코드의 일관성 유지
-Decision: 변경 감지된 문서만 선별 갱신
-
-🐙 Autopus <noreply@autopus.co>
-```
-
-**Commit type rules:**
-- If implementation code (`.go`, etc.) changes are included: use the primary type from the SPEC (feat, fix, refactor, etc.)
-- If only docs/SPEC files changed: use `docs` type
+**Determining which files go where:**
+- Files inside `{TARGET_MODULE}/` → Phase A (module commit)
+- Files at root (`ARCHITECTURE.md`, `.autopus/project/`, `CHANGELOG.md`) → Phase B (meta commit)
+- If implementation code (`.go`, etc.) is included in Phase A: use the primary type from the SPEC (feat, fix, refactor)
+- If only docs changed: use `docs` type for both phases
 
 **Skip commit when:**
-- No changes reported by `git status` — skip the commit and print a notice only
+- No changes reported by `git status` in that repo — skip and print a notice only
 {{end}}
 ### Completion Guidance
 
