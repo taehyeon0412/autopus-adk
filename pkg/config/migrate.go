@@ -4,10 +4,10 @@ package config
 // defaultProviderEntries holds the canonical default settings for known orchestra providers.
 // @AX:NOTE [AUTO] hardcoded provider defaults — update when adding new providers or changing CLI flags
 var defaultProviderEntries = map[string]ProviderEntry{
-	"claude":   {Binary: "claude", Args: []string{"--print"}, PaneArgs: []string{"--print"}},
+	"claude":   {Binary: "claude", Args: []string{"--print", "--model", "opus", "--effort", "high"}, PaneArgs: []string{"--print", "--model", "opus", "--effort", "high"}},
 	"codex":    {Binary: "codex", Args: []string{"--quiet"}, PaneArgs: []string{"--quiet"}, PromptViaArgs: true},
-	"gemini":   {Binary: "gemini", Args: []string{}, PaneArgs: []string{}, PromptViaArgs: true},
-	"opencode": {Binary: "opencode", Args: []string{}, PaneArgs: []string{}, PromptViaArgs: true},
+	"gemini":   {Binary: "gemini", Args: []string{"-m", "gemini-3.1-pro-preview"}, PaneArgs: []string{"-m", "gemini-3.1-pro-preview"}, PromptViaArgs: true},
+	"opencode": {Binary: "opencode", Args: []string{"run", "-m", "openai/gpt-5.4"}, PaneArgs: []string{"run", "-m", "openai/gpt-5.4"}, PromptViaArgs: true},
 }
 
 

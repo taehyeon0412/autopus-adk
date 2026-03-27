@@ -64,3 +64,36 @@ session:
   handoff_enabled: true
   continue_file: .auto-continue.md
   max_context_tokens: 2000
+
+orchestra:
+  enabled: true
+  default_strategy: consensus
+  timeout_seconds: 120
+  providers:
+    claude:
+      binary: claude
+      args: ["--print", "--model", "opus", "--effort", "high"]
+    opencode:
+      binary: opencode
+      args: ["run", "-m", "openai/gpt-5.4"]
+      prompt_via_args: true
+    gemini:
+      binary: gemini
+      args: ["-m", "gemini-3.1-pro-preview"]
+      prompt_via_args: true
+  commands:
+    plan:
+      strategy: consensus
+      providers: [claude, opencode, gemini]
+    review:
+      strategy: debate
+      providers: [claude, opencode, gemini]
+    secure:
+      strategy: consensus
+      providers: [claude, opencode, gemini]
+    brainstorm:
+      strategy: debate
+      providers: [claude, opencode, gemini]
+
+quality:
+  default: balanced

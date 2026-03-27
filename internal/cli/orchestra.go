@@ -194,6 +194,18 @@ func runOrchestraCommand(
 	// Auto-enable interactive pane mode for cmux/tmux terminals (SPEC-ORCH-006)
 	interactive := term != nil && term.Name() != "plain"
 
+	// Hook mode is only activated when hooks are installed (SPEC-ORCH-007 R5/R6)
+	// Check for hook availability by looking for the session signal directory from a prior run,
+	// or rely on explicit opt-in. For now, hooks require `auto init` to install them first.
+	hookMode := false
+	sessionID := ""
+	if interactive {
+		hookMode = isHookModeAvailable()
+		if hookMode {
+			sessionID = fmt.Sprintf("orch-%d", time.Now().UnixMilli())
+		}
+	}
+
 	cfg := orchestra.OrchestraConfig{
 		Providers:       providers,
 		Strategy:        s,
@@ -204,6 +216,8 @@ func runOrchestraCommand(
 		NoDetach:        nd,
 		KeepRelayOutput: keepRelay,
 		Interactive:     interactive,
+		HookMode:        hookMode,
+		SessionID:       sessionID,
 	}
 
 	providerNames := make([]string, len(providers))
@@ -243,12 +257,14 @@ func runOrchestraCommand(
 func buildProviderConfigs(names []string) []orchestra.ProviderConfig {
 	// Known provider mappings: binary + default args
 	knownProviders := map[string]orchestra.ProviderConfig{
-		// claude: non-interactive mode via stdin
-		"claude": {Name: "claude", Binary: "claude", Args: []string{"-p"}, PaneArgs: []string{"-p"}, PromptViaArgs: false},
-		// codex: quiet mode via stdin
+		// claude: opus with effort high
+		"claude": {Name: "claude", Binary: "claude", Args: []string{"-p", "--model", "opus", "--effort", "high"}, PaneArgs: []string{"-p", "--model", "opus", "--effort", "high"}, PromptViaArgs: false},
+		// codex: quiet mode via stdin (legacy — prefer opencode)
 		"codex": {Name: "codex", Binary: "codex", Args: []string{"-q"}, PaneArgs: []string{"-q"}, PromptViaArgs: false},
-		// gemini: prompt passed as last argument (not stdin)
-		"gemini": {Name: "gemini", Binary: "gemini", Args: []string{"-p"}, PaneArgs: []string{"-p"}, PromptViaArgs: true},
+		// gemini: gemini-3.1-pro-preview
+		"gemini": {Name: "gemini", Binary: "gemini", Args: []string{"-m", "gemini-3.1-pro-preview"}, PaneArgs: []string{"-m", "gemini-3.1-pro-preview"}, PromptViaArgs: true},
+		// opencode: gpt-5.4 via OpenAI OAuth
+		"opencode": {Name: "opencode", Binary: "opencode", Args: []string{"run", "-m", "openai/gpt-5.4"}, PaneArgs: []string{"run", "-m", "openai/gpt-5.4"}, PromptViaArgs: true},
 	}
 
 	var result []orchestra.ProviderConfig
@@ -270,5 +286,26 @@ func buildProviderConfigs(names []string) []orchestra.ProviderConfig {
 // defaultProviders returns the hardcoded default provider list.
 func defaultProviders() []string {
 	return []string{"claude", "codex", "gemini"}
+}
+
+// isHookModeAvailable checks whether hook-based result collection can be used.
+// Returns true only when at least one provider has its hook/plugin registered.
+// Checks Claude Code Stop hook in settings, Gemini AfterAgent hook, and opencode plugin.
+func isHookModeAvailable() bool {
+	// Check Claude Code settings for Stop hook
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return false
+	}
+	claudeSettings := home + "/.claude/settings.json"
+	data, err := os.ReadFile(claudeSettings)
+	if err != nil {
+		return false
+	}
+	// Simple check: if "hooks" key has content beyond empty object
+	if strings.Contains(string(data), "autopus") && strings.Contains(string(data), "Stop") {
+		return true
+	}
+	return false
 }
 

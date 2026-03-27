@@ -18,8 +18,8 @@ func stripANSI(s string) string {
 // defaultPromptPatterns matches common shell and CLI prompts.
 // @AX:NOTE [AUTO] hardcoded prompt regexes — must stay in sync with DefaultCompletionPatterns
 var defaultPromptPatterns = []*regexp.Regexp{
-	regexp.MustCompile(`(?m)^>\s*$`),         // claude, gemini default prompt
-	regexp.MustCompile(`(?m)^codex>\s*$`),     // codex prompt
+	regexp.MustCompile(`(?m)^>\s*$`),         // claude, gemini, opencode default prompt
+	regexp.MustCompile(`(?m)^codex>\s*$`),     // codex prompt (legacy)
 	regexp.MustCompile(`(?m)^\$\s*$`),         // shell $ prompt
 	regexp.MustCompile(`(?m)^#\s*$`),          // root # prompt
 	regexp.MustCompile(`(?m)^>\s*claude:\s*`), // claude: ready variant

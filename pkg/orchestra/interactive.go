@@ -70,6 +70,11 @@ func RunInteractivePaneOrchestra(ctx context.Context, cfg OrchestraConfig) (*Orc
 	promptFailed := sendPrompts(timeoutCtx, cfg, panes)
 	failed = append(failed, promptFailed...)
 
+	// Step 5.5: Wait for AI to start processing before completion detection.
+	// Without this delay, the prompt pattern on the current screen triggers
+	// immediate "completion" before the AI even begins responding.
+	time.Sleep(15 * time.Second)
+
 	// Step 6-7: Wait for completion and collect results
 	patterns := DefaultCompletionPatterns()
 	var responses []ProviderResponse
@@ -114,14 +119,14 @@ func startPipeCapture(ctx context.Context, term terminal.Terminal, panes []paneI
 }
 
 // launchInteractiveSessions sends the provider binary name to each pane to start an interactive session.
-// In interactive mode, we launch the bare binary (no -p/-q flags) to get a real CLI session.
+// In interactive mode, we launch the CLI binary with model flags to get a real CLI session.
+// The user prompt will be sent separately via sendPrompts() after the session is ready.
 func launchInteractiveSessions(ctx context.Context, cfg OrchestraConfig, panes []paneInfo) []FailedProvider {
 	var failed []FailedProvider
 	for i, pi := range panes {
-		// Interactive mode: launch binary alone without print/pipe flags
-		// The user prompt will be sent separately via sendPrompts()
-		// Append \n to press Enter (cmux send requires explicit \n for Enter)
-		cmd := pi.provider.Binary + "\n"
+		// Build launch command: binary + interactive args (model flags, etc.)
+		// PaneArgs without print/pipe flags are used; prompt is sent separately
+		cmd := buildInteractiveLaunchCmd(pi.provider) + "\n"
 		if err := cfg.Terminal.SendCommand(ctx, pi.paneID, cmd); err != nil {
 			failed = append(failed, FailedProvider{
 				Name:  pi.provider.Name,
@@ -169,17 +174,29 @@ func pollUntilPrompt(ctx context.Context, term terminal.Terminal, paneID termina
 }
 
 // sendPrompts sends the user prompt to each interactive session.
+// Sends prompt text first, then a separate Enter to submit (handles paste-mode CLIs).
 func sendPrompts(ctx context.Context, cfg OrchestraConfig, panes []paneInfo) []FailedProvider {
 	var failed []FailedProvider
 	for i, pi := range panes {
 		if pi.skipWait {
 			continue
 		}
-		// Append \n to press Enter after prompt (cmux send requires explicit \n)
-		if err := cfg.Terminal.SendCommand(ctx, pi.paneID, cfg.Prompt+"\n"); err != nil {
+		// Send prompt text (may be shown as "[Pasted text]" in some CLIs)
+		if err := cfg.Terminal.SendCommand(ctx, pi.paneID, cfg.Prompt); err != nil {
 			failed = append(failed, FailedProvider{
 				Name:  pi.provider.Name,
 				Error: fmt.Sprintf("send prompt failed: %v", err),
+			})
+			panes[i].skipWait = true
+			continue
+		}
+		// Small delay to let the CLI register the pasted text
+		time.Sleep(500 * time.Millisecond)
+		// Send Enter separately to submit the prompt
+		if err := cfg.Terminal.SendCommand(ctx, pi.paneID, "\n"); err != nil {
+			failed = append(failed, FailedProvider{
+				Name:  pi.provider.Name,
+				Error: fmt.Sprintf("send enter failed: %v", err),
 			})
 			panes[i].skipWait = true
 		}
@@ -228,10 +245,11 @@ func waitAndCollectResults(ctx context.Context, cfg OrchestraConfig, panes []pan
 	return responses
 }
 
-// waitForCompletion polls for completion using both ReadScreen (primary) and idle detection (secondary).
-// @AX:NOTE [AUTO] dual detection strategy — prompt pattern (primary) + file idle (secondary, 10s threshold)
+// waitForCompletion polls for completion using ReadScreen prompt pattern detection only.
+// Idle detection is disabled because it cannot distinguish "AI thinking" from "AI done".
+// @AX:NOTE [AUTO] prompt pattern only — idle detection disabled to avoid false positives during AI thinking
 func waitForCompletion(ctx context.Context, term terminal.Terminal, pi paneInfo, patterns []CompletionPattern) bool {
-	ticker := time.NewTicker(500 * time.Millisecond)
+	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 
 	for {
@@ -239,17 +257,30 @@ func waitForCompletion(ctx context.Context, term terminal.Terminal, pi paneInfo,
 		case <-ctx.Done():
 			return false // R9: timeout reached
 		case <-ticker.C:
-			// Primary: ReadScreen prompt pattern detection (R7)
+			// ReadScreen prompt pattern detection — wait for CLI to show a new input prompt
 			screen, err := term.ReadScreen(ctx, pi.paneID, terminal.ReadScreenOpts{})
 			if err == nil && isPromptVisible(screen, patterns) {
 				return true
 			}
-			// Secondary: idle detection on pipe-pane output file (R7)
-			if isOutputIdle(pi.outputFile, IdleThreshold) {
-				return true
-			}
 		}
 	}
+}
+
+// buildInteractiveLaunchCmd constructs the launch command for interactive mode.
+// Uses the binary name plus model/variant flags from PaneArgs, excluding print/pipe flags.
+// For claude: "claude --model opus --effort high"
+// For opencode: "opencode -m openai/gpt-5.4"
+// For gemini: "gemini -m gemini-3.1-pro-preview"
+func buildInteractiveLaunchCmd(p ProviderConfig) string {
+	cmd := p.Binary
+	for _, arg := range paneArgs(p) {
+		// Skip non-interactive flags that conflict with TUI mode
+		if arg == "--print" || arg == "-p" || arg == "--quiet" || arg == "-q" || arg == "run" {
+			continue
+		}
+		cmd += " " + arg
+	}
+	return cmd
 }
 
 // cleanupInteractivePanes stops pipe capture and closes panes.

@@ -78,7 +78,7 @@ var knownOrchestraProviders = []struct {
 	binary string
 }{
 	{"claude", "claude"},
-	{"codex", "codex"},
+	{"opencode", "opencode"},
 	{"gemini", "gemini"},
 }
 

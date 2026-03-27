@@ -110,10 +110,11 @@ func splitProviderPanes(ctx context.Context, cfg OrchestraConfig) ([]paneInfo, [
 
 // sendPaneCommands sends the interactive command to each pane.
 // Returns FailedProvider entries for any SendCommand errors.
+// Appends \n to execute the command (cmux send does not auto-press Enter).
 func sendPaneCommands(ctx context.Context, cfg OrchestraConfig, panes []paneInfo) []FailedProvider {
 	var failed []FailedProvider
 	for i, pi := range panes {
-		cmd := buildPaneCommand(pi.provider, cfg.Prompt, pi.outputFile)
+		cmd := buildPaneCommand(pi.provider, cfg.Prompt, pi.outputFile) + "\n"
 		if err := cfg.Terminal.SendCommand(ctx, pi.paneID, cmd); err != nil {
 			failed = append(failed, FailedProvider{
 				Name:  pi.provider.Name,

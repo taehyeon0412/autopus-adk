@@ -93,8 +93,10 @@ func DefaultCompletionPatterns() []CompletionPattern {
 		{Provider: "claude", Pattern: regexp.MustCompile(`(?m)^>\s*$`)},
 		{Provider: "codex", Pattern: regexp.MustCompile(`(?m)^codex>\s*$`)},
 		{Provider: "gemini", Pattern: regexp.MustCompile(`(?m)^>\s*$`)},
+		{Provider: "opencode", Pattern: regexp.MustCompile(`(?m)^>\s*$`)},
 	}
 }
 
 // IdleThreshold is the default duration for idle detection (no new output).
-const IdleThreshold = 10 * time.Second
+// Set to 30s to allow for AI model thinking time before triggering completion.
+const IdleThreshold = 30 * time.Second
