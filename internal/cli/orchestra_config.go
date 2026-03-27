@@ -42,11 +42,12 @@ func resolveProviders(conf *config.OrchestraConf, commandName string, flagProvid
 			continue
 		}
 		result = append(result, orchestra.ProviderConfig{
-			Name:          name,
-			Binary:        entry.Binary,
-			Args:          entry.Args,
-			PaneArgs:      entry.PaneArgs,
-			PromptViaArgs: entry.PromptViaArgs,
+			Name:             name,
+			Binary:           entry.Binary,
+			Args:             entry.Args,
+			PaneArgs:         entry.PaneArgs,
+			PromptViaArgs:    entry.PromptViaArgs,
+			InteractiveInput: entry.InteractiveInput,
 		})
 	}
 	return result

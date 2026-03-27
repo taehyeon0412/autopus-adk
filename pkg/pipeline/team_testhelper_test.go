@@ -78,3 +78,6 @@ func (m *teamMockTerminal) PipePaneStart(_ context.Context, _ terminal.PaneID, _
 	return nil
 }
 func (m *teamMockTerminal) PipePaneStop(_ context.Context, _ terminal.PaneID) error { return nil }
+func (m *teamMockTerminal) SendLongText(_ context.Context, _ terminal.PaneID, _ string) error {
+	return nil
+}

@@ -42,6 +42,9 @@ func (m *mockTerminal) PipePaneStart(_ context.Context, _ terminal.PaneID, _ str
 	return nil
 }
 func (m *mockTerminal) PipePaneStop(_ context.Context, _ terminal.PaneID) error { return nil }
+func (m *mockTerminal) SendLongText(_ context.Context, _ terminal.PaneID, _ string) error {
+	return nil
+}
 
 // TestMonitorSession_Start_WithCmux verifies that Start creates 2 panes
 // when a cmux terminal is used.
@@ -155,6 +158,9 @@ func (e *errorTerminal) PipePaneStart(_ context.Context, _ terminal.PaneID, _ st
 	return nil
 }
 func (e *errorTerminal) PipePaneStop(_ context.Context, _ terminal.PaneID) error { return nil }
+func (e *errorTerminal) SendLongText(_ context.Context, _ terminal.PaneID, _ string) error {
+	return nil
+}
 
 // TestMonitorSession_Start_FirstSplitError verifies Start returns error
 // when the first SplitPane call fails.

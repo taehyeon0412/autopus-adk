@@ -206,6 +206,46 @@ func TestResolveJudge_NoConfig(t *testing.T) {
 	assert.Equal(t, "", j)
 }
 
+func TestResolveProviders_InteractiveInputPropagated(t *testing.T) {
+	t.Parallel()
+
+	conf := &config.OrchestraConf{
+		Providers: map[string]config.ProviderEntry{
+			"opencode": {Binary: "opencode", Args: []string{"run", "-m", "gpt-5.4"}, InteractiveInput: "args"},
+			"claude":   {Binary: "claude", Args: []string{"-p"}},
+		},
+		Commands: map[string]config.CommandEntry{},
+	}
+
+	providers := resolveProviders(conf, "review", []string{"opencode", "claude"})
+	require.Len(t, providers, 2)
+
+	for _, p := range providers {
+		if p.Name == "opencode" {
+			assert.Equal(t, "args", p.InteractiveInput, "opencode must have InteractiveInput=args")
+		}
+		if p.Name == "claude" {
+			assert.Equal(t, "", p.InteractiveInput, "claude must have empty InteractiveInput")
+		}
+	}
+}
+
+func TestBuildProviderConfigs_OpencodeInteractiveInput(t *testing.T) {
+	t.Parallel()
+
+	configs := buildProviderConfigs([]string{"opencode", "claude"})
+	require.Len(t, configs, 2)
+
+	for _, p := range configs {
+		if p.Name == "opencode" {
+			assert.Equal(t, "args", p.InteractiveInput, "opencode hardcoded config must have InteractiveInput=args")
+		}
+		if p.Name == "claude" {
+			assert.Equal(t, "", p.InteractiveInput, "claude must have empty InteractiveInput")
+		}
+	}
+}
+
 func TestResolveJudge_CommandWithoutJudge(t *testing.T) {
 	t.Parallel()
 

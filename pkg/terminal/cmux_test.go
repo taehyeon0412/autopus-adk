@@ -166,6 +166,21 @@ func TestCmuxAdapter_Close_SurfaceRef(t *testing.T) {
 	assert.Contains(t, combined, "surface:7")
 }
 
+// TestCmuxAdapter_SendLongText verifies SendLongText delegates to SendCommand (cmux send).
+func TestCmuxAdapter_SendLongText(t *testing.T) {
+	restore, captured := newCmuxMockV2("", nil)
+	defer restore()
+
+	a := &CmuxAdapter{}
+	longText := strings.Repeat("x", 2000)
+	err := a.SendLongText(context.Background(), "surface:7", longText)
+	require.NoError(t, err)
+	combined := strings.Join(captured.lastArgs(), " ")
+	assert.Contains(t, combined, "send")
+	assert.Contains(t, combined, "--surface")
+	assert.Contains(t, combined, "surface:7")
+}
+
 // TestCmuxAdapter_Close_WorkspaceName verifies close-workspace uses stored ref after CreateWorkspace.
 // Note: cannot use t.Parallel() — this test mutates the package-level execCommand variable.
 func TestCmuxAdapter_Close_WorkspaceName(t *testing.T) {

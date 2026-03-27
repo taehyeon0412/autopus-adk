@@ -118,6 +118,50 @@ func (a *TmuxAdapter) PipePaneStop(_ context.Context, paneID PaneID) error {
 	return nil
 }
 
+// SendLongText sends text to a pane, using load-buffer/paste-buffer for text >= 500 bytes
+// to avoid tmux send-keys truncation. Does not send Enter — callers handle that.
+func (a *TmuxAdapter) SendLongText(_ context.Context, paneID PaneID, text string) error {
+	if err := validatePaneID(paneID); err != nil {
+		return fmt.Errorf("tmux: %w", err)
+	}
+	target := a.session + ":" + string(paneID)
+
+	// Short text: use send-keys without Enter
+	if len(text) < 500 {
+		cmd := execCommand("tmux", "send-keys", "-t", target, text)
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("tmux: send-keys to pane %s: %w", paneID, err)
+		}
+		return nil
+	}
+
+	// Long text: write to temp file, load-buffer, paste-buffer, cleanup
+	tmpFile, err := os.CreateTemp("", "autopus-tmux-buf-*")
+	if err != nil {
+		return fmt.Errorf("tmux: create temp file: %w", err)
+	}
+	tmpPath := tmpFile.Name()
+	defer os.Remove(tmpPath)
+
+	if _, err := tmpFile.WriteString(text); err != nil {
+		tmpFile.Close()
+		return fmt.Errorf("tmux: write temp file: %w", err)
+	}
+	tmpFile.Close()
+
+	loadCmd := execCommand("tmux", "load-buffer", tmpPath)
+	if err := loadCmd.Run(); err != nil {
+		return fmt.Errorf("tmux: load-buffer: %w", err)
+	}
+
+	pasteCmd := execCommand("tmux", "paste-buffer", "-t", target)
+	if err := pasteCmd.Run(); err != nil {
+		return fmt.Errorf("tmux: paste-buffer to pane %s: %w", paneID, err)
+	}
+
+	return nil
+}
+
 // Close kills the named tmux session.
 func (a *TmuxAdapter) Close(_ context.Context, name string) error {
 	cmd := execCommand("tmux", "kill-session", "-t", name)

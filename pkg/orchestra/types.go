@@ -34,7 +34,8 @@ type ProviderConfig struct {
 	Binary        string   // executable binary path
 	Args          []string // args for non-interactive mode
 	PaneArgs      []string // args for pane mode (overrides Args when set)
-	PromptViaArgs bool     // true: pass prompt as last arg (gemini), false: pass via stdin (claude, codex)
+	PromptViaArgs    bool     // true: pass prompt as last arg (gemini), false: pass via stdin (claude, codex)
+	InteractiveInput string   // interactive prompt delivery: "args" = via CLI arg at launch, "" = via sendkeys (default)
 }
 
 // ProviderResponse는 프로바이더 실행 결과이다.

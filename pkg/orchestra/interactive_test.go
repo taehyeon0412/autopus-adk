@@ -238,7 +238,7 @@ func TestBuildInteractiveLaunchCmd_PermissionBypass(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			cmd := buildInteractiveLaunchCmd(tt.provider)
+			cmd := buildInteractiveLaunchCmd(tt.provider, "")
 			if tt.want {
 				assert.Contains(t, cmd, "--dangerously-skip-permissions")
 				// Verify no duplication

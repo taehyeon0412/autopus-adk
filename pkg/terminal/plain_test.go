@@ -52,6 +52,15 @@ func TestPlainAdapter_Close_NoError(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// TestPlainAdapter_SendLongText_NoError verifies SendLongText returns nil.
+func TestPlainAdapter_SendLongText_NoError(t *testing.T) {
+	t.Parallel()
+
+	a := &PlainAdapter{}
+	err := a.SendLongText(context.Background(), "0", "long text")
+	require.NoError(t, err)
+}
+
 // TestPlainAdapter_Notify_NoError verifies Notify returns nil.
 func TestPlainAdapter_Notify_NoError(t *testing.T) {
 	t.Parallel()

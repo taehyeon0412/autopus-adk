@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "platform": "claude-code",
-  "generated_at": "2026-03-26T16:39:03+09:00",
+  "generated_at": "2026-03-27T21:12:32+09:00",
   "files": {
     ".claude/agents/autopus/annotator.md": {
       "checksum": "536af8a34ac0ca0e8f6f56d18cb671d2805640f10fc0eb02922809fdd6e73796",
@@ -68,7 +68,15 @@
       "policy": "always"
     },
     ".claude/commands/auto.md": {
-      "checksum": "ea02d461818f0fe401d251198dc6488ec900de6dd3e7f05ba74fac8106229493",
+      "checksum": "ee367fac5e5fa2f27540b9c0ee839384a5b6ddb24488478ff4ec819abda6a95e",
+      "policy": "always"
+    },
+    ".claude/hooks/autopus/hook-claude-stop.sh": {
+      "checksum": "32cd4edcc5bf5f0f553a575ebbe188f2b55775454bdc0f00d99fbf16c0fd4b8e",
+      "policy": "always"
+    },
+    ".claude/hooks/autopus/hook-gemini-afteragent.sh": {
+      "checksum": "9ee410eabd44ec6bfa490c6ae7b0affbeb6c440cf531483498ff40d0f6d752e2",
       "policy": "always"
     },
     ".claude/hooks/autopus/pre-commit-arch.sh": {
@@ -89,6 +97,10 @@
     },
     ".claude/rules/autopus/branding.md": {
       "checksum": "c179bf1fecd394bf7bf1da97666c5a9f5d8ece371ebd65fba6013986e9401470",
+      "policy": "always"
+    },
+    ".claude/rules/autopus/doc-storage.md": {
+      "checksum": "5cdc87335da751df08fc55e77e3157b8d682d52e62a5787540aec77f381df114",
       "policy": "always"
     },
     ".claude/rules/autopus/file-size-limit.md": {
@@ -140,7 +152,7 @@
       "policy": "always"
     },
     ".claude/skills/autopus/browser-automation.md": {
-      "checksum": "288c02094c413db32dbeeacc0a52c43753704f55770b499687bd36d47dce65de",
+      "checksum": "d514c3abaa50cd5ce1cf90c9f61f085feb51e67617cd6f1a90b37453f99afaf4",
       "policy": "always"
     },
     ".claude/skills/autopus/ci-cd.md": {
@@ -196,7 +208,7 @@
       "policy": "always"
     },
     ".claude/skills/autopus/idea.md": {
-      "checksum": "a3b57e3f2502c1fabecd3822c1d91d1f0e52e8685783ebbaadc5ad8d2ecc1cf6",
+      "checksum": "3869420c07a3e10fb2d7701f8cadd769c3799c09768a00db56e137b44eb9a66f",
       "policy": "always"
     },
     ".claude/skills/autopus/lore-commit.md": {

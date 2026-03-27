@@ -24,6 +24,9 @@ func (a *PlainAdapter) SplitPane(_ context.Context, _ Direction) (PaneID, error)
 // SendCommand is a no-op.
 func (a *PlainAdapter) SendCommand(_ context.Context, _ PaneID, _ string) error { return nil }
 
+// SendLongText is a no-op.
+func (a *PlainAdapter) SendLongText(_ context.Context, _ PaneID, _ string) error { return nil }
+
 // Notify is a no-op.
 func (a *PlainAdapter) Notify(_ context.Context, _ string) error { return nil }
 

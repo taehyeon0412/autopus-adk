@@ -34,6 +34,11 @@ type Terminal interface {
 	SplitPane(ctx context.Context, direction Direction) (PaneID, error)
 	// SendCommand sends a command string to the specified pane.
 	SendCommand(ctx context.Context, paneID PaneID, cmd string) error
+	// SendLongText sends a potentially long text string to the specified pane.
+	// For short text, delegates to SendCommand. For long text, uses buffer-based
+	// delivery to avoid truncation (e.g., tmux load-buffer/paste-buffer).
+	// Callers must send Enter separately after this call.
+	SendLongText(ctx context.Context, paneID PaneID, text string) error
 	// Notify displays a notification message in the terminal.
 	Notify(ctx context.Context, message string) error
 	// ReadScreen reads the visible content of the specified pane.

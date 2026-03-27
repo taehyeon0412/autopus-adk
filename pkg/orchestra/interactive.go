@@ -135,8 +135,12 @@ func launchInteractiveSessions(ctx context.Context, cfg OrchestraConfig, panes [
 	var failed []FailedProvider
 	for i, pi := range panes {
 		// Build launch command: binary + interactive args (model flags, etc.)
-		// PaneArgs without print/pipe flags are used; prompt is sent separately
-		cmd := buildInteractiveLaunchCmd(pi.provider) + "\n"
+		// For "args" providers, prompt is included in the launch command; for others, sent separately.
+		var launchPrompt string
+		if pi.provider.InteractiveInput == "args" {
+			launchPrompt = cfg.Prompt
+		}
+		cmd := buildInteractiveLaunchCmd(pi.provider, launchPrompt) + "\n"
 		if err := cfg.Terminal.SendCommand(ctx, pi.paneID, cmd); err != nil {
 			failed = append(failed, FailedProvider{
 				Name:  pi.provider.Name,
@@ -191,8 +195,12 @@ func sendPrompts(ctx context.Context, cfg OrchestraConfig, panes []paneInfo) []F
 		if pi.skipWait {
 			continue
 		}
-		// Send prompt text (may be shown as "[Pasted text]" in some CLIs)
-		if err := cfg.Terminal.SendCommand(ctx, pi.paneID, cfg.Prompt); err != nil {
+		// Skip sendPrompts for providers that received the prompt via CLI args at launch
+		if pi.provider.InteractiveInput == "args" {
+			continue
+		}
+		// Send prompt text via SendLongText (uses buffer-based delivery for long prompts)
+		if err := cfg.Terminal.SendLongText(ctx, pi.paneID, cfg.Prompt); err != nil {
 			failed = append(failed, FailedProvider{
 				Name:  pi.provider.Name,
 				Error: fmt.Sprintf("send prompt failed: %v", err),

@@ -32,6 +32,9 @@ func (m *mockTerminal) PipePaneStart(_ context.Context, _ terminal.PaneID, _ str
 	return nil
 }
 func (m *mockTerminal) PipePaneStop(_ context.Context, _ terminal.PaneID) error { return nil }
+func (m *mockTerminal) SendLongText(_ context.Context, _ terminal.PaneID, _ string) error {
+	return nil
+}
 
 // TestNewBackend_CmuxTerminal_ReturnsCmuxBackend verifies that a cmux terminal
 // produces a CmuxBrowserBackend from the factory.

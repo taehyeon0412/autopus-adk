@@ -67,6 +67,12 @@ func (a *CmuxAdapter) SendCommand(_ context.Context, paneID PaneID, command stri
 	return nil
 }
 
+// SendLongText sends text to a pane via cmux send. The cmux socket-based API
+// handles long text natively, so this delegates directly to SendCommand.
+func (a *CmuxAdapter) SendLongText(ctx context.Context, paneID PaneID, text string) error {
+	return a.SendCommand(ctx, paneID, text)
+}
+
 // Notify sends a notification message via cmux notify --title.
 func (a *CmuxAdapter) Notify(_ context.Context, message string) error {
 	cmd := execCommand("cmux", "notify", "--title", message)

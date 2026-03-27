@@ -65,6 +65,11 @@ func (m *mockTerminal) SendCommand(_ context.Context, paneID terminal.PaneID, cm
 	return m.sendCommandErr
 }
 
+func (m *mockTerminal) SendLongText(ctx context.Context, paneID terminal.PaneID, text string) error {
+	// Delegate to SendCommand for test mock simplicity
+	return m.SendCommand(ctx, paneID, text)
+}
+
 func (m *mockTerminal) Notify(_ context.Context, _ string) error {
 	return nil
 }

@@ -184,7 +184,11 @@ func executeRound(ctx context.Context, cfg OrchestraConfig, panes []paneInfo, ho
 			pollUntilPrompt(ctx, cfg.Terminal, pi.paneID, patterns, 10*time.Second)
 		}
 
-		_ = cfg.Terminal.SendCommand(ctx, pi.paneID, prompt)
+		// Skip sendPrompts for providers that received the prompt via CLI args at launch (round 1 only)
+		if pi.provider.InteractiveInput == "args" && round == 1 {
+			continue
+		}
+		_ = cfg.Terminal.SendLongText(ctx, pi.paneID, prompt)
 		time.Sleep(500 * time.Millisecond)
 		_ = cfg.Terminal.SendCommand(ctx, pi.paneID, "\n")
 	}

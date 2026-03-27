@@ -27,7 +27,7 @@ func newPipelineDashboardCmd() *cobra.Command {
 		Use:   "dashboard <spec-id>",
 		Short: "Render pipeline dashboard for a spec",
 		Args:  cobra.ExactArgs(1),
-		// @AX:TODO @AX:CYCLE:2 [AUTO] stub implementation — dashboard data is hardcoded to all-pending; must read actual pipeline state from checkpoint file
+		// @AX:WARN @AX:CYCLE:3 [AUTO] @AX:REASON: escalated from TODO after 3 cycles — stub implementation; dashboard data is hardcoded to all-pending; must read actual pipeline state from checkpoint file
 		RunE: func(cmd *cobra.Command, args []string) error {
 			specID := args[0]
 

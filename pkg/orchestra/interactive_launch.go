@@ -10,15 +10,18 @@ import (
 
 // buildInteractiveLaunchCmd constructs the launch command for interactive mode.
 // Uses the binary name plus model/variant flags from PaneArgs, excluding print/pipe flags.
-// For claude: "claude --model opus --effort high --dangerously-skip-permissions"
-// For opencode: "opencode -m openai/gpt-5.4"
-// For gemini: "gemini -m gemini-3.1-pro-preview"
+// When InteractiveInput == "args" and prompt is non-empty, the prompt is appended as the
+// last CLI argument (non-interactive run mode, e.g., opencode run -m model "prompt").
 // @AX:NOTE [AUTO] REQ-1 hardcoded provider check (p.Binary == "claude") — update when adding new providers needing permission bypass
-func buildInteractiveLaunchCmd(p ProviderConfig) string {
+func buildInteractiveLaunchCmd(p ProviderConfig, prompt string) string {
 	cmd := p.Binary
 	for _, arg := range paneArgs(p) {
-		// Skip non-interactive flags that conflict with TUI mode
-		if arg == "--print" || arg == "-p" || arg == "--quiet" || arg == "-q" || arg == "run" {
+		// Skip non-interactive flags that conflict with TUI mode.
+		// Only skip "run" when NOT using args-based input (args mode needs "run" for opencode).
+		if arg == "--print" || arg == "-p" || arg == "--quiet" || arg == "-q" {
+			continue
+		}
+		if arg == "run" && p.InteractiveInput != "args" {
 			continue
 		}
 		cmd += " " + arg
@@ -29,7 +32,16 @@ func buildInteractiveLaunchCmd(p ProviderConfig) string {
 			cmd += " --dangerously-skip-permissions"
 		}
 	}
+	// For args-based providers, append the prompt as the final CLI argument
+	if p.InteractiveInput == "args" && prompt != "" {
+		cmd += " " + shellQuote(prompt)
+	}
 	return cmd
+}
+
+// shellQuote wraps a string in single quotes, escaping any embedded single quotes.
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
 }
 
 // cleanupInteractivePanes stops pipe capture and closes panes.
