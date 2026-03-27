@@ -2,10 +2,12 @@
 package config
 
 // defaultProviderEntries holds the canonical default settings for known orchestra providers.
+// @AX:NOTE [AUTO] hardcoded provider defaults — update when adding new providers or changing CLI flags
 var defaultProviderEntries = map[string]ProviderEntry{
-	"claude": {Binary: "claude", Args: []string{"--print"}, PaneArgs: []string{"--print"}},
-	"codex":  {Binary: "codex", Args: []string{"--quiet"}, PaneArgs: []string{"--quiet"}, PromptViaArgs: true},
-	"gemini": {Binary: "gemini", Args: []string{}, PaneArgs: []string{}, PromptViaArgs: true},
+	"claude":   {Binary: "claude", Args: []string{"--print"}, PaneArgs: []string{"--print"}},
+	"codex":    {Binary: "codex", Args: []string{"--quiet"}, PaneArgs: []string{"--quiet"}, PromptViaArgs: true},
+	"gemini":   {Binary: "gemini", Args: []string{}, PaneArgs: []string{}, PromptViaArgs: true},
+	"opencode": {Binary: "opencode", Args: []string{}, PaneArgs: []string{}, PromptViaArgs: true},
 }
 
 
@@ -32,6 +34,11 @@ func MigrateOrchestraConfig(cfg *HarnessConfig) (bool, error) {
 			cfg.Orchestra.Providers["codex"] = codex
 			changed = true
 		}
+	}
+
+	// Migration 1.5: migrate codex to opencode.
+	if migrated, _ := MigrateCodexToOpencode(cfg); migrated {
+		changed = true
 	}
 
 	// Migration 2: add missing provider entries for platforms.
@@ -115,9 +122,65 @@ func PlatformToProvider(platform string) string {
 		return "codex"
 	case "gemini-cli":
 		return "gemini"
+	case "opencode":
+		return "opencode"
 	default:
 		return ""
 	}
+}
+
+// MigrateCodexToOpencode replaces codex provider entries with opencode.
+// Removes codex from providers and commands, adds opencode if not already present.
+// Returns (changed bool, err error).
+// @AX:NOTE [AUTO] destructive migration — deletes codex entry permanently; no rollback path
+func MigrateCodexToOpencode(cfg *HarnessConfig) (bool, error) {
+	if !cfg.Orchestra.Enabled {
+		return false, nil
+	}
+	if cfg.Orchestra.Providers == nil {
+		return false, nil
+	}
+
+	_, hasCodex := cfg.Orchestra.Providers["codex"]
+	if !hasCodex {
+		return false, nil
+	}
+
+	// Remove codex entry.
+	delete(cfg.Orchestra.Providers, "codex")
+
+	// Add opencode entry if not already present.
+	if _, hasOpencode := cfg.Orchestra.Providers["opencode"]; !hasOpencode {
+		cfg.Orchestra.Providers["opencode"] = defaultProviderEntries["opencode"]
+	}
+
+	// Replace codex with opencode in all command provider lists.
+	for cmdName, cmd := range cfg.Orchestra.Commands {
+		cmd.Providers = replaceInSlice(cmd.Providers, "codex", "opencode")
+		cfg.Orchestra.Commands[cmdName] = cmd
+	}
+
+	return true, nil
+}
+
+// replaceInSlice replaces old with new in a string slice, removing duplicates.
+func replaceInSlice(slice []string, old, new string) []string {
+	hasNew := false
+	result := make([]string, 0, len(slice))
+	for _, s := range slice {
+		if s == old {
+			if !hasNew {
+				result = append(result, new)
+				hasNew = true
+			}
+			continue
+		}
+		if s == new {
+			hasNew = true
+		}
+		result = append(result, s)
+	}
+	return result
 }
 
 // containsString reports whether slice contains s.

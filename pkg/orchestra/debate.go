@@ -91,6 +91,7 @@ func runRebuttalRound(ctx context.Context, cfg OrchestraConfig, prevResponses []
 }
 
 // buildRebuttalPrompt creates a rebuttal prompt including other debaters' arguments.
+// Works with both ReadScreen and hook-based results as both populate Output field.
 func buildRebuttalPrompt(original string, otherResponses []ProviderResponse) string {
 	var sb strings.Builder
 	sb.WriteString(original)
@@ -103,6 +104,7 @@ func buildRebuttalPrompt(original string, otherResponses []ProviderResponse) str
 }
 
 // buildJudgmentPrompt creates the judge's prompt with all arguments.
+// Works with both ReadScreen and hook-based results as both populate Output field.
 func buildJudgmentPrompt(topic string, arguments []ProviderResponse) string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("Topic: %s\n\n## Arguments:\n", topic))

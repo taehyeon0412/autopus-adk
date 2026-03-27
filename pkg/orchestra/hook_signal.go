@@ -1,0 +1,119 @@
+package orchestra
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"time"
+)
+
+// HookResult represents a structured result from a provider hook.
+type HookResult struct {
+	Output   string `json:"output"`
+	ExitCode int    `json:"exit_code"`
+}
+
+// HookSession manages the file-based signal protocol for hook result collection.
+type HookSession struct {
+	sessionID     string
+	sessionDir    string
+	hookProviders map[string]bool
+}
+
+// defaultHookProviders lists providers that have hooks by default.
+// @AX:NOTE [AUTO] hardcoded provider set — update when adding new hook-capable providers
+var defaultHookProviders = map[string]bool{
+	"claude":   true,
+	"gemini":   true,
+	"opencode": true,
+}
+
+// NewHookSession creates a new hook session with the given session ID.
+// Creates /tmp/autopus/{session-id}/ directory with 0o700 permissions.
+// @AX:ANCHOR [AUTO] fan_in=3 — called by interactive.go, relay_pane.go, hook_watcher.go; do not change session dir layout
+func NewHookSession(sessionID string) (*HookSession, error) {
+	dir := filepath.Join(os.TempDir(), "autopus", sanitizeProviderName(sessionID))
+
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return nil, fmt.Errorf("create session dir: %w", err)
+	}
+
+	return &HookSession{
+		sessionID:     sessionID,
+		sessionDir:    dir,
+		hookProviders: defaultHookProviders,
+	}, nil
+}
+
+// WaitForDone polls for the provider-specific "{provider}-done" file at 200ms intervals.
+// Returns nil when the done file is detected, or error on timeout.
+// @AX:NOTE [AUTO] magic constant 200ms polling interval — balances responsiveness vs CPU; adjust with care
+func (s *HookSession) WaitForDone(timeout time.Duration, providers ...string) error {
+	deadline := time.After(timeout)
+	ticker := time.NewTicker(200 * time.Millisecond)
+	defer ticker.Stop()
+
+	// Use provider-specific done file if provider name is given (R1 protocol)
+	doneName := "done"
+	if len(providers) > 0 && providers[0] != "" {
+		doneName = sanitizeProviderName(providers[0]) + "-done"
+	}
+	donePath := filepath.Join(s.sessionDir, doneName)
+
+	for {
+		select {
+		case <-deadline:
+			return fmt.Errorf("timeout waiting for done signal in session %s", s.sessionID)
+		case <-ticker.C:
+			if _, err := os.Stat(donePath); err == nil {
+				return nil
+			}
+		}
+	}
+}
+
+// ReadResult reads and parses the provider-specific "{provider}-result.json" from the session directory.
+func (s *HookSession) ReadResult(providers ...string) (*HookResult, error) {
+	// Use provider-specific result file if provider name is given (R1 protocol)
+	resultName := "result.json"
+	if len(providers) > 0 && providers[0] != "" {
+		resultName = sanitizeProviderName(providers[0]) + "-result.json"
+	}
+	data, err := os.ReadFile(filepath.Join(s.sessionDir, resultName))
+	if err != nil {
+		return nil, fmt.Errorf("read result file: %w", err)
+	}
+
+	var result HookResult
+	if err := json.Unmarshal(data, &result); err != nil {
+		return nil, fmt.Errorf("parse result json: %w", err)
+	}
+
+	return &result, nil
+}
+
+// Cleanup removes the session directory and all its contents.
+func (s *HookSession) Cleanup() {
+	_ = os.RemoveAll(s.sessionDir)
+}
+
+// HasHook checks if a provider has hook configuration available.
+func (s *HookSession) HasHook(provider string) bool {
+	return s.hookProviders[provider]
+}
+
+// SetHookProviders overrides which providers have hooks configured.
+func (s *HookSession) SetHookProviders(providers map[string]bool) {
+	s.hookProviders = providers
+}
+
+// Dir returns the session directory path.
+func (s *HookSession) Dir() string {
+	return s.sessionDir
+}
+
+// SessionID returns the session's unique identifier.
+func (s *HookSession) SessionID() string {
+	return s.sessionID
+}

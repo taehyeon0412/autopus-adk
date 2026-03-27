@@ -48,6 +48,17 @@ func runRelayPaneOrchestra(ctx context.Context, cfg OrchestraConfig) (*Orchestra
 	}
 	defer cleanupRelayDir(relayDir, cfg.KeepRelayOutput)
 
+	// Hook mode: create session for file-based result collection (R5, R12)
+	var hookSession *HookSession
+	if cfg.HookMode && cfg.SessionID != "" {
+		hs, hsErr := NewHookSession(cfg.SessionID)
+		if hsErr == nil {
+			hookSession = hs
+			defer hookSession.Cleanup()
+		}
+		// R8: on session creation failure, proceed without hook mode
+	}
+
 	var (
 		responses []ProviderResponse
 		previous  []relayStageResult
@@ -56,7 +67,7 @@ func runRelayPaneOrchestra(ctx context.Context, cfg OrchestraConfig) (*Orchestra
 	defer func() { cleanupPanes(cfg.Terminal, panes) }()
 
 	for _, p := range cfg.Providers {
-		resp := executeRelayPaneProvider(timeoutCtx, cfg.Terminal, p, cfg.Prompt, relayDir, previous, &panes)
+		resp := executeRelayPaneProvider(timeoutCtx, cfg.Terminal, p, cfg.Prompt, relayDir, previous, &panes, hookSession)
 		responses = append(responses, resp)
 
 		// Accumulate outputs for context injection (skip truly failed providers)
@@ -91,6 +102,7 @@ func runRelayPaneOrchestra(ctx context.Context, cfg OrchestraConfig) (*Orchestra
 }
 
 // executeRelayPaneProvider runs a single provider in a pane and collects its output.
+// Supports hook-based result collection when hookSession is non-nil and provider has a hook (R12).
 // On any failure (split, send, sentinel wait), it returns a SKIPPED response.
 func executeRelayPaneProvider(
 	ctx context.Context,
@@ -99,6 +111,7 @@ func executeRelayPaneProvider(
 	prompt, relayDir string,
 	previous []relayStageResult,
 	panes *[]paneInfo,
+	hookSession *HookSession,
 ) ProviderResponse {
 	// Pre-check: verify binary exists before allocating a pane
 	if !detect.IsInstalled(provider.Binary) {
@@ -121,7 +134,26 @@ func executeRelayPaneProvider(
 		return skippedResponse(provider.Name, fmt.Sprintf("SendCommand failed: %v", err))
 	}
 
-	// Wait for sentinel completion; timeout is non-fatal (provider may still have produced output)
+	// Hook mode: use file signal instead of sentinel wait (R12)
+	// @AX:NOTE [AUTO] magic constant 120s default hook timeout — overridden by context deadline when available
+	if hookSession != nil && hookSession.HasHook(provider.Name) {
+		hookTimeout := 120 * time.Second
+		if dl, ok := ctx.Deadline(); ok {
+			hookTimeout = time.Until(dl)
+		}
+		if waitErr := hookSession.WaitForDone(hookTimeout, provider.Name); waitErr == nil {
+			if result, readErr := hookSession.ReadResult(provider.Name); readErr == nil {
+				return ProviderResponse{
+					Provider: provider.Name,
+					Output:   result.Output,
+					ExitCode: result.ExitCode,
+				}
+			}
+		}
+		// R8: fallback to sentinel wait on hook failure
+	}
+
+	// Sentinel-based wait (default path and hook fallback)
 	timedOut := waitForSentinel(ctx, outputFile) != nil
 	output := readOutputFile(outputFile)
 

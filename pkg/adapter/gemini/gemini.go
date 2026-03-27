@@ -46,7 +46,8 @@ func (a *Adapter) Name() string      { return adapterName }
 func (a *Adapter) Version() string   { return adapterVer }
 func (a *Adapter) CLIBinary() string { return cliBinary }
 
-// SupportsHooks는 false를 반환한다. Gemini CLI는 훅을 지원하지 않는다.
+// SupportsHooks returns false. Gemini CLI does not support standard harness
+// hooks (PreToolUse/PostToolUse). Orchestra hooks use InjectOrchestraAfterAgentHook instead.
 func (a *Adapter) SupportsHooks() bool { return false }
 
 // Detect는 PATH에서 gemini 바이너리 설치 여부를 확인한다.

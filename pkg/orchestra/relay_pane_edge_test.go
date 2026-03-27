@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -191,14 +192,19 @@ func TestRelayPane_DefaultTimeout(t *testing.T) {
 		},
 		Strategy:       StrategyRelay,
 		Prompt:         "test",
-		TimeoutSeconds: 0, // should default to 120
+		TimeoutSeconds: 2, // short timeout — mock doesn't produce sentinel
 		Terminal:       mock,
 	}
 
-	result, err := runRelayPaneOrchestra(context.Background(), cfg)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	result, err := runRelayPaneOrchestra(ctx, cfg)
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	assert.Len(t, result.Responses, 1)
+	// Mock terminal doesn't execute commands, so sentinel is never written.
+	// Provider response will be TimedOut=true with fallback output.
+	assert.True(t, result.Responses[0].TimedOut)
 }
 
 // Edge: mixed success and failure — partial relay continues.

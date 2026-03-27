@@ -76,6 +76,8 @@ type OrchestraConfig struct {
 	NoDetach        bool              // @AX:NOTE [AUTO] REQ-1 — when true, disable auto-detach even on pane terminals; maps to CLI --no-detach flag
 	KeepRelayOutput bool              // when true, preserve temp relay output files after execution
 	Interactive     bool              // when true, use interactive pane mode instead of sentinel-based
+	HookMode        bool              // when true, use hook file signals instead of ReadScreen for result collection
+	SessionID       string            // unique session ID for hook file signal directory
 }
 
 // CompletionPattern defines a provider-specific prompt detection pattern.

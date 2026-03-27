@@ -108,6 +108,8 @@ func agenticArgs(providerName string) []string {
 		return []string{"--allowedTools", "Read,Grep,Bash,Glob"}
 	case "codex":
 		return []string{"--approval-mode", "full-auto", "--quiet"}
+	case "opencode":
+		return []string{"--auto"}
 	default:
 		// gemini and unknown providers: no extra flags
 		return nil

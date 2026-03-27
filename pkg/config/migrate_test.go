@@ -255,18 +255,18 @@ func TestMigrateOrchestraConfig_AlreadyCorrectConfigNoChange(t *testing.T) {
 	cfg := &HarnessConfig{
 		Mode:        ModeFull,
 		ProjectName: "test-project",
-		Platforms:   []string{"claude-code", "codex"},
+		Platforms:   []string{"claude-code", "opencode"},
 		Orchestra: OrchestraConf{
 			Enabled: true,
 			Providers: map[string]ProviderEntry{
-				// codex already has PromptViaArgs=true (no migration needed).
-				"claude": {Binary: "claude", Args: []string{"--print"}},
-				"codex":  {Binary: "codex", Args: []string{"--quiet"}, PromptViaArgs: true},
+				// opencode already present (post-migration state).
+				"claude":   {Binary: "claude", Args: []string{"--print"}},
+				"opencode": {Binary: "opencode", Args: []string{}, PromptViaArgs: true},
 			},
 			Commands: map[string]CommandEntry{
 				// Both providers already listed in every command.
-				"review": {Strategy: "debate", Providers: []string{"claude", "codex"}},
-				"plan":   {Strategy: "consensus", Providers: []string{"claude", "codex"}},
+				"review": {Strategy: "debate", Providers: []string{"claude", "opencode"}},
+				"plan":   {Strategy: "consensus", Providers: []string{"claude", "opencode"}},
 			},
 		},
 	}
@@ -275,4 +275,5 @@ func TestMigrateOrchestraConfig_AlreadyCorrectConfigNoChange(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, changed, "already-correct config must return changed=false")
 }
+
 

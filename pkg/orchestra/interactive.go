@@ -30,6 +30,20 @@ func RunInteractivePaneOrchestra(ctx context.Context, cfg OrchestraConfig) (*Orc
 	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(timeout)*time.Second)
 	defer cancel()
 
+	// Hook mode: create session for file-based result collection
+	var hookSession *HookSession
+	if cfg.HookMode {
+		var hsErr error
+		hookSession, hsErr = NewHookSession(cfg.SessionID)
+		if hsErr != nil {
+			// R8: fallback to non-hook mode
+			cfg.HookMode = false
+		} else {
+			defer hookSession.Cleanup()
+			_ = os.Setenv("AUTOPUS_SESSION_ID", cfg.SessionID)
+		}
+	}
+
 	// Step 1: Split panes (reuse existing splitProviderPanes)
 	panes, failed, err := splitProviderPanes(timeoutCtx, cfg)
 	if err != nil {
@@ -58,7 +72,19 @@ func RunInteractivePaneOrchestra(ctx context.Context, cfg OrchestraConfig) (*Orc
 
 	// Step 6-7: Wait for completion and collect results
 	patterns := DefaultCompletionPatterns()
-	responses := waitAndCollectResults(timeoutCtx, cfg, panes, patterns, start)
+	var responses []ProviderResponse
+	if cfg.HookMode && hookSession != nil {
+		// R5: Hook-based collection
+		var hookErr error
+		responses, hookErr = WaitAndCollectHookResults(cfg, cfg.SessionID)
+		if hookErr != nil {
+			// R8: fallback to ReadScreen-based collection
+			responses = waitAndCollectResults(timeoutCtx, cfg, panes, patterns, start)
+		}
+	} else {
+		// Original ReadScreen-based collection
+		responses = waitAndCollectResults(timeoutCtx, cfg, panes, patterns, start)
+	}
 
 	// Step 8: Merge by strategy (reuse existing mergeByStrategy)
 	total := time.Since(start)
