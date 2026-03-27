@@ -41,7 +41,7 @@ func MigrateOrchestraConfig(cfg *HarnessConfig) (bool, error) {
 		changed = true
 	}
 
-	// Migration 2: add missing provider entries for platforms.
+	// Migration 2: add missing provider entries for platforms, or update if args are empty.
 	if cfg.Orchestra.Providers == nil {
 		cfg.Orchestra.Providers = make(map[string]ProviderEntry)
 	}
@@ -50,10 +50,15 @@ func MigrateOrchestraConfig(cfg *HarnessConfig) (bool, error) {
 		if providerName == "" {
 			continue
 		}
-		if _, exists := cfg.Orchestra.Providers[providerName]; !exists {
-			entry := defaultProviderEntries[providerName]
-			cfg.Orchestra.Providers[providerName] = entry
-			changed = true
+		existing, exists := cfg.Orchestra.Providers[providerName]
+		if !exists || len(existing.Args) == 0 {
+			if entry, known := defaultProviderEntries[providerName]; known {
+				cfg.Orchestra.Providers[providerName] = entry
+				changed = true
+			} else if !exists {
+				cfg.Orchestra.Providers[providerName] = ProviderEntry{Binary: providerName}
+				changed = true
+			}
 		}
 	}
 
@@ -86,8 +91,9 @@ func EnsureOrchestraProvider(cfg *HarnessConfig, providerName string) error {
 		cfg.Orchestra.Providers = make(map[string]ProviderEntry)
 	}
 
-	// Add provider if it does not already exist.
-	if _, exists := cfg.Orchestra.Providers[providerName]; !exists {
+	// Add provider if missing, or update if args are empty (stale config).
+	existing, exists := cfg.Orchestra.Providers[providerName]
+	if !exists || len(existing.Args) == 0 {
 		entry, known := defaultProviderEntries[providerName]
 		if !known {
 			// Use a sensible zero-value entry for unknown providers.
@@ -149,8 +155,8 @@ func MigrateCodexToOpencode(cfg *HarnessConfig) (bool, error) {
 	// Remove codex entry.
 	delete(cfg.Orchestra.Providers, "codex")
 
-	// Add opencode entry if not already present.
-	if _, hasOpencode := cfg.Orchestra.Providers["opencode"]; !hasOpencode {
+	// Add opencode entry if not already present, or update if args are empty.
+	if existing, hasOpencode := cfg.Orchestra.Providers["opencode"]; !hasOpencode || len(existing.Args) == 0 {
 		cfg.Orchestra.Providers["opencode"] = defaultProviderEntries["opencode"]
 	}
 

@@ -63,15 +63,15 @@ func DefaultFullConfig(projectName string) *HarnessConfig {
 			DefaultStrategy: "consensus",
 			TimeoutSeconds:  120,
 			Providers: map[string]ProviderEntry{
-				"claude": {Binary: "claude", Args: []string{"--print"}, PaneArgs: []string{"--print"}},
-				"codex":  {Binary: "codex", Args: []string{"--quiet"}, PaneArgs: []string{"--quiet"}, PromptViaArgs: true},
-				"gemini": {Binary: "gemini", Args: []string{}, PaneArgs: []string{}, PromptViaArgs: true},
+				"claude":   {Binary: "claude", Args: []string{"--print"}, PaneArgs: []string{"--print"}},
+				"gemini":   {Binary: "gemini", Args: []string{}, PaneArgs: []string{}, PromptViaArgs: true},
+				"opencode": {Binary: "opencode", Args: []string{"run", "-m", "openai/gpt-5.4"}, PaneArgs: []string{"run", "-m", "openai/gpt-5.4"}, PromptViaArgs: true},
 			},
 			Commands: map[string]CommandEntry{
-				"review": {Strategy: "debate", Providers: []string{"claude", "codex", "gemini"}},
-				"plan":   {Strategy: "consensus", Providers: []string{"claude", "codex", "gemini"}},
-				"secure":     {Strategy: "consensus", Providers: []string{"claude", "codex", "gemini"}},
-				"brainstorm": {Strategy: "debate", Providers: []string{"claude", "codex", "gemini"}},
+				"review":     {Strategy: "debate", Providers: []string{"claude", "opencode", "gemini"}},
+				"plan":       {Strategy: "consensus", Providers: []string{"claude", "opencode", "gemini"}},
+				"secure":     {Strategy: "consensus", Providers: []string{"claude", "opencode", "gemini"}},
+				"brainstorm": {Strategy: "debate", Providers: []string{"claude", "opencode", "gemini"}},
 			},
 		},
 		// Quality presets map agent roles to model tiers.

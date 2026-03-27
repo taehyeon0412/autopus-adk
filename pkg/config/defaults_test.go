@@ -78,30 +78,32 @@ func TestDefaultFullConfig_QualityUltraAllOpus(t *testing.T) {
 	}
 }
 
-// TestDefaultFullConfig_CodexPromptViaArgs verifies R1:
-// codex provider must have PromptViaArgs=true in DefaultFullConfig.
-func TestDefaultFullConfig_CodexPromptViaArgs(t *testing.T) {
+// TestDefaultFullConfig_OpencodePromptViaArgs verifies R1:
+// opencode provider must have PromptViaArgs=true in DefaultFullConfig.
+func TestDefaultFullConfig_OpencodePromptViaArgs(t *testing.T) {
 	t.Parallel()
 	cfg := DefaultFullConfig("test-project")
 	require.NotNil(t, cfg)
 
-	codex, ok := cfg.Orchestra.Providers["codex"]
-	require.True(t, ok, "codex provider must exist in default full config")
-	assert.True(t, codex.PromptViaArgs, "codex provider must have PromptViaArgs=true (R1)")
+	opencode, ok := cfg.Orchestra.Providers["opencode"]
+	require.True(t, ok, "opencode provider must exist in default full config")
+	assert.True(t, opencode.PromptViaArgs, "opencode provider must have PromptViaArgs=true (R1)")
+	assert.Equal(t, []string{"run", "-m", "openai/gpt-5.4"}, opencode.Args,
+		"opencode provider must have correct default args")
 }
 
-// TestDefaultFullConfig_AllCommandsIncludeCodex verifies R2:
-// all orchestra commands must include "codex" in their providers list.
-func TestDefaultFullConfig_AllCommandsIncludeCodex(t *testing.T) {
+// TestDefaultFullConfig_AllCommandsIncludeOpencode verifies R2:
+// all orchestra commands must include "opencode" in their providers list.
+func TestDefaultFullConfig_AllCommandsIncludeOpencode(t *testing.T) {
 	t.Parallel()
 	cfg := DefaultFullConfig("test-project")
 	require.NotNil(t, cfg)
 
-	for _, cmdName := range []string{"review", "plan", "secure"} {
+	for _, cmdName := range []string{"review", "plan", "secure", "brainstorm"} {
 		cmd, ok := cfg.Orchestra.Commands[cmdName]
 		require.True(t, ok, "command %q must exist", cmdName)
-		assert.Contains(t, cmd.Providers, "codex",
-			"command %q must include codex in providers (R2)", cmdName)
+		assert.Contains(t, cmd.Providers, "opencode",
+			"command %q must include opencode in providers (R2)", cmdName)
 	}
 }
 
@@ -116,6 +118,16 @@ func TestDefaultFullConfig_BrainstormCommand(t *testing.T) {
 	require.True(t, ok, "brainstorm command must exist in orchestra commands")
 	assert.Equal(t, "debate", brainstorm.Strategy)
 	assert.Contains(t, brainstorm.Providers, "claude")
-	assert.Contains(t, brainstorm.Providers, "codex")
+	assert.Contains(t, brainstorm.Providers, "opencode")
 	assert.Contains(t, brainstorm.Providers, "gemini")
+}
+
+// TestDefaultFullConfig_NoCodexProvider verifies codex is fully replaced by opencode.
+func TestDefaultFullConfig_NoCodexProvider(t *testing.T) {
+	t.Parallel()
+	cfg := DefaultFullConfig("test-project")
+	require.NotNil(t, cfg)
+
+	_, hasCodex := cfg.Orchestra.Providers["codex"]
+	assert.False(t, hasCodex, "codex provider must not exist in default config (migrated to opencode)")
 }
