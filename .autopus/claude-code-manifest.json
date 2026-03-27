@@ -1,0 +1,283 @@
+{
+  "version": "1.0.0",
+  "platform": "claude-code",
+  "generated_at": "2026-03-26T16:39:03+09:00",
+  "files": {
+    ".claude/agents/autopus/annotator.md": {
+      "checksum": "536af8a34ac0ca0e8f6f56d18cb671d2805640f10fc0eb02922809fdd6e73796",
+      "policy": "always"
+    },
+    ".claude/agents/autopus/architect.md": {
+      "checksum": "5681b95c24d5a4007e6f07372d9d8cbc283aa668d52e228d86657a6975c9f094",
+      "policy": "always"
+    },
+    ".claude/agents/autopus/debugger.md": {
+      "checksum": "56416202e211573cbc0da17db18efaaee3294cd2595d9ee166d4ee110d8bedc7",
+      "policy": "always"
+    },
+    ".claude/agents/autopus/deep-worker.md": {
+      "checksum": "0e900d7a2549f1f874b180967099e805ee601f55da75bd53870088bf49678010",
+      "policy": "always"
+    },
+    ".claude/agents/autopus/devops.md": {
+      "checksum": "b9164e7473e17f38638187d76c593d225c32b91c14f3150e0f2d2c482c2113dd",
+      "policy": "always"
+    },
+    ".claude/agents/autopus/executor.md": {
+      "checksum": "56935bca2dd7aaac25b2fbc4439701c4209d46b40365f90ca3a5275a5dba8714",
+      "policy": "always"
+    },
+    ".claude/agents/autopus/explorer.md": {
+      "checksum": "a8cf32dee4b23d8071e49113e4c202bdf20bb272c332c005e9485571d6cd5419",
+      "policy": "always"
+    },
+    ".claude/agents/autopus/frontend-specialist.md": {
+      "checksum": "14a00b62a990e532b6541e618076b42a3404b412842b8cc1a2cecfa21ffc2bab",
+      "policy": "always"
+    },
+    ".claude/agents/autopus/perf-engineer.md": {
+      "checksum": "c14537224c8635dcfc91c070d95d003c06d28343bf081cf66020ffb71cd0afae",
+      "policy": "always"
+    },
+    ".claude/agents/autopus/planner.md": {
+      "checksum": "59b41ec7a47775975e7363a685fcc447577003df8383febc1aa2889bf1a5e5e4",
+      "policy": "always"
+    },
+    ".claude/agents/autopus/reviewer.md": {
+      "checksum": "7c3da6bd15dd3cbc44231869c82538138159a737eddfab53f1ee6130db1fcf81",
+      "policy": "always"
+    },
+    ".claude/agents/autopus/security-auditor.md": {
+      "checksum": "a28c0b2174517002b619a2566bb462312844ed9bf9b4b670a7dc82bfde6623c7",
+      "policy": "always"
+    },
+    ".claude/agents/autopus/spec-writer.md": {
+      "checksum": "f14dbd4497877a1e7190065ae6f2e5ac776f3377b7b2490364e6f813ee376736",
+      "policy": "always"
+    },
+    ".claude/agents/autopus/tester.md": {
+      "checksum": "77496adf3d1905122eee58f28517897ca886055c88de7d4797e24cb558f9edcf",
+      "policy": "always"
+    },
+    ".claude/agents/autopus/ux-validator.md": {
+      "checksum": "f9c703506d94773bb936cd800099518ae92b2dee2353a1ad994e023a8239fde1",
+      "policy": "always"
+    },
+    ".claude/agents/autopus/validator.md": {
+      "checksum": "759ad432b61bde1706989bfa72b30a5874069352a64754330c8959b59673e842",
+      "policy": "always"
+    },
+    ".claude/commands/auto.md": {
+      "checksum": "ea02d461818f0fe401d251198dc6488ec900de6dd3e7f05ba74fac8106229493",
+      "policy": "always"
+    },
+    ".claude/hooks/autopus/pre-commit-arch.sh": {
+      "checksum": "fa248a6af5989e19c7f901ab7d0015f6d9f485140833a887d95243dce1e9b0fa",
+      "policy": "always"
+    },
+    ".claude/hooks/autopus/pre-commit-lore.sh": {
+      "checksum": "de583ee730c372b745a33d76ea85863d539e624ab3d8adcf5965567e131341b8",
+      "policy": "always"
+    },
+    ".claude/hooks/autopus/react-ci-failure.sh": {
+      "checksum": "64945cd256aa7a24557e6713f23959492f5ae37865d27c547e1bee22f47674f9",
+      "policy": "always"
+    },
+    ".claude/hooks/autopus/react-review.sh": {
+      "checksum": "afc09b81f553c6ed46fd597d3d8eeb947fe16fcf8b75926d773b02b7b73a3da0",
+      "policy": "always"
+    },
+    ".claude/rules/autopus/branding.md": {
+      "checksum": "c179bf1fecd394bf7bf1da97666c5a9f5d8ece371ebd65fba6013986e9401470",
+      "policy": "always"
+    },
+    ".claude/rules/autopus/file-size-limit.md": {
+      "checksum": "05bcf8ef53a9b149ea0857aa0efe05cdc2f79b5e347353a092b96b5142d97d16",
+      "policy": "always"
+    },
+    ".claude/rules/autopus/lore-commit.md": {
+      "checksum": "790e462bc16b1b88d982ce2e1656fea44c76a95795f8687ed1a660eb4138c515",
+      "policy": "always"
+    },
+    ".claude/rules/autopus/subagent-delegation.md": {
+      "checksum": "23f9f2cb862f2eead1e5165a52c9543e56aea723fccff6fd4dc27066c5ad1bb8",
+      "policy": "always"
+    },
+    ".claude/rules/autopus/worktree-safety.md": {
+      "checksum": "e4d2909fb5ee54688d29de59bfd2c7720ffdfe8fdf8cd9bf3114f2350271895a",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/adaptive-quality.md": {
+      "checksum": "175bb456fe708e3639d4195b743730a9564337a7fbe60f993ed4a6369ef2a396",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/agent-pipeline.md": {
+      "checksum": "311dc98634cc32d1e10cabb20c8db4fc6ea6401a47c6e7a9c641926f960e62c1",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/agent-presets.md": {
+      "checksum": "0c3e645591d5d8d26e6a71cb1a0d054f01f8db392e1a59c1d2f663c821ce22ef",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/agent-teams.md": {
+      "checksum": "3d676588a7dc813fec004b8cdbe4eb5a044d9f6b3af71816e96e55bc73b4c33c",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/api-design.md": {
+      "checksum": "36bcfaf3905e26da1369a24e51f5582578def5f172d2a0ac070cb2031f6cfe5c",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/ast-refactoring.md": {
+      "checksum": "875011ccff1179c1b847df4d5b8f1d9c51f31da55a1e7a2c8e86776725b68dce",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/ax-annotation.md": {
+      "checksum": "9e8e6168daa812a75f144a98febce8d9d3fb560cd18d63af341475ba42dd48df",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/brainstorming.md": {
+      "checksum": "94bd3ad9f59ae9bc3332c2c5d5354b13d14fa6c8219838387c60a41f1cfb0597",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/browser-automation.md": {
+      "checksum": "288c02094c413db32dbeeacc0a52c43753704f55770b499687bd36d47dce65de",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/ci-cd.md": {
+      "checksum": "f209fb604f5f5b8af2187ffa3b9a682818c0f7e2331a082007648c1eaf4b096a",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/context-search.md": {
+      "checksum": "67e3187d60d996c9cdcced0d78e807a4a484e1bfe6361ff75c15fcbc4fc34946",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/database.md": {
+      "checksum": "873e5939a356dd7ca9883e3d01857510c3892d0c16e1541f01dfc42da78006ae",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/ddd.md": {
+      "checksum": "21f12dc2180de05e96bbc8ec772a40df5b57b1549d8e776093a7900b6b27f849",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/debugging.md": {
+      "checksum": "9ede73ea705d2d20f9d3f109e2f55e4686acb4bd22c66212990c12fa58facc7e",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/docker.md": {
+      "checksum": "9703c8e32f74d6627d0296219ace4a206dfd1b4706cbc846e1637e0f7fbe3808",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/double-diamond.md": {
+      "checksum": "1505e2d9c9ce399ea16ce4ac1ec99db01b50686afdc0be6deaa099aa1c4cd72d",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/entropy-scan.md": {
+      "checksum": "2d11f4342d6fd3a7580e160d365ef1ec8744fd6a92257b3e86156135aeb3939b",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/experiment.md": {
+      "checksum": "f917e0bf1238f935f939246e6c240b481f6fe77d87e85a3f786ec74eac5cbcd9",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/frontend-skill.md": {
+      "checksum": "9b856b7c443f948423b030e11957626680144494330f2c54a5bf16500b967274",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/frontend-verify.md": {
+      "checksum": "2dd1eca78b349c0e0d7e9256746943660d7f62d45009f10623e1a22b285a860d",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/git-worktrees.md": {
+      "checksum": "309a0a0ec8bf5fed8a89069e9b0afed01ae791d0b17a62d9c37aca415fc8b9c1",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/hash-anchored-edit.md": {
+      "checksum": "5f4368abe99ef2e51a110d7e87bd45f34a39daea5b340ccc42934ef44a539a91",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/idea.md": {
+      "checksum": "a3b57e3f2502c1fabecd3822c1d91d1f0e52e8685783ebbaadc5ad8d2ecc1cf6",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/lore-commit.md": {
+      "checksum": "696622043317a86d106bb451fa342beab88463c9bca8cb7f6ac3b951538c6543",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/migration.md": {
+      "checksum": "f66c243565a6d6452f324d89a7bebc375f6e82d18aca0de656a1da877bc9f587",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/performance.md": {
+      "checksum": "d6247c248745cd87e15d7aa44a87074bc29a971afb5b4dc84eaa0591ddd8661f",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/planning.md": {
+      "checksum": "328a7ba3132f9e5b911fd32aaca2a4ab9fac3f64806b630863d14c41467729b6",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/playwright-cli.md": {
+      "checksum": "b658f254f7a280aaf44f35af447ab9215a1067453f0c154b660d9b2adf9bfaa0",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/prd.md": {
+      "checksum": "0e96513a51e3a8da21cc5ddb638c7c0d2b0b89776936f6e28cc75e8fad9dffd6",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/refactoring.md": {
+      "checksum": "1696a403997d794a675a9086472f5384a6323eaede53c700e925c35c02ae4e6f",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/review.md": {
+      "checksum": "8c01c6a4c1f560c0e9d6563a8cf1638e37141008ccd3de75784e15abe369aeec",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/security-audit.md": {
+      "checksum": "a615f2c40fc37fdebac08b3971e38ae702cb67d784a5deca7860fbd88090ef7c",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/spec-review.md": {
+      "checksum": "358d3f42429f3d2d4c95fd6f37a43fd0ddd4169909702e7544c9279d2764b075",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/subagent-dev.md": {
+      "checksum": "9fc99578cd4f23639f34d6c90b3719949156d1ab2a44effffea24b7317f3aa53",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/tdd.md": {
+      "checksum": "27e0f8e2f35b56dec514862f48311e6d690d7ccb8380b485fbd971607430ca22",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/testing-strategy.md": {
+      "checksum": "d81c5658224bff3cf84b1271a40176054bb25a2d5f7e8b92456ac84077fb0e48",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/using-autopus.md": {
+      "checksum": "7cdda37550286668236a4f6007ff4850d47c45759b8c235897c5fdabda68adcb",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/verification.md": {
+      "checksum": "8f12a7cbe4f18346b2183dd83143d9d842870790cb19b555d4f48d692d179709",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/worktree-isolation.md": {
+      "checksum": "73b2da502cc0d0ef73525e9a560d18154069fc6117992f9125dc7bbc72a9dee4",
+      "policy": "always"
+    },
+    ".claude/skills/autopus/writing-skills.md": {
+      "checksum": "18d62aea7dcf253b0438b5a69367d5fc6d3bc1444a475332db7dd89cc9c05306",
+      "policy": "always"
+    },
+    ".claude/statusline.sh": {
+      "checksum": "7759f869aa72ba907551faa0fd5c29db7817e0fba1c7a36c452e88559c940851",
+      "policy": "always"
+    },
+    ".mcp.json": {
+      "checksum": "67ad967ed8ce3d15639cf4d9e96e3cb18848415649037fcabbdd14c116cf5193",
+      "policy": "merge"
+    },
+    "CLAUDE.md": {
+      "checksum": "67d52d8d9d9aa442572b229ad2f99624072c36c11f37e1f3dd56c65cdf05ec20",
+      "policy": "marker"
+    }
+  }
+}

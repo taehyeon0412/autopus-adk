@@ -117,3 +117,11 @@ func TestBuildBrainstormPrompt_EmptyFeature(t *testing.T) {
 	assert.NotEmpty(t, prompt, "prompt must not be empty even for empty feature input")
 	assert.Contains(t, prompt, "SCAMPER", "prompt structure must remain intact for empty input")
 }
+
+// TestNewOrchestraBrainstormCmd_RoundsFlag verifies --rounds flag exists.
+func TestNewOrchestraBrainstormCmd_RoundsFlag(t *testing.T) {
+	t.Parallel()
+	cmd := newOrchestraBrainstormCmd()
+	require.NotNil(t, cmd)
+	assert.NotNil(t, cmd.Flags().Lookup("rounds"), "rounds flag must exist")
+}

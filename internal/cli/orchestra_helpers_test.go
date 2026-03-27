@@ -96,3 +96,28 @@ func TestBuildProviderConfigs_MixedKnownUnknown(t *testing.T) {
 	assert.Equal(t, "claude", configs[0].Binary, "claude must use hardcoded binary")
 	assert.Equal(t, "my-tool", configs[1].Binary, "unknown provider must use name as binary")
 }
+
+// TestResolveRounds verifies debate round resolution logic.
+func TestResolveRounds(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		strategy string
+		rounds   int
+		expected int
+	}{
+		{"explicit rounds respected", "debate", 5, 5},
+		{"debate defaults to 2", "debate", 0, 2},
+		{"non-debate zero rounds", "consensus", 0, 0},
+		{"non-debate explicit rounds", "pipeline", 3, 3},
+		{"empty strategy zero rounds", "", 0, 0},
+		{"negative rounds treated as zero", "debate", -1, 2},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := resolveRounds(tt.strategy, tt.rounds)
+			assert.Equal(t, tt.expected, got)
+		})
+	}
+}

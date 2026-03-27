@@ -3,6 +3,7 @@ package orchestra
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 	"time"
 
@@ -167,4 +168,114 @@ func TestInteractive_CompletionDetection_TimeoutFallback(t *testing.T) {
 	// Timeout is handled by context cancellation in the orchestration layer.
 	// Verify that isOutputIdle returns false when file doesn't exist.
 	assert.False(t, isOutputIdle("/nonexistent/file.txt", 10*time.Second))
+}
+
+// TestCleanScreenOutput verifies the cleanScreenOutput pipeline that combines
+// SanitizeScreenOutput and filterPromptLines.
+func TestCleanScreenOutput(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "strips ANSI and prompts together",
+			input:    "\x1b[31mcolored\x1b[0m output\n> \nreal content",
+			expected: "colored output\nreal content",
+		},
+		{
+			name:     "empty input",
+			input:    "",
+			expected: "",
+		},
+		{
+			name:     "plain text with no prompts",
+			input:    "just plain output\nsecond line",
+			expected: "just plain output\nsecond line",
+		},
+		{
+			name:     "codex prompt after ANSI strip",
+			input:    "\x1b[1mresult\x1b[0m\ncodex> \nmore output",
+			expected: "result\nmore output",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := cleanScreenOutput(tt.input)
+			assert.Equal(t, tt.expected, got)
+		})
+	}
+}
+
+// TestIsPromptVisible_WithCustomPatterns verifies provider-specific patterns
+// are checked before default fallback patterns.
+func TestIsPromptVisible_WithCustomPatterns(t *testing.T) {
+	t.Parallel()
+	customPatterns := []CompletionPattern{
+		{Provider: "custom", Pattern: regexp.MustCompile(`(?m)^READY>`)},
+	}
+	tests := []struct {
+		name     string
+		screen   string
+		patterns []CompletionPattern
+		expected bool
+	}{
+		{
+			name:     "custom pattern matches",
+			screen:   "output done\nREADY>",
+			patterns: customPatterns,
+			expected: true,
+		},
+		{
+			name:     "custom pattern does not match falls through to default",
+			screen:   "output done\n$ ",
+			patterns: customPatterns,
+			expected: true,
+		},
+		{
+			name:     "neither custom nor default matches",
+			screen:   "still processing...",
+			patterns: customPatterns,
+			expected: false,
+		},
+		{
+			name:     "empty patterns nil falls through to default only",
+			screen:   "> ",
+			patterns: nil,
+			expected: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := isPromptVisible(tt.screen, tt.patterns)
+			assert.Equal(t, tt.expected, got)
+		})
+	}
+}
+
+// TestIsPromptLine_EdgeCases verifies edge cases in prompt line detection.
+func TestIsPromptLine_EdgeCases(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		line     string
+		expected bool
+	}{
+		{"empty string is not prompt", "", false},
+		{"whitespace only is not prompt", "   \t  ", false},
+		{"dollar prompt", "$ ", true},
+		{"hash prompt", "# ", true},
+		{"regular text", "hello world", false},
+		{"codex prompt", "codex> ", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := isPromptLine(tt.line)
+			assert.Equal(t, tt.expected, got)
+		})
+	}
 }

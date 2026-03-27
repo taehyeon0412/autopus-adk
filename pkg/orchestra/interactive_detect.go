@@ -85,6 +85,6 @@ func isOutputIdle(outputFile string, threshold time.Duration) bool {
 // cleanScreenOutput strips ANSI codes and filters prompt lines from raw screen content.
 // Used to produce clean text for merge logic (R10).
 func cleanScreenOutput(raw string) string {
-	cleaned := stripANSI(raw)
+	cleaned := SanitizeScreenOutput(raw)
 	return filterPromptLines(cleaned)
 }
