@@ -22,7 +22,7 @@ func collectRoundHookResults(ctx context.Context, cfg OrchestraConfig, session *
 			break
 		}
 		start := time.Now()
-		err := session.WaitForDoneRound(timeout, p.Name, round)
+		err := session.WaitForDoneRoundCtx(ctx, timeout, p.Name, round)
 		if err != nil {
 			responses = append(responses, ProviderResponse{
 				Provider: p.Name,

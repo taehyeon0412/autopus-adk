@@ -1,6 +1,7 @@
 package orchestra
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -79,13 +80,22 @@ func (s *HookSession) WaitForDone(timeout time.Duration, providers ...string) er
 func (s *HookSession) WaitForDoneRound(timeout time.Duration, provider string, round int) error {
 	if round > 0 {
 		doneName := RoundSignalName(provider, round, "done")
-		return s.waitForFile(timeout, doneName)
+		return s.waitForFileCtx(context.Background(), timeout, doneName)
 	}
 	return s.WaitForDone(timeout, provider)
 }
 
-// waitForFile polls for a specific file at 200ms intervals until timeout.
-func (s *HookSession) waitForFile(timeout time.Duration, filename string) error {
+// WaitForDoneRoundCtx polls for the round-scoped done signal file, respecting context cancellation.
+func (s *HookSession) WaitForDoneRoundCtx(ctx context.Context, timeout time.Duration, provider string, round int) error {
+	if round > 0 {
+		doneName := RoundSignalName(provider, round, "done")
+		return s.waitForFileCtx(ctx, timeout, doneName)
+	}
+	return s.WaitForDone(timeout, provider)
+}
+
+// waitForFileCtx polls for a specific file at 200ms intervals, respecting context cancellation.
+func (s *HookSession) waitForFileCtx(ctx context.Context, timeout time.Duration, filename string) error {
 	deadline := time.After(timeout)
 	ticker := time.NewTicker(200 * time.Millisecond)
 	defer ticker.Stop()
@@ -93,6 +103,8 @@ func (s *HookSession) waitForFile(timeout time.Duration, filename string) error 
 	path := filepath.Join(s.sessionDir, filename)
 	for {
 		select {
+		case <-ctx.Done():
+			return fmt.Errorf("context cancelled waiting for %s in session %s: %w", filename, s.sessionID, ctx.Err())
 		case <-deadline:
 			return fmt.Errorf("timeout waiting for %s in session %s", filename, s.sessionID)
 		case <-ticker.C:
