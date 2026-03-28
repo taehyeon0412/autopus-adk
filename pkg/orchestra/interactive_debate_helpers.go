@@ -54,7 +54,8 @@ func runJudgeRound(ctx context.Context, cfg OrchestraConfig, panes []paneInfo, h
 		if pi.provider.Name == cfg.JudgeProvider && !pi.skipWait {
 			patterns := DefaultCompletionPatterns()
 			pollUntilPrompt(ctx, cfg.Terminal, pi.paneID, patterns, 10*time.Second)
-			_ = cfg.Terminal.SendCommand(ctx, pi.paneID, judgment)
+			// Use SendLongText for judgment prompt — it contains all provider responses and can be very long
+			_ = cfg.Terminal.SendLongText(ctx, pi.paneID, judgment)
 			time.Sleep(500 * time.Millisecond)
 			_ = cfg.Terminal.SendCommand(ctx, pi.paneID, "\n")
 
@@ -67,6 +68,17 @@ func runJudgeRound(ctx context.Context, cfg OrchestraConfig, panes []paneInfo, h
 						return &r
 					}
 				}
+			}
+			// Non-hook mode: collect judge result via screen polling
+			judgeDelay := cfg.InitialDelay
+			if judgeDelay <= 0 {
+				judgeDelay = 10 * time.Second
+			}
+			time.Sleep(judgeDelay)
+			resps := waitAndCollectResults(ctx, cfg, []paneInfo{pi}, patterns, time.Now())
+			for _, r := range resps {
+				r.Provider = cfg.JudgeProvider + " (judge)"
+				return &r
 			}
 			return nil
 		}

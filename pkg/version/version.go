@@ -27,7 +27,7 @@ func init() {
 		return
 	}
 	if info.Main.Version != "" && info.Main.Version != "(devel)" {
-		version = info.Main.Version
+		version = strings.TrimPrefix(info.Main.Version, "v")
 	} else {
 		version = "dev"
 	}
