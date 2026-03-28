@@ -54,10 +54,15 @@ func runJudgeRound(_ context.Context, cfg OrchestraConfig, _ []paneInfo, _ *Hook
 	judgeCfg := findOrBuildJudgeConfig(cfg)
 
 	// Use a fresh context for the judge — the parent ctx may be expired after debate rounds.
-	judgeCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	// Timeout scales with cfg.TimeoutSeconds (floor: 60s) since judgment prompt length is proportional to debate output.
+	judgeTimeout := time.Duration(cfg.TimeoutSeconds) * time.Second
+	if judgeTimeout < 60*time.Second {
+		judgeTimeout = 60 * time.Second
+	}
+	judgeCtx, cancel := context.WithTimeout(context.Background(), judgeTimeout)
 	defer cancel()
 
-	fmt.Fprintf(os.Stderr, "[Judge] subprocess 실행 중 (provider: %s, timeout: 120s)...\n", cfg.JudgeProvider)
+	fmt.Fprintf(os.Stderr, "[Judge] subprocess 실행 중 (provider: %s, timeout: %s)...\n", cfg.JudgeProvider, judgeTimeout)
 	resp, err := runProvider(judgeCtx, judgeCfg, judgment)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "[Judge] 프로세스 실행 실패: %v\n", err)
