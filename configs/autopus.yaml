@@ -76,6 +76,7 @@ orchestra:
     opencode:
       binary: opencode
       args: ["run", "-m", "openai/gpt-5.4"]
+      pane_args: ["-m", "openai/gpt-5.4"]
       prompt_via_args: true
     gemini:
       binary: gemini

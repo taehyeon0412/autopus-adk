@@ -7,9 +7,8 @@ var defaultProviderEntries = map[string]ProviderEntry{
 	"claude":   {Binary: "claude", Args: []string{"--print", "--model", "opus", "--effort", "high"}, PaneArgs: []string{"--print", "--model", "opus", "--effort", "high"}},
 	"codex":    {Binary: "codex", Args: []string{"--quiet"}, PaneArgs: []string{"--quiet"}, PromptViaArgs: true},
 	"gemini":   {Binary: "gemini", Args: []string{"-m", "gemini-3.1-pro-preview"}, PaneArgs: []string{"-m", "gemini-3.1-pro-preview"}, PromptViaArgs: true},
-	"opencode": {Binary: "opencode", Args: []string{"run", "-m", "openai/gpt-5.4"}, PaneArgs: []string{"run", "-m", "openai/gpt-5.4"}, PromptViaArgs: true},
+	"opencode": {Binary: "opencode", Args: []string{"run", "-m", "openai/gpt-5.4"}, PaneArgs: []string{"-m", "openai/gpt-5.4"}, PromptViaArgs: true},
 }
-
 
 // MigrateOrchestraConfig performs all orchestra config migrations.
 // It returns (changed bool, err error).
@@ -38,6 +37,11 @@ func MigrateOrchestraConfig(cfg *HarnessConfig) (bool, error) {
 
 	// Migration 1.5: migrate codex to opencode.
 	if migrated, _ := MigrateCodexToOpencode(cfg); migrated {
+		changed = true
+	}
+
+	// Migration 1.6: migrate opencode from args mode to TUI mode.
+	if migrated := MigrateOpencodeToTUI(cfg); migrated {
 		changed = true
 	}
 
@@ -167,6 +171,44 @@ func MigrateCodexToOpencode(cfg *HarnessConfig) (bool, error) {
 	}
 
 	return true, nil
+}
+
+// MigrateOpencodeToTUI migrates opencode from args-based input to TUI mode.
+// Clears InteractiveInput (was "args") and removes "run" from PaneArgs so that
+// opencode launches as a persistent TUI session with prompt delivery via sendkeys.
+// @AX:NOTE [AUTO] one-way migration — converts args mode to TUI mode; no rollback path
+func MigrateOpencodeToTUI(cfg *HarnessConfig) bool {
+	if cfg.Orchestra.Providers == nil {
+		return false
+	}
+	oc, ok := cfg.Orchestra.Providers["opencode"]
+	if !ok {
+		return false
+	}
+
+	migrated := false
+
+	// Clear args-based interactive input mode.
+	if oc.InteractiveInput == "args" {
+		oc.InteractiveInput = ""
+		migrated = true
+	}
+
+	// Remove "run" subcmd from PaneArgs (TUI mode doesn't use it).
+	cleaned := make([]string, 0, len(oc.PaneArgs))
+	for _, arg := range oc.PaneArgs {
+		if arg == "run" {
+			migrated = true
+			continue
+		}
+		cleaned = append(cleaned, arg)
+	}
+	oc.PaneArgs = cleaned
+
+	if migrated {
+		cfg.Orchestra.Providers["opencode"] = oc
+	}
+	return migrated
 }
 
 // replaceInSlice replaces old with new in a string slice, removing duplicates.
