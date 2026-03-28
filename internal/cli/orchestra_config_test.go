@@ -211,7 +211,7 @@ func TestResolveProviders_InteractiveInputPropagated(t *testing.T) {
 
 	conf := &config.OrchestraConf{
 		Providers: map[string]config.ProviderEntry{
-			"opencode": {Binary: "opencode", Args: []string{"run", "-m", "gpt-5.4"}, InteractiveInput: "args"},
+			"opencode": {Binary: "opencode", Args: []string{"run", "-m", "gpt-5.4"}},
 			"claude":   {Binary: "claude", Args: []string{"-p"}},
 		},
 		Commands: map[string]config.CommandEntry{},
@@ -222,7 +222,7 @@ func TestResolveProviders_InteractiveInputPropagated(t *testing.T) {
 
 	for _, p := range providers {
 		if p.Name == "opencode" {
-			assert.Equal(t, "args", p.InteractiveInput, "opencode must have InteractiveInput=args")
+			assert.Equal(t, "", p.InteractiveInput, "opencode must have empty InteractiveInput (TUI mode)")
 		}
 		if p.Name == "claude" {
 			assert.Equal(t, "", p.InteractiveInput, "claude must have empty InteractiveInput")
@@ -238,7 +238,7 @@ func TestBuildProviderConfigs_OpencodeInteractiveInput(t *testing.T) {
 
 	for _, p := range configs {
 		if p.Name == "opencode" {
-			assert.Equal(t, "args", p.InteractiveInput, "opencode hardcoded config must have InteractiveInput=args")
+			assert.Equal(t, "", p.InteractiveInput, "opencode hardcoded config must have empty InteractiveInput (TUI mode)")
 		}
 		if p.Name == "claude" {
 			assert.Equal(t, "", p.InteractiveInput, "claude must have empty InteractiveInput")
