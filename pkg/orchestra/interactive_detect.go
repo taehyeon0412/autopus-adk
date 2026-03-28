@@ -37,8 +37,11 @@ var cliNoisePatterns = []*regexp.Regexp{
 	regexp.MustCompile(`(?i)/upgrade\s*$`),
 	regexp.MustCompile(`(?i)Signed in with`),
 	regexp.MustCompile(`(?i)Plan: Gemini`),
-	// gemini CLI box drawing fragments
+	// gemini CLI box drawing and single-char wrapped lines
 	regexp.MustCompile(`^[╭╰│╮╯─]+$`),
+	regexp.MustCompile(`^│\s*.{1,3}\s*│$`),
+	regexp.MustCompile(`(?i)^Positional arguments now default`),
+	regexp.MustCompile(`(?i)non-interactive mode.*--prompt`),
 	// opencode TUI noise
 	regexp.MustCompile(`(?i)Build\s+·\s+gpt`),
 	regexp.MustCompile(`(?i)^\s*Build\s+GPT-[\d.]+\s+OpenAI`),

@@ -47,18 +47,23 @@ func collectRoundHookResults(ctx context.Context, cfg OrchestraConfig, session *
 
 // runJudgeRound executes the judge verdict after all debate rounds.
 // Always runs judge as a non-interactive subprocess for reliable completion detection.
-// Interactive pane-based judge execution is unreliable because the pane already contains
-// previous round output, making prompt-based completion detection ambiguous.
-func runJudgeRound(ctx context.Context, cfg OrchestraConfig, _ []paneInfo, _ *HookSession, responses []ProviderResponse, _ int) *ProviderResponse {
+// Uses a fresh context with 120s timeout since the parent context may be near expiry
+// after debate rounds consumed most of the allotted time.
+func runJudgeRound(_ context.Context, cfg OrchestraConfig, _ []paneInfo, _ *HookSession, responses []ProviderResponse, _ int) *ProviderResponse {
 	judgment := buildJudgmentPrompt(cfg.Prompt, responses)
 	judgeCfg := findOrBuildJudgeConfig(cfg)
 
-	// Run judge as non-interactive process for reliable result collection.
-	resp, err := runProvider(ctx, judgeCfg, judgment)
+	// Use a fresh context for the judge — the parent ctx may be expired after debate rounds.
+	judgeCtx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	defer cancel()
+
+	fmt.Fprintf(os.Stderr, "[Judge] subprocess 실행 중 (provider: %s, timeout: 120s)...\n", cfg.JudgeProvider)
+	resp, err := runProvider(judgeCtx, judgeCfg, judgment)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "[Judge] 프로세스 실행 실패: %v\n", err)
 		return nil
 	}
+	fmt.Fprintf(os.Stderr, "[Judge] 판정 완료 (%s)\n", resp.Duration.Round(time.Millisecond))
 	resp.Provider = cfg.JudgeProvider + " (judge)"
 	return resp
 }
