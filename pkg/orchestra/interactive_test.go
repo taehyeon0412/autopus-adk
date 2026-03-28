@@ -7,16 +7,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/insajin/autopus-adk/pkg/terminal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// --- R5: Interactive pane execution flow ---
-
-// TestInteractive_FullFlow_SplitPipelaunchWaitCollectMergeCleanup verifies the
-// complete interactive pane orchestration flow:
-// split panes -> pipe capture -> launch sessions -> wait ready -> send prompts
-// -> wait completion -> collect results -> merge -> cleanup
+// TestInteractive_FullFlow verifies the complete interactive pane orchestration flow.
 func TestInteractive_FullFlow_SplitPipelaunchWaitCollectMergeCleanup(t *testing.T) {
 	mock := newCmuxMock()
 	mock.readScreenOutput = ">\n" // prompt pattern triggers immediate completion
@@ -33,11 +29,8 @@ func TestInteractive_FullFlow_SplitPipelaunchWaitCollectMergeCleanup(t *testing.
 	require.NoError(t, err)
 	assert.Len(t, result.Responses, 2)
 	assert.NotEmpty(t, result.Merged)
-	// Verify split was called for each provider
 	assert.Len(t, mock.splitPaneCalls, 2)
-	// Verify pipe-pane start was called before send commands
 	assert.True(t, mock.pipePaneStartCalls >= 2, "must start pipe for each provider")
-	assert.True(t, len(mock.sendCommandCalls) >= 2, "must send commands to each pane")
 }
 
 // TestInteractive_Flow_PipePaneStartCalledPerProvider verifies each provider gets pipe capture.
@@ -95,10 +88,7 @@ func TestInteractive_Flow_ResultsCollectedFromOutputFiles(t *testing.T) {
 	assert.NotEmpty(t, result.Responses[0].Output, "output should be populated from ReadScreen")
 }
 
-// --- R8: Sentinel mode fallback ---
-
-// TestInteractive_SentinelFallback_PlainTerminal verifies fallback to sentinel mode
-// when terminal is plain (no interactive capability).
+// TestInteractive_SentinelFallback_PlainTerminal verifies fallback to sentinel mode.
 func TestInteractive_SentinelFallback_PlainTerminal(t *testing.T) {
 	mock := newPlainMock()
 	cfg := OrchestraConfig{
@@ -115,8 +105,7 @@ func TestInteractive_SentinelFallback_PlainTerminal(t *testing.T) {
 	assert.NotNil(t, result, "must fall back to sentinel mode, not error")
 }
 
-// TestInteractive_SentinelFallback_InteractiveModeFails verifies fallback when
-// interactive mode encounters an error mid-execution.
+// TestInteractive_SentinelFallback_InteractiveModeFails verifies error fallback.
 func TestInteractive_SentinelFallback_InteractiveModeFails(t *testing.T) {
 	mock := newCmuxMock()
 	mock.splitPaneErr = fmt.Errorf("interactive split failed")
@@ -134,10 +123,7 @@ func TestInteractive_SentinelFallback_InteractiveModeFails(t *testing.T) {
 	assert.NotNil(t, result)
 }
 
-// --- R9: Interactive session timeout ---
-
-// TestInteractive_SessionTimeout_ProducesPartialResult verifies timed out sessions
-// produce partial result with TimedOut: true.
+// TestInteractive_SessionTimeout_ProducesPartialResult verifies TimedOut: true.
 func TestInteractive_SessionTimeout_ProducesPartialResult(t *testing.T) {
 	mock := newCmuxMock()
 	mock.readScreenOutput = "" // never matches prompt -> forces timeout
@@ -169,10 +155,7 @@ func TestInteractive_SessionTimeout_ProducesPartialResult(t *testing.T) {
 // TestInteractive_SessionTimeout_PartialOutputPreserved verifies partial output is kept.
 func TestInteractive_SessionTimeout_PartialOutputPreserved(t *testing.T) {
 	mock := newCmuxMock()
-	// ReadScreen returns partial content but no prompt pattern
 	mock.readScreenOutput = "partial output before timeout"
-	// Override to return content on scrollback read but no prompt match
-	mock.readScreenErr = nil
 	cfg := OrchestraConfig{
 		Providers:      []ProviderConfig{echoProvider("slow")},
 		Strategy:       StrategyConsensus,
@@ -187,7 +170,6 @@ func TestInteractive_SessionTimeout_PartialOutputPreserved(t *testing.T) {
 	result, err := RunInteractivePaneOrchestra(ctx, cfg)
 	require.NoError(t, err)
 	require.NotNil(t, result)
-	// Output is populated even on timeout (R9)
 	for _, r := range result.Responses {
 		if r.TimedOut {
 			assert.NotEmpty(t, r.Output, "partial output should be preserved on timeout")
@@ -195,18 +177,14 @@ func TestInteractive_SessionTimeout_PartialOutputPreserved(t *testing.T) {
 	}
 }
 
-// --- R5: Interactive config field ---
-
-// TestInteractive_ConfigField_InteractiveBool verifies OrchestraConfig has Interactive field.
+// TestInteractive_ConfigField_InteractiveBool verifies OrchestraConfig Interactive field.
 func TestInteractive_ConfigField_InteractiveBool(t *testing.T) {
 	t.Parallel()
 	cfg := OrchestraConfig{Interactive: true}
 	assert.True(t, cfg.Interactive)
 }
 
-// --- REQ-1: Permission bypass ---
-
-// TestBuildInteractiveLaunchCmd_PermissionBypass verifies Claude gets --dangerously-skip-permissions.
+// TestBuildInteractiveLaunchCmd_PermissionBypass verifies Claude --dangerously-skip-permissions.
 func TestBuildInteractiveLaunchCmd_PermissionBypass(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -251,9 +229,7 @@ func TestBuildInteractiveLaunchCmd_PermissionBypass(t *testing.T) {
 	}
 }
 
-// --- REQ-3: 2-phase completion detection ---
-
-// TestWaitForCompletion_TwoPhase_ConsecutiveMatch verifies two consecutive prompt matches return true.
+// TestWaitForCompletion_TwoPhase_ConsecutiveMatch verifies consecutive prompt matches.
 func TestWaitForCompletion_TwoPhase_ConsecutiveMatch(t *testing.T) {
 	t.Parallel()
 	mock := newCmuxMock()
@@ -296,4 +272,27 @@ func TestWaitForCompletion_TwoPhase_ReadScreenError(t *testing.T) {
 
 	result := waitForCompletion(ctx, mock, pi, patterns)
 	assert.False(t, result, "persistent ReadScreen errors should prevent completion")
+}
+
+// TestLaunchInteractiveSessions_UsesSendLongText verifies launch uses SendLongText
+// for the command and a separate SendCommand("\n") for Enter.
+func TestLaunchInteractiveSessions_UsesSendLongText(t *testing.T) {
+	mock := newCmuxMock()
+	panes := []paneInfo{
+		{provider: echoProvider("p1"), paneID: "pane-1"},
+	}
+	cfg := OrchestraConfig{
+		Providers: []ProviderConfig{echoProvider("p1")},
+		Terminal:  mock,
+		Prompt:    "test",
+	}
+	failed := launchInteractiveSessions(context.Background(), cfg, panes)
+	assert.Empty(t, failed, "launch should succeed")
+	require.NotEmpty(t, mock.sendLongTextCalls, "must use SendLongText for launch cmd")
+	assert.Equal(t, terminal.PaneID("pane-1"), mock.sendLongTextCalls[0].PaneID)
+	foundEnter := false
+	for _, c := range mock.sendCommandCalls {
+		if c.Cmd == "\n" { foundEnter = true }
+	}
+	assert.True(t, foundEnter, "must send Enter via SendCommand after SendLongText")
 }

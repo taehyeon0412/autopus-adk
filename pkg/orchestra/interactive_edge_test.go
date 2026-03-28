@@ -186,11 +186,11 @@ func TestInteractive_LaunchWithBareBinary(t *testing.T) {
 	result, err := RunInteractivePaneOrchestra(context.Background(), cfg)
 	require.NoError(t, err)
 	require.NotNil(t, result)
-	// First sendCommand call should be the bare binary name (no -p or --json)
-	require.True(t, len(mock.sendCommandCalls) >= 1)
-	launchCmd := mock.sendCommandCalls[0].Cmd
+	// First sendLongText call should be the bare binary name (no -p or --json)
+	require.True(t, len(mock.sendLongTextCalls) >= 1)
+	launchCmd := mock.sendLongTextCalls[0].Text
 	// REQ-1: Claude now includes --json (from PaneArgs) and --dangerously-skip-permissions
-	assert.Equal(t, "claude --json --dangerously-skip-permissions\n", launchCmd, "interactive mode should launch claude with remaining PaneArgs and permission bypass")
+	assert.Equal(t, "claude --json --dangerously-skip-permissions", launchCmd, "interactive mode should launch claude with remaining PaneArgs and permission bypass")
 }
 
 // TestInteractive_ReadScreenError_ContinuesPolling verifies ReadScreen errors don't break polling.

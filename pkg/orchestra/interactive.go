@@ -10,10 +10,7 @@ import (
 	"github.com/insajin/autopus-adk/pkg/terminal"
 )
 
-// RunInteractivePaneOrchestra runs orchestration using interactive CLI sessions in terminal panes.
-// Each provider's CLI binary is launched as an interactive session, prompts are sent via SendCommand,
-// and completion is detected via ReadScreen polling and pipe-pane idle detection.
-// Falls back to sentinel-based RunPaneOrchestra if interactive mode fails (R8).
+// RunInteractivePaneOrchestra runs interactive CLI orchestration with ReadScreen polling.
 // @AX:NOTE [AUTO] interactive orchestration entry point — fan_in=1 (pane_runner.go only); downgraded from ANCHOR
 func RunInteractivePaneOrchestra(ctx context.Context, cfg OrchestraConfig) (*OrchestraResult, error) {
 	// R8: plain terminal -> fallback to sentinel mode
@@ -128,23 +125,29 @@ func startPipeCapture(ctx context.Context, term terminal.Terminal, panes []paneI
 	return nil
 }
 
-// launchInteractiveSessions sends the provider binary name to each pane to start an interactive session.
-// In interactive mode, we launch the CLI binary with model flags to get a real CLI session.
-// The user prompt will be sent separately via sendPrompts() after the session is ready.
+// launchInteractiveSessions launches provider CLIs in each pane using SendLongText (FR-02).
 func launchInteractiveSessions(ctx context.Context, cfg OrchestraConfig, panes []paneInfo) []FailedProvider {
 	var failed []FailedProvider
 	for i, pi := range panes {
-		// Build launch command: binary + interactive args (model flags, etc.)
-		// For "args" providers, prompt is included in the launch command; for others, sent separately.
 		var launchPrompt string
 		if pi.provider.InteractiveInput == "args" {
 			launchPrompt = cfg.Prompt
 		}
-		cmd := buildInteractiveLaunchCmd(pi.provider, launchPrompt) + "\n"
-		if err := cfg.Terminal.SendCommand(ctx, pi.paneID, cmd); err != nil {
+		cmd := buildInteractiveLaunchCmd(pi.provider, launchPrompt)
+		// FR-02: Use SendLongText for launch command body (handles long args-based prompts)
+		if err := cfg.Terminal.SendLongText(ctx, pi.paneID, cmd); err != nil {
 			failed = append(failed, FailedProvider{
 				Name:  pi.provider.Name,
 				Error: fmt.Sprintf("launch session failed: %v", err),
+			})
+			panes[i].skipWait = true
+			continue
+		}
+		// Send Enter separately (SendLongText contract: callers send Enter)
+		if err := cfg.Terminal.SendCommand(ctx, pi.paneID, "\n"); err != nil {
+			failed = append(failed, FailedProvider{
+				Name:  pi.provider.Name,
+				Error: fmt.Sprintf("launch enter failed: %v", err),
 			})
 			panes[i].skipWait = true
 		}

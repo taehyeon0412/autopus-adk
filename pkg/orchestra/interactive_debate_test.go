@@ -145,8 +145,8 @@ func TestExecuteRound_TopicIsolation(t *testing.T) {
 
 	// Verify the prompt sent contains the isolation instruction
 	found := false
-	for _, call := range mock.sendCommandCalls {
-		if strings.Contains(call.Cmd, "IMPORTANT: Discuss ONLY") {
+	for _, call := range mock.sendLongTextCalls {
+		if strings.Contains(call.Text, "IMPORTANT: Discuss ONLY") {
 			found = true
 			break
 		}

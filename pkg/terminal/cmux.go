@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 )
 
 // CmuxAdapter implements Terminal using the cmux terminal multiplexer.
@@ -67,10 +68,38 @@ func (a *CmuxAdapter) SendCommand(_ context.Context, paneID PaneID, command stri
 	return nil
 }
 
-// SendLongText sends text to a pane via cmux send. The cmux socket-based API
-// handles long text natively, so this delegates directly to SendCommand.
+// SendLongText sends text to a pane. For short text (<500 bytes) it delegates
+// to SendCommand. For long text it uses set-buffer/paste-buffer/delete-buffer
+// to bypass PTY line-length limits.
+// @AX:ANCHOR: [AUTO] public API contract — Terminal interface method; fan_in=3 (interactive.go x2, interactive_debate.go)
+// @AX:NOTE: [AUTO] magic constant 500 — byte threshold for short/long text path split
 func (a *CmuxAdapter) SendLongText(ctx context.Context, paneID PaneID, text string) error {
-	return a.SendCommand(ctx, paneID, text)
+	if err := validatePaneID(paneID); err != nil {
+		return fmt.Errorf("cmux: %w", err)
+	}
+	// Short text: delegate to SendCommand
+	if len(text) < 500 {
+		return a.SendCommand(ctx, paneID, text)
+	}
+	// Long text: set-buffer → paste-buffer → delete-buffer
+	sanitized := strings.ReplaceAll(string(paneID), ":", "-")
+	bufName := fmt.Sprintf("autopus-%s-%d", sanitized, time.Now().UnixNano())
+
+	// set-buffer
+	setCmd := execCommand("cmux", "set-buffer", "--name", bufName, text)
+	if err := setCmd.Run(); err != nil {
+		// FR-10: fallback to SendCommand on set-buffer failure
+		return a.SendCommand(ctx, paneID, text)
+	}
+	// paste-buffer
+	pasteCmd := execCommand("cmux", "paste-buffer", "--name", bufName, "--surface", string(paneID))
+	if err := pasteCmd.Run(); err != nil {
+		return fmt.Errorf("cmux: paste-buffer %s: %w", paneID, err)
+	}
+	// delete-buffer (best-effort, FR-11)
+	delCmd := execCommand("cmux", "delete-buffer", "--name", bufName)
+	_ = delCmd.Run()
+	return nil
 }
 
 // Notify sends a notification message via cmux notify --title.

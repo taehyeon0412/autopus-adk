@@ -30,6 +30,10 @@ type mockTerminal struct {
 	pipePaneStartCalls int      // count PipePaneStart calls
 	pipePaneStopCalls  int      // count PipePaneStop calls
 	pipePaneStartFiles []string // output files passed to PipePaneStart
+	sendLongTextCalls  []struct {
+		PaneID terminal.PaneID
+		Text   string
+	}
 }
 
 func (m *mockTerminal) Name() string { return m.name }
@@ -65,9 +69,14 @@ func (m *mockTerminal) SendCommand(_ context.Context, paneID terminal.PaneID, cm
 	return m.sendCommandErr
 }
 
-func (m *mockTerminal) SendLongText(ctx context.Context, paneID terminal.PaneID, text string) error {
-	// Delegate to SendCommand for test mock simplicity
-	return m.SendCommand(ctx, paneID, text)
+func (m *mockTerminal) SendLongText(_ context.Context, paneID terminal.PaneID, text string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.sendLongTextCalls = append(m.sendLongTextCalls, struct {
+		PaneID terminal.PaneID
+		Text   string
+	}{paneID, text})
+	return nil
 }
 
 func (m *mockTerminal) Notify(_ context.Context, _ string) error {
