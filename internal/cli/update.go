@@ -109,12 +109,28 @@ func newUpdateCmd() *cobra.Command {
 // targetVersion is accepted for future P2 use (pinned version install); currently unused — checker always fetches latest.
 func runSelfUpdate(cmd *cobra.Command, checkOnly, force bool, targetVersion string) error {
 	_ = targetVersion // P2: reserved for pinned version install via --version flag
-	currentVer := strings.TrimPrefix(version.Version(), "v")
+	rawVer := strings.TrimPrefix(version.Version(), "v")
 	currentCommit := version.Commit()
 
 	// R12: Dev build guard
-	if (currentVer == "dev" || currentCommit == "none") && !force {
+	if (rawVer == "dev" || currentCommit == "none") && !force {
 		return fmt.Errorf("개발 빌드에서는 --force 플래그가 필요합니다")
+	}
+
+	// Strip pseudo-version suffixes for clean semver comparison.
+	// e.g., "0.21.2-0.20260328130835-dd328b13c758+dirty" → "0.21.2"
+	currentVer := rawVer
+	if idx := strings.IndexByte(currentVer, '-'); idx != -1 {
+		currentVer = currentVer[:idx]
+	}
+	if idx := strings.IndexByte(currentVer, '+'); idx != -1 {
+		currentVer = currentVer[:idx]
+	}
+
+	// Pseudo-version or dirty build: always force update to get clean goreleaser binary
+	isPseudo := rawVer != currentVer
+	if isPseudo {
+		force = true
 	}
 
 	// Check latest

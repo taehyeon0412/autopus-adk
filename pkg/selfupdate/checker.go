@@ -112,10 +112,24 @@ func WithAPIBaseURL(url string) CheckerOption {
 	}
 }
 
+// stripPreRelease removes pre-release suffixes ("-0.2026..." or "+dirty") from a version string,
+// returning only the major.minor.patch portion for clean semver comparison.
+func stripPreRelease(v string) string {
+	v = strings.TrimPrefix(v, "v")
+	if idx := strings.IndexByte(v, '-'); idx != -1 {
+		v = v[:idx]
+	}
+	if idx := strings.IndexByte(v, '+'); idx != -1 {
+		v = v[:idx]
+	}
+	return v
+}
+
 // IsNewerVersion returns true if latest > current using semantic versioning.
+// Pre-release suffixes (e.g., "-0.20260328...+dirty") are stripped before comparison.
 func IsNewerVersion(latest, current string) bool {
-	latestParts := strings.Split(strings.TrimPrefix(latest, "v"), ".")
-	currentParts := strings.Split(strings.TrimPrefix(current, "v"), ".")
+	latestParts := strings.Split(stripPreRelease(latest), ".")
+	currentParts := strings.Split(stripPreRelease(current), ".")
 
 	for i := 0; i < len(latestParts) && i < len(currentParts); i++ {
 		var lv, cv int

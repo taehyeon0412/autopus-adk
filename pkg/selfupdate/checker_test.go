@@ -154,6 +154,10 @@ func TestCompareSemver(t *testing.T) {
 		{"current newer than latest", "0.7.0", "0.6.0", false},
 		{"patch version newer", "0.6.0", "0.6.1", true},
 		{"major bump", "1.0.0", "2.0.0", true},
+		{"pseudo-version current same as latest", "0.21.2-0.20260328130835-dd328b13c758+dirty", "0.21.2", false},
+		{"pseudo-version current older than latest", "0.21.2-0.20260328130835-dd328b13c758+dirty", "0.21.3", true},
+		{"dirty suffix stripped", "0.21.2+dirty", "0.21.2", false},
+		{"v prefix with pseudo", "v0.21.2-0.2026+dirty", "v0.21.3", true},
 	}
 
 	for _, tt := range tests {
