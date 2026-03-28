@@ -25,6 +25,31 @@ var defaultPromptPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`(?m)^>\s*claude:\s*`), // claude: ready variant
 }
 
+// cliNoisePatterns matches provider CLI informational messages that pollute brainstorm output.
+var cliNoisePatterns = []*regexp.Regexp{
+	// gemini CLI noise
+	regexp.MustCompile(`(?i)MCP issues detected`),
+	regexp.MustCompile(`(?i)We're making changes to Gemini CLI`),
+	regexp.MustCompile(`(?i)Update successful`),
+	regexp.MustCompile(`(?i)What's\s+Changing:`),
+	regexp.MustCompile(`(?i)How it\s+affects`),
+	regexp.MustCompile(`(?i)Read more:\s*https://`),
+	regexp.MustCompile(`(?i)/mcp list for status`),
+	regexp.MustCompile(`(?i)/auth\s*$`),
+	regexp.MustCompile(`(?i)/upgrade\s*$`),
+	regexp.MustCompile(`(?i)Signed in with`),
+	regexp.MustCompile(`(?i)Plan: Gemini`),
+	// gemini CLI box drawing fragments
+	regexp.MustCompile(`^[╭╰│╮╯─]+$`),
+	// opencode TUI noise
+	regexp.MustCompile(`(?i)Build\s+·\s+gpt`),
+	regexp.MustCompile(`(?i)^\s*Build\s+GPT-[\d.]+\s+OpenAI`),
+	regexp.MustCompile(`(?i)⬝+\s+esc`),
+	regexp.MustCompile(`(?i)ctrl\+[a-z]\s`),
+	// cmux status bar fragments
+	regexp.MustCompile(`🐙\s+v?\d+\.\d+`),
+}
+
 // filterPromptLines removes lines matching known CLI prompt patterns from output.
 func filterPromptLines(output string) string {
 	lines := strings.Split(output, "\n")
@@ -38,7 +63,7 @@ func filterPromptLines(output string) string {
 	return strings.Join(filtered, "\n")
 }
 
-// isPromptLine checks if a single line matches any known prompt pattern.
+// isPromptLine checks if a single line matches any known prompt or CLI noise pattern.
 func isPromptLine(line string) bool {
 	trimmed := strings.TrimSpace(line)
 	if trimmed == "" {
@@ -46,6 +71,11 @@ func isPromptLine(line string) bool {
 	}
 	for _, p := range defaultPromptPatterns {
 		if p.MatchString(line) {
+			return true
+		}
+	}
+	for _, p := range cliNoisePatterns {
+		if p.MatchString(trimmed) {
 			return true
 		}
 	}

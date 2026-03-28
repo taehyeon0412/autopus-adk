@@ -41,13 +41,18 @@ func resolveProviders(conf *config.OrchestraConf, commandName string, flagProvid
 			})
 			continue
 		}
+		interactiveInput := entry.InteractiveInput
+		// Auto-derive InteractiveInput from PromptViaArgs when not explicitly set
+		if interactiveInput == "" && entry.PromptViaArgs {
+			interactiveInput = "args"
+		}
 		result = append(result, orchestra.ProviderConfig{
 			Name:             name,
 			Binary:           entry.Binary,
 			Args:             entry.Args,
 			PaneArgs:         entry.PaneArgs,
 			PromptViaArgs:    entry.PromptViaArgs,
-			InteractiveInput: entry.InteractiveInput,
+			InteractiveInput: interactiveInput,
 		})
 	}
 	return result
