@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"time"
+
+	"github.com/insajin/autopus-adk/pkg/terminal"
 )
 
 // runInteractiveDebate executes a multi-turn debate loop using interactive panes.
@@ -159,6 +161,17 @@ func runPaneDebate(ctx context.Context, cfg OrchestraConfig, rounds int, perRoun
 func executeRound(ctx context.Context, cfg OrchestraConfig, panes []paneInfo, hookSession *HookSession, round int, prevResponses []ProviderResponse) []ProviderResponse {
 	patterns := DefaultCompletionPatterns()
 
+	// R2: Capture screen baselines BEFORE sending prompts to prevent false-positive
+	// completion detection from previous round's leftover prompt.
+	baselines := make(map[string]string)
+	for _, pi := range panes {
+		if pi.skipWait {
+			continue
+		}
+		screen, _ := cfg.Terminal.ReadScreen(ctx, pi.paneID, terminal.ReadScreenOpts{})
+		baselines[pi.provider.Name] = screen
+	}
+
 	for _, pi := range panes {
 		if pi.skipWait {
 			continue
@@ -204,7 +217,7 @@ func executeRound(ctx context.Context, cfg OrchestraConfig, panes []paneInfo, ho
 	if cfg.HookMode && hookSession != nil {
 		return collectRoundHookResults(ctx, cfg, hookSession, round)
 	}
-	return waitAndCollectResults(ctx, cfg, panes, patterns, time.Now())
+	return waitAndCollectResults(ctx, cfg, panes, patterns, time.Now(), baselines)
 }
 
 // Helper functions (collectRoundHookResults, runJudgeRound, consensusReached,

@@ -47,6 +47,12 @@ var cliNoisePatterns = []*regexp.Regexp{
 	regexp.MustCompile(`(?i)^\s*Build\s+GPT-[\d.]+\s+OpenAI`),
 	regexp.MustCompile(`(?i)⬝+\s+esc`),
 	regexp.MustCompile(`(?i)ctrl\+[a-z]\s`),
+	// Additional opencode TUI chrome (without "Build" prefix)
+	regexp.MustCompile(`(?i)^\s*gpt-[\d.]+\s+OpenAI`),
+	// Shell login banner (macOS/Linux)
+	regexp.MustCompile(`(?i)^Last login:`),
+	// User@host shell prompt (zsh %, bash $, root #)
+	regexp.MustCompile(`^\w+@[\w.-]+.*[%$#]\s*$`),
 	// cmux status bar fragments
 	regexp.MustCompile(`🐙\s+v?\d+\.\d+`),
 }

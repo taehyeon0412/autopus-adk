@@ -188,3 +188,65 @@ func TestFindDifferences_SingleResponse(t *testing.T) {
 	diffs := findDifferences(responses)
 	assert.Nil(t, diffs)
 }
+
+// --- SPEC-ORCH-013 R3: Diff Noise Refinement ---
+
+// TestFormatDebate_CleanOutput_MCPNoiseRemoved verifies MCP noise is removed
+// from debate diff output before comparing.
+// S5: Diff section must not contain MCP noise fragments.
+func TestFormatDebate_CleanOutput_MCPNoiseRemoved(t *testing.T) {
+	t.Parallel()
+	responses := []ProviderResponse{
+		makeResp("claude", "use REST API\nMCP issues detected. Run /mcp list for status.JSON format"),
+		makeResp("gemini", "use GraphQL\nJSON format"),
+	}
+	result := FormatDebate(responses)
+	assert.NotContains(t, result, "MCP issues detected",
+		"FormatDebate must clean MCP noise from responses before comparing")
+	assert.NotContains(t, result, "/mcp list",
+		"FormatDebate must clean MCP noise fragments from diff output")
+}
+
+// TestFindDifferences_CleanOutput_MCPNoiseExcluded verifies findDifferences
+// uses cleanScreenOutput on responses so MCP noise doesn't appear as diffs.
+// S5: MCP noise lines should not be reported as differences.
+func TestFindDifferences_CleanOutput_MCPNoiseExcluded(t *testing.T) {
+	t.Parallel()
+	responses := []ProviderResponse{
+		makeResp("p1", "shared line\nMCP issues detected. Run /mcp list for status."),
+		makeResp("p2", "shared line"),
+	}
+	diffs := findDifferences(responses)
+	for _, d := range diffs {
+		assert.NotContains(t, d, "MCP issues detected",
+			"findDifferences must not report MCP noise as a difference")
+	}
+}
+
+// TestFormatDebate_CleanOutput_ANSIEscapesRemoved verifies ANSI escape sequences
+// are stripped from debate output before comparing.
+// S6: Diff section must not contain ANSI escape codes.
+func TestFormatDebate_CleanOutput_ANSIEscapesRemoved(t *testing.T) {
+	t.Parallel()
+	responses := []ProviderResponse{
+		makeResp("claude", "\x1b[31muse REST\x1b[0m\nJSON format"),
+		makeResp("gemini", "use GraphQL\nJSON format"),
+	}
+	result := FormatDebate(responses)
+	assert.NotContains(t, result, "\x1b[",
+		"FormatDebate must strip ANSI escape sequences before comparing")
+}
+
+// TestFindDifferences_CleanOutput_ANSIStripped verifies ANSI codes don't cause
+// false differences between otherwise identical content.
+// S6: ANSI-only differences should not appear in diff output.
+func TestFindDifferences_CleanOutput_ANSIStripped(t *testing.T) {
+	t.Parallel()
+	responses := []ProviderResponse{
+		makeResp("p1", "\x1b[1mshared line\x1b[0m"),
+		makeResp("p2", "shared line"),
+	}
+	diffs := findDifferences(responses)
+	assert.Empty(t, diffs,
+		"ANSI-only differences must not appear as diffs after cleaning")
+}

@@ -121,6 +121,35 @@ func (m *pipePaneErrorMock) PipePaneStart(_ context.Context, _ terminal.PaneID, 
 	return fmt.Errorf("pipe-pane start error")
 }
 
+// sendLongTextErrorMock embeds mockTerminal but overrides SendLongText to return an error.
+type sendLongTextErrorMock struct {
+	mockTerminal
+}
+
+func (m *sendLongTextErrorMock) SendLongText(_ context.Context, _ terminal.PaneID, _ string) error {
+	return fmt.Errorf("send long text error")
+}
+
+// countingScreenMock embeds mockTerminal but alternates ReadScreen output
+// based on call count to simulate screen changes between rounds.
+type countingScreenMock struct {
+	mockTerminal
+	callCount int
+	outputs   []string
+}
+
+func (m *countingScreenMock) ReadScreen(_ context.Context, _ terminal.PaneID, _ terminal.ReadScreenOpts) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.readScreenCalls++
+	m.callCount++
+	if len(m.outputs) == 0 {
+		return m.readScreenOutput, m.readScreenErr
+	}
+	idx := (m.callCount - 1) % len(m.outputs)
+	return m.outputs[idx], nil
+}
+
 func newCmuxMock() *mockTerminal {
 	return &mockTerminal{name: "cmux"}
 }

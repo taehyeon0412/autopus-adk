@@ -46,56 +46,41 @@ func RunInteractivePaneOrchestra(ctx context.Context, cfg OrchestraConfig) (*Orc
 		}
 	}
 
-	// Step 1: Split panes (reuse existing splitProviderPanes)
 	panes, failed, err := splitProviderPanes(timeoutCtx, cfg)
 	if err != nil {
-		// R8: fallback on split failure
 		cfg.Interactive = false
 		return RunPaneOrchestra(ctx, cfg)
 	}
 	defer cleanupInteractivePanes(cfg.Terminal, panes)
 
-	// Step 2: Start pipe capture for each pane
 	if err := startPipeCapture(timeoutCtx, cfg.Terminal, panes); err != nil {
 		cfg.Interactive = false
 		return RunPaneOrchestra(ctx, cfg)
 	}
 
-	// Step 3: Launch interactive sessions (send binary name to each pane)
 	launchFailed := launchInteractiveSessions(timeoutCtx, cfg, panes)
 	failed = append(failed, launchFailed...)
-
-	// Step 4: Wait for sessions to be ready (prompt visible)
 	waitForSessionReady(timeoutCtx, cfg.Terminal, panes)
-
-	// Step 5: Send prompts to each session
 	promptFailed := sendPrompts(timeoutCtx, cfg, panes)
 	failed = append(failed, promptFailed...)
 
-	// Step 5.5: Wait for AI to start processing before completion detection.
-	// Without this delay, the prompt pattern on the current screen triggers
-	// immediate "completion" before the AI even begins responding.
-	// REQ-3: configurable initial delay (default 20s)
+	// REQ-3: configurable initial delay before completion detection (default 20s)
 	initialDelay := cfg.InitialDelay
 	if initialDelay <= 0 {
 		initialDelay = 20 * time.Second
 	}
 	time.Sleep(initialDelay)
 
-	// Step 6-7: Wait for completion and collect results
 	patterns := DefaultCompletionPatterns()
 	var responses []ProviderResponse
 	if cfg.HookMode && hookSession != nil {
-		// R5: Hook-based collection
 		var hookErr error
 		responses, hookErr = WaitAndCollectHookResults(cfg, cfg.SessionID)
 		if hookErr != nil {
-			// R8: fallback to ReadScreen-based collection
-			responses = waitAndCollectResults(timeoutCtx, cfg, panes, patterns, start)
+			responses = waitAndCollectResults(timeoutCtx, cfg, panes, patterns, start, nil)
 		}
 	} else {
-		// Original ReadScreen-based collection
-		responses = waitAndCollectResults(timeoutCtx, cfg, panes, patterns, start)
+		responses = waitAndCollectResults(timeoutCtx, cfg, panes, patterns, start, nil)
 	}
 
 	// Step 8: Merge by strategy (reuse existing mergeByStrategy)
@@ -227,7 +212,7 @@ func sendPrompts(ctx context.Context, cfg OrchestraConfig, panes []paneInfo) []F
 
 // waitAndCollectResults waits for each provider to complete and collects cleaned results.
 // @AX:WARN [AUTO] concurrent goroutine writes to shared responses slice — guarded by mu sync.Mutex
-func waitAndCollectResults(ctx context.Context, cfg OrchestraConfig, panes []paneInfo, patterns []CompletionPattern, start time.Time) []ProviderResponse {
+func waitAndCollectResults(ctx context.Context, cfg OrchestraConfig, panes []paneInfo, patterns []CompletionPattern, start time.Time, baselines map[string]string) []ProviderResponse {
 	var (
 		responses []ProviderResponse
 		mu        sync.Mutex
@@ -246,10 +231,12 @@ func waitAndCollectResults(ctx context.Context, cfg OrchestraConfig, panes []pan
 		wg.Add(1)
 		go func(pi paneInfo) {
 			defer wg.Done()
-			timedOut := !waitForCompletion(ctx, cfg.Terminal, pi, patterns)
-			// R9: collect partial results even on timeout
+			var baseline string
+			if baselines != nil {
+				baseline = baselines[pi.provider.Name]
+			}
+			timedOut := !waitForCompletion(ctx, cfg.Terminal, pi, patterns, baseline)
 			screen, _ := cfg.Terminal.ReadScreen(ctx, pi.paneID, terminal.ReadScreenOpts{Scrollback: true})
-			// R10: clean the output
 			output := cleanScreenOutput(screen)
 
 			mu.Lock()
@@ -266,35 +253,5 @@ func waitAndCollectResults(ctx context.Context, cfg OrchestraConfig, panes []pan
 	return responses
 }
 
-// waitForCompletion polls for completion using 2-phase consecutive match logic.
-// A single prompt match is treated as a candidate; a second consecutive match confirms completion.
-// This prevents false positives when the prompt flickers briefly during AI output.
-// @AX:NOTE [AUTO] REQ-3 — 2-phase consecutive match; idle detection disabled
-func waitForCompletion(ctx context.Context, term terminal.Terminal, pi paneInfo, patterns []CompletionPattern) bool {
-	ticker := time.NewTicker(2 * time.Second)
-	defer ticker.Stop()
-
-	candidateDetected := false
-	for {
-		select {
-		case <-ctx.Done():
-			return false
-		case <-ticker.C:
-			screen, err := term.ReadScreen(ctx, pi.paneID, terminal.ReadScreenOpts{})
-			if err != nil {
-				candidateDetected = false
-				continue
-			}
-			if isPromptVisible(screen, patterns) {
-				if candidateDetected {
-					return true // Two consecutive matches — confirmed completion
-				}
-				candidateDetected = true // First match — wait for confirmation
-			} else {
-				candidateDetected = false // Reset — AI resumed output
-			}
-		}
-	}
-}
-
+// waitForCompletion is in interactive_completion.go.
 // buildInteractiveLaunchCmd and cleanupInteractivePanes are in interactive_launch.go.

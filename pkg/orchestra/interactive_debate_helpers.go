@@ -49,6 +49,8 @@ func collectRoundHookResults(ctx context.Context, cfg OrchestraConfig, session *
 // Always runs judge as a non-interactive subprocess for reliable completion detection.
 // Uses a fresh context with 120s timeout since the parent context may be near expiry
 // after debate rounds consumed most of the allotted time.
+// R1: cmd.Run() return (process exit event) is the primary completion signal;
+// the context timeout is a safety net only — judge completion is event-based, not poll-based.
 func runJudgeRound(_ context.Context, cfg OrchestraConfig, _ []paneInfo, _ *HookSession, responses []ProviderResponse, _ int) *ProviderResponse {
 	judgment := buildJudgmentPrompt(cfg.Prompt, responses)
 	judgeCfg := findOrBuildJudgeConfig(cfg)
@@ -102,6 +104,7 @@ func countNonEmpty(responses []ProviderResponse) int {
 
 // perRoundTimeout calculates the timeout for each debate round.
 // REQ-5: Enforces a 45-second minimum floor per round.
+// R1: Subtracts judge budget (min 60s) from total before dividing among debate rounds.
 // @AX:NOTE [AUTO] REQ-5 magic constant 45s — minimum floor per debate round; lowering risks premature timeout
 func perRoundTimeout(totalSeconds, rounds int) time.Duration {
 	if totalSeconds <= 0 {
@@ -110,7 +113,13 @@ func perRoundTimeout(totalSeconds, rounds int) time.Duration {
 	if rounds <= 0 {
 		rounds = 1
 	}
-	perRound := totalSeconds / rounds
+	// Reserve judge budget (min 60s) from total before dividing among debate rounds.
+	judgeReserve := 60
+	debateBudget := totalSeconds - judgeReserve
+	if debateBudget < 0 {
+		debateBudget = 0
+	}
+	perRound := debateBudget / rounds
 	if perRound < 45 {
 		perRound = 45
 	}

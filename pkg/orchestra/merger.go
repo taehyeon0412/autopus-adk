@@ -116,11 +116,11 @@ func FormatDebate(responses []ProviderResponse) string {
 
 	for _, r := range responses {
 		sb.WriteString(fmt.Sprintf("### %s의 의견\n", r.Provider))
-		sb.WriteString(r.Output)
+		sb.WriteString(cleanScreenOutput(r.Output)) // R3: clean noise before display
 		sb.WriteString("\n\n")
 	}
 
-	// 불일치 항목 비교
+	// R3: findDifferences handles its own cleaning internally
 	if len(responses) >= 2 {
 		sb.WriteString("## 주요 차이점\n")
 		diffs := findDifferences(responses)
@@ -136,15 +136,23 @@ func FormatDebate(responses []ProviderResponse) string {
 	return sb.String()
 }
 
-// findDifferences는 응답 간 주요 차이점을 식별한다.
+// findDifferences identifies key differences between responses.
+// Inputs should be pre-cleaned via cleanScreenOutput for accurate comparison;
+// this function also applies cleaning internally to handle direct callers.
 func findDifferences(responses []ProviderResponse) []string {
 	if len(responses) < 2 {
 		return nil
 	}
 
-	// 첫 번째와 나머지 응답의 줄을 비교
+	// Clean outputs to strip ANSI, MCP noise, and prompt lines before comparison
+	cleaned := make([]ProviderResponse, len(responses))
+	copy(cleaned, responses)
+	for i := range cleaned {
+		cleaned[i].Output = cleanScreenOutput(cleaned[i].Output)
+	}
+
 	baseLines := make(map[string]bool)
-	for _, line := range splitLines(responses[0].Output) {
+	for _, line := range splitLines(cleaned[0].Output) {
 		norm := normalizeLine(line)
 		if norm != "" {
 			baseLines[norm] = true
@@ -152,11 +160,11 @@ func findDifferences(responses []ProviderResponse) []string {
 	}
 
 	var diffs []string
-	for i := 1; i < len(responses); i++ {
-		for _, line := range splitLines(responses[i].Output) {
+	for i := 1; i < len(cleaned); i++ {
+		for _, line := range splitLines(cleaned[i].Output) {
 			norm := normalizeLine(line)
 			if norm != "" && !baseLines[norm] {
-				diffs = append(diffs, fmt.Sprintf("%s에서만: %s", responses[i].Provider, line))
+				diffs = append(diffs, fmt.Sprintf("%s에서만: %s", cleaned[i].Provider, line))
 			}
 		}
 	}

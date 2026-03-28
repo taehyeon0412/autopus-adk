@@ -188,3 +188,91 @@ func TestRunInteractiveDebate_WithJudge_NoTerminal(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 }
+
+// TestExecuteRound_ArgsProviderSkipsSendRound1 verifies providers with
+// InteractiveInput="args" skip SendLongText in round 1.
+func TestExecuteRound_ArgsProviderSkipsSendRound1(t *testing.T) {
+	t.Parallel()
+	mock := newCmuxMock()
+	mock.readScreenOutput = ">\n"
+	argsProvider := ProviderConfig{
+		Name: "opencode", Binary: "opencode",
+		InteractiveInput: "args",
+	}
+	cfg := OrchestraConfig{
+		Providers:      []ProviderConfig{argsProvider},
+		Strategy:       StrategyDebate,
+		Prompt:         "test",
+		TimeoutSeconds: 5,
+		Terminal:       mock,
+		Interactive:    true,
+		InitialDelay:   time.Millisecond,
+	}
+	panes := []paneInfo{{provider: argsProvider, paneID: "pane-1"}}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_ = executeRound(ctx, cfg, panes, nil, 1, nil)
+	// Args provider should NOT have received SendLongText in round 1
+	assert.Empty(t, mock.sendLongTextCalls,
+		"args provider must skip SendLongText in round 1")
+}
+
+// TestExecuteRound_Round2_RebuttalPrompt verifies round 2 sends rebuttal prompt
+// built from previous round responses.
+func TestExecuteRound_Round2_RebuttalPrompt(t *testing.T) {
+	t.Parallel()
+	mock := newCmuxMock()
+	mock.readScreenOutput = ">\n"
+	cfg := OrchestraConfig{
+		Providers: []ProviderConfig{
+			{Name: "claude", Binary: "echo"},
+		},
+		Strategy:       StrategyDebate,
+		Prompt:         "discuss testing",
+		TimeoutSeconds: 5,
+		Terminal:       mock,
+		Interactive:    true,
+		InitialDelay:   time.Millisecond,
+	}
+	panes := []paneInfo{{provider: cfg.Providers[0], paneID: "pane-1"}}
+	prevResponses := []ProviderResponse{
+		{Provider: "gemini", Output: "gemini's take"},
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	_ = executeRound(ctx, cfg, panes, nil, 2, prevResponses)
+	// Round 2 should have sent a rebuttal prompt
+	require.NotEmpty(t, mock.sendLongTextCalls)
+	sent := mock.sendLongTextCalls[0].Text
+	assert.Contains(t, sent, "IMPORTANT: Discuss ONLY",
+		"round 2 rebuttal must include topic isolation")
+}
+
+// TestExecuteRound_SkipWaitProviders verifies skipWait providers are skipped.
+func TestExecuteRound_SkipWaitProviders(t *testing.T) {
+	t.Parallel()
+	mock := newCmuxMock()
+	mock.readScreenOutput = ">\n"
+	cfg := OrchestraConfig{
+		Providers:      []ProviderConfig{{Name: "p1", Binary: "echo"}},
+		Strategy:       StrategyDebate,
+		Prompt:         "test",
+		TimeoutSeconds: 5,
+		Terminal:       mock,
+		Interactive:    true,
+		InitialDelay:   time.Millisecond,
+	}
+	panes := []paneInfo{{provider: cfg.Providers[0], paneID: "pane-1", skipWait: true}}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	responses := executeRound(ctx, cfg, panes, nil, 1, nil)
+	// skipWait providers should not receive any prompts
+	assert.Empty(t, mock.sendLongTextCalls)
+	_ = responses
+}
