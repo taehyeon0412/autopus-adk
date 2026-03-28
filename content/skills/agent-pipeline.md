@@ -29,6 +29,31 @@ For Agent Teams mode (`--team`), see `.claude/skills/autopus/agent-teams.md` for
 
 @.claude/skills/autopus/worktree-isolation.md
 
+## Permission Mode Detection
+
+WHEN the pipeline starts (Phase 0), THE SYSTEM SHALL detect the parent process's permission mode to determine agent spawning permissions.
+
+### Detection Flow
+
+```
+auto permission detect
+```
+
+The CLI command inspects the parent process tree for `--dangerously-skip-permissions` flag and returns:
+- `"bypass"` — flag found → all agents use `bypassPermissions`
+- `"safe"` — flag not found or detection failed → preserve existing per-agent modes
+
+### Dynamic Mode Assignment
+
+| PERMISSION_MODE | plan agents | bypass agents |
+|-----------------|-------------|---------------|
+| `"bypass"` | → `bypassPermissions` | → `bypassPermissions` (unchanged) |
+| `"safe"` | → `plan` (unchanged) | → `bypassPermissions` (unchanged) |
+
+WHEN `PERMISSION_MODE = "bypass"`, THE SYSTEM SHALL set ALL agents' mode to `bypassPermissions`, overriding the default `plan` mode for planner, validator, reviewer, and security-auditor.
+
+WHEN `PERMISSION_MODE = "safe"`, THE SYSTEM SHALL preserve the existing mode assignments (plan/bypassPermissions mix).
+
 ## Pipeline Overview
 
 ```

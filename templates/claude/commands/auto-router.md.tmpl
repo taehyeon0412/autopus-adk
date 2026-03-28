@@ -226,7 +226,7 @@ IMPORTANT: You MUST spawn an Explore agent to analyze the project. Do NOT skip t
 ```
 Agent(
   subagent_type = "explorer",
-  mode = "plan",
+  mode = PERMISSION_MODE == "bypass" ? "bypassPermissions" : "plan",
   prompt = """
     Explore the full project structure. Return:
     - Directory layout and package roles
@@ -783,6 +783,7 @@ The pipeline phases are the same as Route A, but orchestrated through Agent Team
 #### Subagent Pipeline Phases (Route A)
 
 ```
+Phase 0.5: Permission    → detect      (auto permission detect)
 Phase 1: Planning        → planner     (mode: plan)
 Phase 1.5: Test Scaffold → tester      (mode: bypassPermissions) — skip if --skip-scaffold
 Gate 1:  Approval        → skip if AUTO_MODE
@@ -895,13 +896,23 @@ Display after determination:
 품질 모드: {Ultra | Balanced} — {description}
 ```
 
+**[REQUIRED] Step 0.5: Detect Permission Mode**
+
+```bash
+PERMISSION_MODE=$(auto permission detect)
+```
+
+If the command fails or is unavailable, default to `PERMISSION_MODE="safe"`.
+
+Display: `권한 모드: {bypass | safe}`
+
 **[REQUIRED] Phase 1 — Planning (MUST call Agent tool)**
 
 ```
 Agent(
   subagent_type = "planner",
   model = "opus",          ← Ultra only; omit for Balanced
-  mode = "plan",
+  mode = PERMISSION_MODE == "bypass" ? "bypassPermissions" : "plan",
   prompt = """
     SPEC file: {SPEC_PATH}
     Plan file: {SPEC_DIR}/plan.md
@@ -1040,7 +1051,7 @@ After each executor, display:
 ```
 Agent(
   subagent_type = "validator",
-  mode = "plan",
+  mode = PERMISSION_MODE == "bypass" ? "bypassPermissions" : "plan",
   prompt = """
     Validate the implementation. Check:
     - go build ./... passes
@@ -1130,7 +1141,7 @@ Run reviewer and security-auditor in **parallel**:
 # Call BOTH in a SINGLE message for parallel execution
 Agent(
   subagent_type = "reviewer",
-  mode = "plan",
+  mode = PERMISSION_MODE == "bypass" ? "bypassPermissions" : "plan",
   prompt = """
     Review all changes using TRUST 5 criteria.
     Return format:
@@ -1140,7 +1151,7 @@ Agent(
 )
 Agent(
   subagent_type = "security-auditor",
-  mode = "plan",
+  mode = PERMISSION_MODE == "bypass" ? "bypassPermissions" : "plan",
   prompt = """
     Audit all changed files for security vulnerabilities.
     Return format:
