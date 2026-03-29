@@ -162,6 +162,25 @@ func runPaneDebate(ctx context.Context, cfg OrchestraConfig, rounds int, perRoun
 func executeRound(ctx context.Context, cfg OrchestraConfig, panes []paneInfo, hookSession *HookSession, round int, prevResponses []ProviderResponse) []ProviderResponse {
 	patterns := DefaultCompletionPatterns()
 
+	// R1: Validate surfaces for Round 2+ and recreate stale panes.
+	if round > 1 {
+		for i, pi := range panes {
+			if pi.skipWait || !needsSurfaceCheck(pi.provider) {
+				continue
+			}
+			if !validateSurface(ctx, cfg.Terminal, pi.paneID) {
+				newPI, err := recreatePane(ctx, cfg, pi, round)
+				if err != nil {
+					// R4: Mark as skip on recreation failure.
+					log.Printf("[Round %d] %s surface invalid, recreate failed: %v — skipping", round, pi.provider.Name, err)
+					panes[i].skipWait = true
+				} else {
+					panes[i] = newPI
+				}
+			}
+		}
+	}
+
 	// R2: Capture screen baselines BEFORE sending prompts to prevent false-positive
 	// completion detection from previous round's leftover prompt.
 	baselines := make(map[string]string)
@@ -206,12 +225,18 @@ func executeRound(ctx context.Context, cfg OrchestraConfig, panes []paneInfo, ho
 		if pi.provider.InteractiveInput == "args" && round == 1 {
 			continue
 		}
-		// R8: Retry once on SendLongText failure
+		// R6: On SendLongText failure, attempt pane recreation once before skipping.
 		if err := cfg.Terminal.SendLongText(ctx, pi.paneID, prompt); err != nil {
-			log.Printf("[Round %d] %s SendLongText failed: %v — retrying", round, pi.provider.Name, err)
-			time.Sleep(1 * time.Second)
-			if retryErr := cfg.Terminal.SendLongText(ctx, pi.paneID, prompt); retryErr != nil {
-				log.Printf("[Round %d] %s SendLongText retry failed: %v — skipping", round, pi.provider.Name, retryErr)
+			log.Printf("[Round %d] %s SendLongText failed: %v — attempting pane recreation", round, pi.provider.Name, err)
+			newPI, recErr := recreatePane(ctx, cfg, pi, round)
+			if recErr != nil {
+				log.Printf("[Round %d] %s recreatePane failed: %v — skipping", round, pi.provider.Name, recErr)
+				panes[i].skipWait = true
+				continue
+			}
+			panes[i] = newPI
+			if retryErr := cfg.Terminal.SendLongText(ctx, newPI.paneID, prompt); retryErr != nil {
+				log.Printf("[Round %d] %s SendLongText after recreate failed: %v — skipping", round, pi.provider.Name, retryErr)
 				panes[i].skipWait = true
 				continue
 			}

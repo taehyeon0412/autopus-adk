@@ -33,7 +33,11 @@ func (m *retryableSendLongTextMock) SendLongText(_ context.Context, paneID termi
 	return nil
 }
 
-// TestExecuteRound_SendLongText_RetrySuccess verifies SendLongText retry on first failure.
+// TestExecuteRound_SendLongText_RetrySuccess verifies SendLongText retry via
+// pane recreation (R6) on first failure. The flow is:
+// 1. SendLongText(prompt) fails
+// 2. recreatePane: SendLongText(launch cmd) succeeds
+// 3. SendLongText(prompt) retry on new pane succeeds
 func TestExecuteRound_SendLongText_RetrySuccess(t *testing.T) {
 	t.Parallel()
 	mock := &retryableSendLongTextMock{failCount: 1}
@@ -41,7 +45,7 @@ func TestExecuteRound_SendLongText_RetrySuccess(t *testing.T) {
 	mock.readScreenOutput = "❯\n"
 
 	cfg := OrchestraConfig{
-		Providers:      []ProviderConfig{{Name: "claude", Binary: "echo"}},
+		Providers:      []ProviderConfig{{Name: "opencode", Binary: "opencode"}},
 		Strategy:       StrategyDebate,
 		Prompt:         "test retry",
 		TimeoutSeconds: 5,
@@ -56,11 +60,11 @@ func TestExecuteRound_SendLongText_RetrySuccess(t *testing.T) {
 
 	_ = executeRound(ctx, cfg, panes, nil, 1, nil)
 
-	// Should have 2 SendLongText calls: first failed, retry succeeded
+	// R6: 3 SendLongText calls: initial fail + recreatePane launch + retry success
 	mock.mu.Lock()
 	callCount := len(mock.sendLongTextCalls)
 	mock.mu.Unlock()
-	assert.Equal(t, 2, callCount, "should retry SendLongText once on failure")
+	assert.Equal(t, 3, callCount, "R6: initial fail + recreatePane launch + retry prompt")
 	// Provider should NOT be marked skipWait (retry succeeded)
 	assert.False(t, panes[0].skipWait, "retry succeeded — skipWait must be false")
 }
