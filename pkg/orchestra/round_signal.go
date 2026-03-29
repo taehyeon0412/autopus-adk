@@ -15,21 +15,28 @@ func RoundSignalName(provider string, round int, suffix string) string {
 	return fmt.Sprintf("%s-round%d-%s", sanitizeProviderName(provider), round, suffix)
 }
 
-// CleanRoundSignals removes done signal files for the given round,
-// preserving result files. Scans the session directory for files
-// matching the "*-round{N}-done" pattern.
+// CleanRoundSignals removes signal files for the given round,
+// preserving result files. Cleans done, input.json, ready, and abort files.
 func CleanRoundSignals(session *HookSession, round int) {
-	pattern := fmt.Sprintf("*-round%d-done", round)
-	matches, err := filepath.Glob(filepath.Join(session.Dir(), pattern))
-	if err != nil {
-		return
+	patterns := []string{
+		fmt.Sprintf("*-round%d-done", round),
+		fmt.Sprintf("*-round%d-input.json", round),
+		fmt.Sprintf("*-round%d-ready", round),
+		fmt.Sprintf("*-round%d-abort", round),
 	}
-	for _, m := range matches {
-		_ = os.Remove(m)
+	for _, pattern := range patterns {
+		matches, err := filepath.Glob(filepath.Join(session.Dir(), pattern))
+		if err != nil {
+			continue
+		}
+		for _, m := range matches {
+			_ = os.Remove(m)
+		}
 	}
 }
 
 // SetRoundEnv sets the AUTOPUS_ROUND environment variable to the current round number.
+// @AX:WARN [AUTO] global state mutation via os.Setenv — affects all goroutines; safe only when called from single-threaded debate loop
 func SetRoundEnv(round int) {
 	_ = os.Setenv("AUTOPUS_ROUND", fmt.Sprintf("%d", round))
 }

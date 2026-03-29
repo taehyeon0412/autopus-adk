@@ -192,7 +192,8 @@ func executeRound(ctx context.Context, cfg OrchestraConfig, panes []paneInfo, ho
 		baselines[pi.provider.Name] = screen
 	}
 
-	for i, pi := range panes {
+	for i := range panes {
+		pi := &panes[i] // pointer to slice element — stays current after recreation
 		if pi.skipWait {
 			continue
 		}
@@ -225,24 +226,45 @@ func executeRound(ctx context.Context, cfg OrchestraConfig, panes []paneInfo, ho
 		if pi.provider.InteractiveInput == "args" && round == 1 {
 			continue
 		}
-		// R6: On SendLongText failure, attempt pane recreation once before skipping.
+
+		// File IPC for Round 2+ when hook is available (SPEC-ORCH-017 R4)
+		if round > 1 && hookSession != nil && hookSession.HasHook(pi.provider.Name) {
+			if tryFileIPC(ctx, hookSession, pi.provider.Name, round, prompt) {
+				continue
+			}
+		}
+
+		// R6: On SendLongText failure, attempt pane recreation once, then retry
+		// with exponential backoff (500ms, 1s, 2s) before skipping.
 		if err := cfg.Terminal.SendLongText(ctx, pi.paneID, prompt); err != nil {
 			log.Printf("[Round %d] %s SendLongText failed: %v — attempting pane recreation", round, pi.provider.Name, err)
-			newPI, recErr := recreatePane(ctx, cfg, pi, round)
+			newPI, recErr := recreatePane(ctx, cfg, *pi, round)
 			if recErr != nil {
 				log.Printf("[Round %d] %s recreatePane failed: %v — skipping", round, pi.provider.Name, recErr)
 				panes[i].skipWait = true
 				continue
 			}
 			panes[i] = newPI
-			if retryErr := cfg.Terminal.SendLongText(ctx, newPI.paneID, prompt); retryErr != nil {
-				log.Printf("[Round %d] %s SendLongText after recreate failed: %v — skipping", round, pi.provider.Name, retryErr)
+
+			retryOK := false
+			for attempt := 1; attempt <= 3; attempt++ {
+				if retryErr := cfg.Terminal.SendLongText(ctx, newPI.paneID, prompt); retryErr == nil {
+					retryOK = true
+					break
+				}
+				wait := time.Duration(attempt) * 500 * time.Millisecond
+				log.Printf("[Round %d] %s SendLongText attempt %d failed, waiting %v...", round, pi.provider.Name, attempt, wait)
+				time.Sleep(wait)
+			}
+			if !retryOK {
+				log.Printf("[Round %d] %s SendLongText failed after 3 attempts — skipping", round, pi.provider.Name)
 				panes[i].skipWait = true
 				continue
 			}
 		}
 		time.Sleep(500 * time.Millisecond)
-		// R8: Retry once on SendCommand (Enter) failure
+		// R8: Retry once on SendCommand (Enter) failure.
+		// pi is a pointer to panes[i], so it reflects recreatePane updates.
 		if err := cfg.Terminal.SendCommand(ctx, pi.paneID, "\n"); err != nil {
 			log.Printf("[Round %d] %s SendCommand failed: %v — retrying", round, pi.provider.Name, err)
 			time.Sleep(1 * time.Second)
@@ -276,7 +298,3 @@ func executeRound(ctx context.Context, cfg OrchestraConfig, panes []paneInfo, ho
 	}
 	return responses
 }
-
-// Helper functions (collectRoundHookResults, runJudgeRound, consensusReached,
-// perRoundTimeout, buildDebateResult, mergeByStrategyWithRoundHistory) are in
-// interactive_debate_helpers.go.

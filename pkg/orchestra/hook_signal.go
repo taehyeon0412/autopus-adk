@@ -185,3 +185,37 @@ func (s *HookSession) Dir() string {
 func (s *HookSession) SessionID() string {
 	return s.sessionID
 }
+
+// WriteInput writes a prompt to the provider's input file (convenience for round 0).
+func (s *HookSession) WriteInput(provider, prompt string) error {
+	return s.WriteInputRound(provider, 0, prompt)
+}
+
+// WriteInputRound writes a round-scoped input prompt file using atomic write.
+// Creates {provider}-round{N}-input.json with HookInput JSON.
+func (s *HookSession) WriteInputRound(provider string, round int, prompt string) error {
+	filename := RoundSignalName(provider, round, "input.json")
+	path := filepath.Join(s.sessionDir, filename)
+	input := HookInput{Provider: provider, Round: round, Prompt: prompt}
+	return atomicWriteJSON(path, input)
+}
+
+// WaitForReady polls for the provider's ready signal file (convenience wrapper).
+func (s *HookSession) WaitForReady(timeout time.Duration, provider string, round int) error {
+	return s.WaitForReadyCtx(context.Background(), timeout, provider, round)
+}
+
+// WaitForReadyCtx polls for the round-scoped ready signal file, respecting context.
+// Ready file format: {provider}-round{N}-ready
+func (s *HookSession) WaitForReadyCtx(ctx context.Context, timeout time.Duration, provider string, round int) error {
+	readyName := RoundSignalName(provider, round, "ready")
+	return s.waitForFileCtx(ctx, timeout, readyName)
+}
+
+// WriteAbortSignal creates an abort signal file to unblock hook input watchers.
+// R5-SAFETY: Prevents deadlock when Orchestra falls back to SendLongText.
+func (s *HookSession) WriteAbortSignal(provider string, round int) error {
+	abortName := RoundSignalName(provider, round, "abort")
+	path := filepath.Join(s.sessionDir, abortName)
+	return os.WriteFile(path, []byte{}, 0o600)
+}

@@ -47,3 +47,44 @@ chmod 600 "${RESULT_FILE}"
 
 # Write done signal (empty file).
 : > "${DONE_FILE}"
+
+# --- Bidirectional IPC: Ready signal + Input watch loop (SPEC-ORCH-017) ---
+# Only activate for round-scoped sessions.
+if [ -n "$AUTOPUS_ROUND" ]; then
+  NEXT_ROUND=$((AUTOPUS_ROUND + 1))
+  READY_FILE="${SESSION_DIR}/gemini-round${NEXT_ROUND}-ready"
+  INPUT_FILE="${SESSION_DIR}/gemini-round${NEXT_ROUND}-input.json"
+  ABORT_FILE="${SESSION_DIR}/gemini-round${NEXT_ROUND}-abort"
+
+  # Signal ready for next round input.
+  : > "${READY_FILE}"
+
+  # Poll for input file (200ms intervals, 120s timeout = 600 iterations).
+  # @AX:NOTE [AUTO] magic constants 200ms/600 iterations — must match Go-side fileIPCReadyTimeout budget
+  WAIT_COUNT=0
+  MAX_WAIT=600
+  while [ "$WAIT_COUNT" -lt "$MAX_WAIT" ]; do
+    if [ -f "$ABORT_FILE" ]; then
+      rm -f "${READY_FILE}" "${ABORT_FILE}"
+      exit 0
+    fi
+    if [ -f "$INPUT_FILE" ]; then
+      PROMPT=$(python3 -c "
+import json, sys
+with open(sys.argv[1]) as f:
+    data = json.load(f)
+print(data.get('prompt', ''))
+" "${INPUT_FILE}") || PROMPT=""
+      rm -f "${INPUT_FILE}" "${READY_FILE}"
+      if [ -n "$PROMPT" ]; then
+        printf '%s' "$PROMPT"
+      fi
+      exit 0
+    fi
+    python3 -c "import time; time.sleep(0.2)" || sleep 1
+    WAIT_COUNT=$((WAIT_COUNT + 1))
+  done
+
+  # Timeout — clean up ready signal and exit normally.
+  rm -f "${READY_FILE}"
+fi
