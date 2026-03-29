@@ -142,3 +142,62 @@ func TestHandleConsensus_BelowThreshold(t *testing.T) {
 	assert.Contains(t, summary, "합의율")
 	_ = merged
 }
+
+// --- SPEC-ORCHCFG-001 Phase 1.5: Threshold Test Scaffolds ---
+
+// R3: handleConsensus must use OrchestraConfig.ConsensusThreshold instead of hardcoded 0.66.
+// This test sets threshold=1.0 so only unanimous lines pass, then verifies that
+// a line appearing in 2/3 responses is excluded. Currently handleConsensus ignores
+// the config field and always passes 0.66, so this test MUST FAIL.
+func TestHandleConsensus_UsesConfigThreshold(t *testing.T) {
+	t.Parallel()
+
+	// "python is popular" appears in 2 of 3 responses (67%).
+	// With threshold=1.0 it should NOT appear in consensus.
+	// With the hardcoded 0.66, it WILL appear — proving the config is ignored.
+	responses := []ProviderResponse{
+		makeResponse("p1", "golang is great\npython is popular"),
+		makeResponse("p2", "golang is great\npython is popular"),
+		makeResponse("p3", "golang is great\nrust is fast"),
+	}
+
+	cfg := OrchestraConfig{
+		Strategy:           StrategyConsensus,
+		ConsensusThreshold: 1.0, // require 100% agreement
+	}
+	merged, _, err := handleConsensus(context.Background(), responses, cfg)
+	require.NoError(t, err)
+	// "python is popular" is 2/3 (67%) — with threshold=1.0 it must NOT be consensus
+	assert.NotContains(t, merged, "python is popular",
+		"handleConsensus should respect ConsensusThreshold=1.0 and exclude 67% lines")
+}
+
+// R3: handleConsensus with zero threshold should use default 0.66.
+// This test sets threshold=0 and checks a line at exactly 33% (1/3) is excluded.
+// Currently handleConsensus hardcodes 0.66 so this also excludes it — making the
+// test pass. We need a complementary assertion: set threshold=0.2 and verify the
+// same line IS included (which the hardcoded 0.66 will reject).
+func TestHandleConsensus_LowThresholdIncludesMoreLines(t *testing.T) {
+	t.Parallel()
+
+	// "rust is fast" appears in 1 of 3 responses (33%).
+	// With threshold=0.2 it should appear in consensus.
+	// With the hardcoded 0.66 it will NOT — proving the config is ignored.
+	responses := []ProviderResponse{
+		makeResponse("p1", "golang is great\npython is popular"),
+		makeResponse("p2", "golang is great\npython is popular"),
+		makeResponse("p3", "golang is great\nrust is fast"),
+	}
+
+	cfg := OrchestraConfig{
+		Strategy:           StrategyConsensus,
+		ConsensusThreshold: 0.2, // low threshold — 33% should pass
+	}
+	merged, _, err := handleConsensus(context.Background(), responses, cfg)
+	require.NoError(t, err)
+	// "rust is fast" is 1/3 (33%) — with threshold=0.2 it must appear in the
+	// consensus section (marked with checkmark), NOT in the disagreement section.
+	// The hardcoded 0.66 will put it in disagreement instead.
+	assert.Contains(t, merged, "\u2713 rust is fast",
+		"handleConsensus should respect ConsensusThreshold=0.2 and include 33% lines in consensus")
+}

@@ -56,29 +56,29 @@ type IssueReportConf struct {
 
 // HarnessConfig는 autopus.yaml의 최상위 설정 구조이다.
 type HarnessConfig struct {
-	Mode          Mode              `yaml:"mode"`
-	ProjectName   string            `yaml:"project_name"`
-	Platforms     []string          `yaml:"platforms"`
-	IsolateRules  bool              `yaml:"isolate_rules,omitempty"`
-	Stack         string            `yaml:"stack,omitempty"`     // detected stack: go, typescript, python, rust
-	Framework     string            `yaml:"framework,omitempty"` // detected framework: nextjs, django, gin, etc.
-	Language      LanguageConf      `yaml:"language,omitempty"`
-	Architecture  ArchitectureConf  `yaml:"architecture"`
-	Lore          LoreConf          `yaml:"lore"`
-	Spec          SpecConf          `yaml:"spec"`
-	Methodology   MethodologyConf   `yaml:"methodology,omitempty"`
-	Router        RouterConf        `yaml:"router,omitempty"`
-	Hooks         HooksConf         `yaml:"hooks"`
-	Session       SessionConf       `yaml:"session,omitempty"`
-	Orchestra     OrchestraConf     `yaml:"orchestra,omitempty"`
-	Quality       QualityConf       `yaml:"quality,omitempty"`
-	Skills        SkillsConf        `yaml:"skills,omitempty"`
-	Verify        VerifyConf        `yaml:"verify,omitempty"`
-	Constraints   ConstraintConf    `yaml:"constraints,omitempty"`
-	Context       ContextConf       `yaml:"context,omitempty"`
-	Telemetry     TelemetryConf     `yaml:"telemetry,omitempty"`
-	IssueReport   IssueReportConf   `yaml:"issue_report,omitempty"`
-	Profiles      ProfilesConf      `yaml:"profiles,omitempty"`
+	Mode         Mode             `yaml:"mode"`
+	ProjectName  string           `yaml:"project_name"`
+	Platforms    []string         `yaml:"platforms"`
+	IsolateRules bool             `yaml:"isolate_rules,omitempty"`
+	Stack        string           `yaml:"stack,omitempty"`     // detected stack: go, typescript, python, rust
+	Framework    string           `yaml:"framework,omitempty"` // detected framework: nextjs, django, gin, etc.
+	Language     LanguageConf     `yaml:"language,omitempty"`
+	Architecture ArchitectureConf `yaml:"architecture"`
+	Lore         LoreConf         `yaml:"lore"`
+	Spec         SpecConf         `yaml:"spec"`
+	Methodology  MethodologyConf  `yaml:"methodology,omitempty"`
+	Router       RouterConf       `yaml:"router,omitempty"`
+	Hooks        HooksConf        `yaml:"hooks"`
+	Session      SessionConf      `yaml:"session,omitempty"`
+	Orchestra    OrchestraConf    `yaml:"orchestra,omitempty"`
+	Quality      QualityConf      `yaml:"quality,omitempty"`
+	Skills       SkillsConf       `yaml:"skills,omitempty"`
+	Verify       VerifyConf       `yaml:"verify,omitempty"`
+	Constraints  ConstraintConf   `yaml:"constraints,omitempty"`
+	Context      ContextConf      `yaml:"context,omitempty"`
+	Telemetry    TelemetryConf    `yaml:"telemetry,omitempty"`
+	IssueReport  IssueReportConf  `yaml:"issue_report,omitempty"`
+	Profiles     ProfilesConf     `yaml:"profiles,omitempty"`
 }
 
 // ProfilesConf holds profile configuration for agents.
@@ -95,27 +95,29 @@ type ExecutorProfileConf struct {
 
 // OrchestraConf는 다중 모델 오케스트레이션 설정이다 (Full 전용).
 type OrchestraConf struct {
-	Enabled         bool                     `yaml:"enabled"`
-	DefaultStrategy string                   `yaml:"default_strategy"`
-	TimeoutSeconds  int                      `yaml:"timeout_seconds"`
-	Providers       map[string]ProviderEntry `yaml:"providers,omitempty"`
-	Commands        map[string]CommandEntry  `yaml:"commands,omitempty"`
+	Enabled            bool                     `yaml:"enabled"`
+	DefaultStrategy    string                   `yaml:"default_strategy"`
+	TimeoutSeconds     int                      `yaml:"timeout_seconds"`
+	ConsensusThreshold float64                  `yaml:"consensus_threshold,omitempty"` // global consensus threshold
+	Providers          map[string]ProviderEntry `yaml:"providers,omitempty"`
+	Commands           map[string]CommandEntry  `yaml:"commands,omitempty"`
 }
 
 // ProviderEntry는 프로바이더 실행 설정이다.
 type ProviderEntry struct {
-	Binary        string   `yaml:"binary"`
-	Args          []string `yaml:"args,flow"`
-	PaneArgs      []string `yaml:"pane_args,flow,omitempty"`
-	PromptViaArgs    bool   `yaml:"prompt_via_args,omitempty"`
-	InteractiveInput string `yaml:"interactive_input,omitempty"`
+	Binary           string   `yaml:"binary"`
+	Args             []string `yaml:"args,flow"`
+	PaneArgs         []string `yaml:"pane_args,flow,omitempty"`
+	PromptViaArgs    bool     `yaml:"prompt_via_args,omitempty"`
+	InteractiveInput string   `yaml:"interactive_input,omitempty"`
 }
 
 // CommandEntry는 커맨드별 오케스트레이션 설정이다.
 type CommandEntry struct {
-	Strategy  string   `yaml:"strategy"`
-	Providers []string `yaml:"providers,flow"`
-	Judge     string   `yaml:"judge,omitempty"` // provider name to act as debate judge
+	Strategy           string   `yaml:"strategy"`
+	Providers          []string `yaml:"providers,flow"`
+	Judge              string   `yaml:"judge,omitempty"`               // provider name to act as debate judge
+	ConsensusThreshold float64  `yaml:"consensus_threshold,omitempty"` // per-command consensus threshold override
 }
 
 // ArchitectureConf는 ARCHITECTURE.md 설정이다.
@@ -127,10 +129,10 @@ type ArchitectureConf struct {
 
 // LoreConf는 Lore Decision Knowledge 설정이다.
 type LoreConf struct {
-	Enabled           bool     `yaml:"enabled"`
-	AutoInject        bool     `yaml:"auto_inject"`
-	RequiredTrailers  []string `yaml:"required_trailers"`
-	StaleThresholdDays int    `yaml:"stale_threshold_days"`
+	Enabled            bool     `yaml:"enabled"`
+	AutoInject         bool     `yaml:"auto_inject"`
+	RequiredTrailers   []string `yaml:"required_trailers"`
+	StaleThresholdDays int      `yaml:"stale_threshold_days"`
 }
 
 // SpecConf는 SPEC 엔진 설정이다.

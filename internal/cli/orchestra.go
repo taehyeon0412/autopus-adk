@@ -53,8 +53,9 @@ func newOrchestraReviewCmd() *cobra.Command {
 			flagStrategy := flagStringIfChanged(cmd, "strategy", strategy)
 			flagProviders := flagStringSliceIfChanged(cmd, "providers", providers)
 			keepRelay, _ := cmd.Flags().GetBool("keep-relay-output")
+			thresholdFlag, _ := cmd.Flags().GetFloat64("threshold")
 			prompt := buildReviewPrompt(args)
-			return runOrchestraCommand(cmd.Context(), "review", flagStrategy, flagProviders, timeout, judge, prompt, 0, noDetach, keepRelay)
+			return runOrchestraCommand(cmd.Context(), "review", flagStrategy, flagProviders, timeout, judge, prompt, 0, thresholdFlag, noDetach, keepRelay)
 		},
 	}
 
@@ -62,6 +63,7 @@ func newOrchestraReviewCmd() *cobra.Command {
 	cmd.Flags().StringSliceVarP(&providers, "providers", "p", nil, "사용할 프로바이더 목록")
 	cmd.Flags().IntVarP(&timeout, "timeout", "t", 120, "타임아웃 (초)")
 	cmd.Flags().StringVar(&judge, "judge", "", "debate 전략에서 최종 판정 프로바이더")
+	cmd.Flags().Float64("threshold", 0, "consensus 전략 합의 임계값 (0.0-1.0)")
 	cmd.Flags().BoolVar(&noDetach, "no-detach", false, "Disable auto-detach mode")
 	cmd.Flags().Bool("keep-relay-output", false, "relay 전략 실행 후 임시 파일 보존")
 
@@ -87,15 +89,17 @@ func newOrchestraPlanCmd() *cobra.Command {
 			flagStrategy := flagStringIfChanged(cmd, "strategy", strategy)
 			flagProviders := flagStringSliceIfChanged(cmd, "providers", providers)
 			keepRelay, _ := cmd.Flags().GetBool("keep-relay-output")
+			thresholdFlag, _ := cmd.Flags().GetFloat64("threshold")
 			resolvedRounds := resolveRounds(flagStrategy, rounds)
 			prompt := args[0]
-			return runOrchestraCommand(cmd.Context(), "plan", flagStrategy, flagProviders, timeout, "", prompt, resolvedRounds, noDetach, keepRelay)
+			return runOrchestraCommand(cmd.Context(), "plan", flagStrategy, flagProviders, timeout, "", prompt, resolvedRounds, thresholdFlag, noDetach, keepRelay)
 		},
 	}
 
 	cmd.Flags().StringVarP(&strategy, "strategy", "s", "", "오케스트레이션 전략 (consensus|pipeline|debate|fastest|relay)")
 	cmd.Flags().StringSliceVarP(&providers, "providers", "p", nil, "사용할 프로바이더 목록")
 	cmd.Flags().IntVarP(&timeout, "timeout", "t", 120, "타임아웃 (초)")
+	cmd.Flags().Float64("threshold", 0, "consensus 전략 합의 임계값 (0.0-1.0)")
 	cmd.Flags().IntVar(&rounds, "rounds", 0, "debate 라운드 수 (1-10, debate 전략 전용)")
 	cmd.Flags().BoolVar(&noDetach, "no-detach", false, "Disable auto-detach mode")
 	cmd.Flags().Bool("keep-relay-output", false, "relay 전략 실행 후 임시 파일 보존")
@@ -120,14 +124,16 @@ func newOrchestraSecureCmd() *cobra.Command {
 			flagStrategy := flagStringIfChanged(cmd, "strategy", strategy)
 			flagProviders := flagStringSliceIfChanged(cmd, "providers", providers)
 			keepRelay, _ := cmd.Flags().GetBool("keep-relay-output")
+			thresholdFlag, _ := cmd.Flags().GetFloat64("threshold")
 			prompt := buildSecurePrompt(args)
-			return runOrchestraCommand(cmd.Context(), "secure", flagStrategy, flagProviders, timeout, "", prompt, 0, noDetach, keepRelay)
+			return runOrchestraCommand(cmd.Context(), "secure", flagStrategy, flagProviders, timeout, "", prompt, 0, thresholdFlag, noDetach, keepRelay)
 		},
 	}
 
 	cmd.Flags().StringVarP(&strategy, "strategy", "s", "", "오케스트레이션 전략 (consensus|pipeline|debate|fastest|relay)")
 	cmd.Flags().StringSliceVarP(&providers, "providers", "p", nil, "사용할 프로바이더 목록")
 	cmd.Flags().IntVarP(&timeout, "timeout", "t", 120, "타임아웃 (초)")
+	cmd.Flags().Float64("threshold", 0, "consensus 전략 합의 임계값 (0.0-1.0)")
 	cmd.Flags().BoolVar(&noDetach, "no-detach", false, "Disable auto-detach mode")
 	cmd.Flags().Bool("keep-relay-output", false, "relay 전략 실행 후 임시 파일 보존")
 
@@ -147,6 +153,7 @@ func runOrchestraCommand(
 	judge string,
 	prompt string,
 	rounds int,
+	threshold float64,
 	boolFlags ...bool,
 ) error {
 	// @AX:NOTE [AUTO] REQ-11 opportunistic GC — fires on every orchestra invocation; 1h TTL
@@ -179,6 +186,26 @@ func runOrchestraCommand(
 		if judge == "" {
 			judge = resolveJudge(orchConf, commandName, "")
 		}
+	}
+
+	// Validate and resolve consensus threshold
+	if err := validateThreshold(threshold); err != nil {
+		return err
+	}
+	var resolvedThreshold float64
+	if configErr != nil || orchConf == nil {
+		// No config: use flag or default
+		if threshold > 0 {
+			resolvedThreshold = threshold
+		} else {
+			resolvedThreshold = 0.66
+		}
+	} else {
+		resolvedThreshold = resolveThreshold(orchConf, commandName, threshold)
+	}
+	// Validate resolved value (guards against invalid config file values)
+	if err := validateThreshold(resolvedThreshold); err != nil {
+		return fmt.Errorf("resolved threshold invalid: %w", err)
 	}
 
 	s := orchestra.Strategy(strategyStr)
@@ -218,18 +245,19 @@ func runOrchestraCommand(
 	}
 
 	cfg := orchestra.OrchestraConfig{
-		Providers:       providers,
-		Strategy:        s,
-		Prompt:          prompt,
-		TimeoutSeconds:  timeout,
-		JudgeProvider:   judge,
-		DebateRounds:    rounds,
-		Terminal:        term,
-		NoDetach:        nd,
-		KeepRelayOutput: keepRelay,
-		Interactive:     interactive,
-		HookMode:        hookMode,
-		SessionID:       sessionID,
+		Providers:          providers,
+		Strategy:           s,
+		Prompt:             prompt,
+		TimeoutSeconds:     timeout,
+		JudgeProvider:      judge,
+		DebateRounds:       rounds,
+		ConsensusThreshold: resolvedThreshold,
+		Terminal:           term,
+		NoDetach:           nd,
+		KeepRelayOutput:    keepRelay,
+		Interactive:        interactive,
+		HookMode:           hookMode,
+		SessionID:          sessionID,
 	}
 
 	providerNames := make([]string, len(providers))
@@ -262,6 +290,3 @@ func runOrchestraCommand(
 	fmt.Fprintf(os.Stderr, "\n요약: %s (총 %s)\n", result.Summary, result.Duration.Round(1e6))
 	return nil
 }
-
-
-

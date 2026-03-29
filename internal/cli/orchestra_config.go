@@ -1,6 +1,9 @@
 package cli
 
 import (
+	"fmt"
+	"math"
+
 	"github.com/insajin/autopus-adk/pkg/config"
 	"github.com/insajin/autopus-adk/pkg/orchestra"
 )
@@ -107,4 +110,33 @@ func resolveStrategy(conf *config.OrchestraConf, commandName string, flagStrateg
 	}
 
 	return "consensus"
+}
+
+// resolveThreshold determines the consensus threshold to use.
+// Priority order: CLI flag > command-specific config > global config > 0.66 default.
+func resolveThreshold(conf *config.OrchestraConf, commandName string, flagValue float64) float64 {
+	if flagValue > 0 {
+		return flagValue
+	}
+
+	if cmd, ok := conf.Commands[commandName]; ok && cmd.ConsensusThreshold > 0 {
+		return cmd.ConsensusThreshold
+	}
+
+	if conf.ConsensusThreshold > 0 {
+		return conf.ConsensusThreshold
+	}
+
+	return 0.66
+}
+
+// validateThreshold checks that a threshold value is a valid number within [0.0, 1.0].
+func validateThreshold(threshold float64) error {
+	if math.IsNaN(threshold) || math.IsInf(threshold, 0) {
+		return fmt.Errorf("threshold must be a valid number, got %v", threshold)
+	}
+	if threshold < 0.0 || threshold > 1.0 {
+		return fmt.Errorf("threshold must be between 0.0 and 1.0, got %f", threshold)
+	}
+	return nil
 }

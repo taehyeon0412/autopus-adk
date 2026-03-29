@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/insajin/autopus-adk/pkg/terminal"
 )
@@ -88,6 +89,11 @@ func recreatePane(ctx context.Context, cfg OrchestraConfig, pi paneInfo, round i
 	patterns := SessionReadyPatterns()
 	timeout := startupTimeoutFor(pi.provider)
 	pollUntilSessionReady(ctx, cfg.Terminal, newPaneID, patterns, timeout)
+
+	// Post-ready stabilization: allow the CLI and cmux surface to fully
+	// initialize before accepting paste-buffer input. Without this delay,
+	// paste-buffer fails with exit status 1 on newly created surfaces.
+	time.Sleep(2 * time.Second)
 
 	// R3: Log successful recreation.
 	log.Printf("[Surface] %s pane recreated: %s → %s", pi.provider.Name, oldPaneID, newPaneID)

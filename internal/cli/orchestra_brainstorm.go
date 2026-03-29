@@ -28,9 +28,10 @@ judge 모델이 ICE 점수로 아이디어를 통합하고 증폭합니다.`,
 			flagStrategy := flagStringIfChanged(cmd, "strategy", strategy)
 			flagProviders := flagStringSliceIfChanged(cmd, "providers", providers)
 			keepRelay, _ := cmd.Flags().GetBool("keep-relay-output")
+			thresholdFlag, _ := cmd.Flags().GetFloat64("threshold")
 			prompt := buildBrainstormPrompt(args[0])
 			resolvedRounds := resolveRounds(flagStrategy, rounds)
-			return runOrchestraCommand(cmd.Context(), "brainstorm", flagStrategy, flagProviders, timeout, judge, prompt, resolvedRounds, noDetach, keepRelay)
+			return runOrchestraCommand(cmd.Context(), "brainstorm", flagStrategy, flagProviders, timeout, judge, prompt, resolvedRounds, thresholdFlag, noDetach, keepRelay)
 		},
 	}
 
@@ -39,6 +40,7 @@ judge 모델이 ICE 점수로 아이디어를 통합하고 증폭합니다.`,
 	// @AX:NOTE: [AUTO] magic constant — default timeout 120s matches orchestra consensus SLA
 	cmd.Flags().IntVarP(&timeout, "timeout", "t", 120, "타임아웃 (초)")
 	cmd.Flags().StringVar(&judge, "judge", "", "debate 전략에서 최종 판정 프로바이더")
+	cmd.Flags().Float64("threshold", 0, "consensus 전략 합의 임계값 (0.0-1.0)")
 	cmd.Flags().IntVar(&rounds, "rounds", 0, "debate 라운드 수 (1-10, debate 전략 전용)")
 	cmd.Flags().BoolVar(&noDetach, "no-detach", false, "Disable auto-detach mode")
 	cmd.Flags().Bool("keep-relay-output", false, "relay 전략 실행 후 임시 파일 보존")

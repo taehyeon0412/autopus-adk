@@ -33,7 +33,7 @@ func TestExecuteRound_Round2_SurfaceValidation(t *testing.T) {
 	}}
 	prevResponses := []ProviderResponse{{Provider: "claude", Output: "round 1 answer"}}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	_ = executeRound(ctx, cfg, panes, nil, 2, prevResponses)
