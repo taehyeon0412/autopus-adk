@@ -7,64 +7,66 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestMigrateOrchestraConfig_CodexToOpencode verifies R9: codex provider
-// entries are migrated to opencode (binary, args, platform mapping).
-func TestMigrateOrchestraConfig_CodexToOpencode(t *testing.T) {
+// TestMigrateOrchestraConfig_OpencodeToCodex verifies full migration flow:
+// opencode present in providers -> becomes codex with correct defaults.
+func TestMigrateOrchestraConfig_OpencodeToCodex(t *testing.T) {
 	t.Parallel()
 
 	cfg := &HarnessConfig{
 		Mode:        ModeFull,
 		ProjectName: "test-project",
-		Platforms:   []string{"claude-code", "codex"},
-		Orchestra: OrchestraConf{
-			Enabled: true,
-			Providers: map[string]ProviderEntry{
-				"claude": {Binary: "claude", Args: []string{"--print"}},
-				"codex":  {Binary: "codex", Args: []string{"--quiet"}, PromptViaArgs: true},
-			},
-			Commands: map[string]CommandEntry{
-				"review": {Strategy: "debate", Providers: []string{"claude", "codex"}},
-			},
-		},
-	}
-
-	changed, err := MigrateCodexToOpencode(cfg)
-	require.NoError(t, err)
-	assert.True(t, changed, "changed must be true when codex is migrated to opencode")
-
-	// codex entry must be removed.
-	_, hasCodex := cfg.Orchestra.Providers["codex"]
-	assert.False(t, hasCodex, "codex provider must be removed after migration")
-
-	// opencode entry must exist with correct settings.
-	opencode, hasOpencode := cfg.Orchestra.Providers["opencode"]
-	require.True(t, hasOpencode, "opencode provider must exist after migration")
-	assert.Equal(t, "opencode", opencode.Binary, "opencode binary must be 'opencode'")
-
-	// Commands must reference opencode instead of codex.
-	review := cfg.Orchestra.Commands["review"]
-	assert.Contains(t, review.Providers, "opencode",
-		"command providers must include opencode after migration")
-	assert.NotContains(t, review.Providers, "codex",
-		"command providers must not include codex after migration")
-}
-
-// TestMigrateOrchestraConfig_OpencodeAlreadyExists verifies that when
-// opencode provider already exists, codex-to-opencode migration does
-// not create a duplicate entry.
-func TestMigrateOrchestraConfig_OpencodeAlreadyExists(t *testing.T) {
-	t.Parallel()
-
-	cfg := &HarnessConfig{
-		Mode:        ModeFull,
-		ProjectName: "test-project",
-		Platforms:   []string{"claude-code", "codex"},
+		Platforms:   []string{"claude-code", "opencode"},
 		Orchestra: OrchestraConf{
 			Enabled: true,
 			Providers: map[string]ProviderEntry{
 				"claude":   {Binary: "claude", Args: []string{"--print"}},
-				"codex":    {Binary: "codex", Args: []string{"--quiet"}, PromptViaArgs: true},
-				"opencode": {Binary: "opencode", Args: []string{}},
+				"opencode": {Binary: "opencode", Args: []string{"run", "-m", "openai/gpt-5.4"}, PromptViaArgs: false},
+			},
+			Commands: map[string]CommandEntry{
+				"review": {Strategy: "debate", Providers: []string{"claude", "opencode"}},
+			},
+		},
+	}
+
+	changed, err := MigrateOpencodeToCodex(cfg)
+	require.NoError(t, err)
+	assert.True(t, changed, "changed must be true when opencode is migrated to codex")
+
+	// opencode entry must be removed.
+	_, hasOpencode := cfg.Orchestra.Providers["opencode"]
+	assert.False(t, hasOpencode, "opencode provider must be removed after migration")
+
+	// codex entry must exist with correct settings.
+	codex, hasCodex := cfg.Orchestra.Providers["codex"]
+	require.True(t, hasCodex, "codex provider must exist after migration")
+	assert.Equal(t, "codex", codex.Binary, "codex binary must be 'codex'")
+	assert.Equal(t, []string{"exec", "--approval-mode", "full-auto", "--quiet", "-m", "gpt-5.4"}, codex.Args)
+	assert.False(t, codex.PromptViaArgs, "codex PromptViaArgs must be false")
+
+	// Commands must reference codex instead of opencode.
+	review := cfg.Orchestra.Commands["review"]
+	assert.Contains(t, review.Providers, "codex",
+		"command providers must include codex after migration")
+	assert.NotContains(t, review.Providers, "opencode",
+		"command providers must not include opencode after migration")
+}
+
+// TestMigrateOrchestraConfig_CodexAlreadyExists verifies that when
+// codex provider already exists, opencode is removed and existing codex
+// is preserved without duplication.
+func TestMigrateOrchestraConfig_CodexAlreadyExists(t *testing.T) {
+	t.Parallel()
+
+	cfg := &HarnessConfig{
+		Mode:        ModeFull,
+		ProjectName: "test-project",
+		Platforms:   []string{"claude-code", "opencode"},
+		Orchestra: OrchestraConf{
+			Enabled: true,
+			Providers: map[string]ProviderEntry{
+				"claude":   {Binary: "claude", Args: []string{"--print"}},
+				"codex":    {Binary: "codex", Args: []string{"exec", "--quiet"}, PromptViaArgs: false},
+				"opencode": {Binary: "opencode", Args: []string{"run", "-m", "openai/gpt-5.4"}},
 			},
 			Commands: map[string]CommandEntry{
 				"plan": {Strategy: "consensus", Providers: []string{"claude", "codex", "opencode"}},
@@ -72,85 +74,33 @@ func TestMigrateOrchestraConfig_OpencodeAlreadyExists(t *testing.T) {
 		},
 	}
 
-	changed, err := MigrateCodexToOpencode(cfg)
+	changed, err := MigrateOpencodeToCodex(cfg)
 	require.NoError(t, err)
 
-	// codex must still be removed.
-	_, hasCodex := cfg.Orchestra.Providers["codex"]
-	assert.False(t, hasCodex, "codex must be removed even when opencode already exists")
-
-	// opencode must not be duplicated — still exactly one entry.
+	// opencode must be removed.
 	_, hasOpencode := cfg.Orchestra.Providers["opencode"]
-	assert.True(t, hasOpencode, "opencode must still exist")
+	assert.False(t, hasOpencode, "opencode must be removed even when codex already exists")
 
-	// Commands must not list codex.
+	// codex must still exist (not duplicated).
+	_, hasCodex := cfg.Orchestra.Providers["codex"]
+	assert.True(t, hasCodex, "codex must still exist")
+
+	// Commands must not list opencode.
 	plan := cfg.Orchestra.Commands["plan"]
-	assert.NotContains(t, plan.Providers, "codex",
-		"command providers must not include codex after migration")
+	assert.NotContains(t, plan.Providers, "opencode",
+		"command providers must not include opencode after migration")
+	assert.Contains(t, plan.Providers, "codex",
+		"command providers must still include codex")
 
 	_ = changed
 }
 
 // TestPlatformToProvider_Opencode verifies that the "opencode" platform
-// correctly maps to the "opencode" orchestra provider.
+// correctly maps to the "codex" orchestra provider.
 func TestPlatformToProvider_Opencode(t *testing.T) {
 	t.Parallel()
 
 	got := PlatformToProvider("opencode")
-	assert.Equal(t, "opencode", got,
-		"platform 'opencode' must map to provider 'opencode'")
-}
-
-// TestMigrateCodexToOpencode_OrchestraDisabled verifies no-op when
-// orchestra is not enabled.
-func TestMigrateCodexToOpencode_OrchestraDisabled(t *testing.T) {
-	t.Parallel()
-
-	cfg := &HarnessConfig{
-		Orchestra: OrchestraConf{
-			Enabled: false,
-			Providers: map[string]ProviderEntry{
-				"codex": {Binary: "codex"},
-			},
-		},
-	}
-
-	changed, err := MigrateCodexToOpencode(cfg)
-	require.NoError(t, err)
-	assert.False(t, changed, "must not change when orchestra disabled")
-}
-
-// TestMigrateCodexToOpencode_NilProviders verifies no-op when providers
-// map is nil.
-func TestMigrateCodexToOpencode_NilProviders(t *testing.T) {
-	t.Parallel()
-
-	cfg := &HarnessConfig{
-		Orchestra: OrchestraConf{
-			Enabled:   true,
-			Providers: nil,
-		},
-	}
-
-	changed, err := MigrateCodexToOpencode(cfg)
-	require.NoError(t, err)
-	assert.False(t, changed, "must not change when providers is nil")
-}
-
-// TestMigrateCodexToOpencode_NoCodex verifies no-op when codex is absent.
-func TestMigrateCodexToOpencode_NoCodex(t *testing.T) {
-	t.Parallel()
-
-	cfg := &HarnessConfig{
-		Orchestra: OrchestraConf{
-			Enabled: true,
-			Providers: map[string]ProviderEntry{
-				"claude": {Binary: "claude"},
-			},
-		},
-	}
-
-	changed, err := MigrateCodexToOpencode(cfg)
-	require.NoError(t, err)
-	assert.False(t, changed, "must not change when codex not present")
+	assert.Equal(t, "codex", got,
+		"platform 'opencode' must map to provider 'codex'")
 }

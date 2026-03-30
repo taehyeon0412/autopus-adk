@@ -1,6 +1,7 @@
 package config
 
-// DefaultFullConfig는 Full 모드 기본 설정을 반환한다.
+// DefaultFullConfig returns the default config for Full mode.
+// @AX:NOTE: [AUTO] magic constants — model names (opus, sonnet, haiku, gpt-5.4, gemini-3.1-pro-preview), timeouts, and tier mappings are hardcoded below
 func DefaultFullConfig(projectName string) *HarnessConfig {
 	return &HarnessConfig{
 		Mode:        ModeFull,
@@ -65,13 +66,13 @@ func DefaultFullConfig(projectName string) *HarnessConfig {
 			Providers: map[string]ProviderEntry{
 				"claude":   {Binary: "claude", Args: []string{"--print"}, PaneArgs: []string{"--print"}},
 				"gemini":   {Binary: "gemini", Args: []string{}, PaneArgs: []string{}, PromptViaArgs: true},
-				"opencode": {Binary: "opencode", Args: []string{"run", "-m", "openai/gpt-5.4"}, PaneArgs: []string{"-m", "openai/gpt-5.4"}, PromptViaArgs: false},
+				"codex": {Binary: "codex", Args: []string{"exec", "--approval-mode", "full-auto", "--quiet", "-m", "gpt-5.4"}, PaneArgs: []string{"-m", "gpt-5.4"}, PromptViaArgs: false},
 			},
 			Commands: map[string]CommandEntry{
-				"review":     {Strategy: "debate", Providers: []string{"claude", "opencode", "gemini"}},
-				"plan":       {Strategy: "consensus", Providers: []string{"claude", "opencode", "gemini"}},
-				"secure":     {Strategy: "consensus", Providers: []string{"claude", "opencode", "gemini"}},
-				"brainstorm": {Strategy: "debate", Providers: []string{"claude", "opencode", "gemini"}},
+				"review":     {Strategy: "debate", Providers: []string{"claude", "codex", "gemini"}},
+				"plan":       {Strategy: "consensus", Providers: []string{"claude", "codex", "gemini"}},
+				"secure":     {Strategy: "consensus", Providers: []string{"claude", "codex", "gemini"}},
+				"brainstorm": {Strategy: "debate", Providers: []string{"claude", "codex", "gemini"}},
 			},
 		},
 		// Quality presets map agent roles to model tiers.

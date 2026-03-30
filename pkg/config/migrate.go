@@ -2,10 +2,10 @@
 package config
 
 // defaultProviderEntries holds the canonical default settings for known orchestra providers.
-// @AX:NOTE [AUTO] hardcoded provider defaults — update when adding new providers or changing CLI flags
+// @AX:NOTE: [AUTO] hardcoded provider defaults — update when adding new providers or changing CLI flags
 var defaultProviderEntries = map[string]ProviderEntry{
 	"claude":   {Binary: "claude", Args: []string{"--print", "--model", "opus", "--effort", "high"}, PaneArgs: []string{"--print", "--model", "opus", "--effort", "high"}},
-	"codex":    {Binary: "codex", Args: []string{"--quiet"}, PaneArgs: []string{"--quiet"}, PromptViaArgs: true},
+	"codex":    {Binary: "codex", Args: []string{"exec", "--approval-mode", "full-auto", "--quiet", "-m", "gpt-5.4"}, PaneArgs: []string{"-m", "gpt-5.4"}, PromptViaArgs: false},
 	"gemini":   {Binary: "gemini", Args: []string{"-m", "gemini-3.1-pro-preview"}, PaneArgs: []string{"-m", "gemini-3.1-pro-preview"}, PromptViaArgs: true},
 	"opencode": {Binary: "opencode", Args: []string{"run", "-m", "openai/gpt-5.4"}, PaneArgs: []string{"-m", "openai/gpt-5.4"}, PromptViaArgs: false},
 }
@@ -14,10 +14,11 @@ var defaultProviderEntries = map[string]ProviderEntry{
 // It returns (changed bool, err error).
 //
 // Migrations applied:
-//  1. If codex provider exists and PromptViaArgs is false, set it to true.
-//  2. For each platform that maps to a known orchestra provider,
+//  1. (reserved — previously enforced codex PromptViaArgs, now removed)
+//  2. Migrate opencode provider entries back to codex.
+//  3. For each platform that maps to a known orchestra provider,
 //     add the provider entry if it is missing.
-//  3. For each orchestra command, ensure every provider in orchestra.Providers
+//  4. For each orchestra command, ensure every provider in orchestra.Providers
 //     is listed in the command's Providers slice.
 func MigrateOrchestraConfig(cfg *HarnessConfig) (bool, error) {
 	if !cfg.Orchestra.Enabled {
@@ -26,22 +27,8 @@ func MigrateOrchestraConfig(cfg *HarnessConfig) (bool, error) {
 
 	changed := false
 
-	// Migration 1: ensure codex PromptViaArgs is true.
-	if codex, ok := cfg.Orchestra.Providers["codex"]; ok {
-		if !codex.PromptViaArgs {
-			codex.PromptViaArgs = true
-			cfg.Orchestra.Providers["codex"] = codex
-			changed = true
-		}
-	}
-
-	// Migration 1.5: migrate codex to opencode.
-	if migrated, _ := MigrateCodexToOpencode(cfg); migrated {
-		changed = true
-	}
-
-	// Migration 1.6: migrate opencode from args mode to TUI mode.
-	if migrated := MigrateOpencodeToTUI(cfg); migrated {
+	// Migration 1.5: migrate opencode back to codex.
+	if migrated, _ := MigrateOpencodeToCodex(cfg); migrated {
 		changed = true
 	}
 
@@ -124,6 +111,7 @@ func EnsureOrchestraProvider(cfg *HarnessConfig, providerName string) error {
 }
 
 // PlatformToProvider maps platform names to orchestra provider names.
+// @AX:NOTE: [AUTO] "opencode" maps to "codex" — intentional alias per SPEC-ORCHCFG-002 migration
 func PlatformToProvider(platform string) string {
 	switch platform {
 	case "claude-code":
@@ -133,17 +121,18 @@ func PlatformToProvider(platform string) string {
 	case "gemini-cli":
 		return "gemini"
 	case "opencode":
-		return "opencode"
+		return "codex"
 	default:
 		return ""
 	}
 }
 
-// MigrateCodexToOpencode replaces codex provider entries with opencode.
-// Removes codex from providers and commands, adds opencode if not already present.
+// MigrateOpencodeToCodex replaces opencode provider entries with codex.
+// Removes opencode from providers and commands, adds codex if not already present.
 // Returns (changed bool, err error).
-// @AX:NOTE [AUTO] destructive migration — deletes codex entry permanently; no rollback path
-func MigrateCodexToOpencode(cfg *HarnessConfig) (bool, error) {
+// @AX:WARN [AUTO] @AX:CYCLE:1 destructive migration — deletes opencode entry permanently; no rollback path
+// @AX:REASON: SPEC-ORCHCFG-002 one-way migration; monitor impact in subsequent releases
+func MigrateOpencodeToCodex(cfg *HarnessConfig) (bool, error) {
 	if !cfg.Orchestra.Enabled {
 		return false, nil
 	}
@@ -151,71 +140,26 @@ func MigrateCodexToOpencode(cfg *HarnessConfig) (bool, error) {
 		return false, nil
 	}
 
-	_, hasCodex := cfg.Orchestra.Providers["codex"]
-	if !hasCodex {
+	_, hasOpencode := cfg.Orchestra.Providers["opencode"]
+	if !hasOpencode {
 		return false, nil
 	}
 
-	// Remove codex entry.
-	delete(cfg.Orchestra.Providers, "codex")
+	// Remove opencode entry.
+	delete(cfg.Orchestra.Providers, "opencode")
 
-	// Add opencode entry if not already present, or update if args are empty.
-	if existing, hasOpencode := cfg.Orchestra.Providers["opencode"]; !hasOpencode || len(existing.Args) == 0 {
-		cfg.Orchestra.Providers["opencode"] = defaultProviderEntries["opencode"]
+	// Add codex entry if not already present, or update if args are empty.
+	if existing, hasCodex := cfg.Orchestra.Providers["codex"]; !hasCodex || len(existing.Args) == 0 {
+		cfg.Orchestra.Providers["codex"] = defaultProviderEntries["codex"]
 	}
 
-	// Replace codex with opencode in all command provider lists.
+	// Replace opencode with codex in all command provider lists.
 	for cmdName, cmd := range cfg.Orchestra.Commands {
-		cmd.Providers = replaceInSlice(cmd.Providers, "codex", "opencode")
+		cmd.Providers = replaceInSlice(cmd.Providers, "opencode", "codex")
 		cfg.Orchestra.Commands[cmdName] = cmd
 	}
 
 	return true, nil
-}
-
-// MigrateOpencodeToTUI migrates opencode from args-based input to TUI mode.
-// Clears InteractiveInput (was "args") and removes "run" from PaneArgs so that
-// opencode launches as a persistent TUI session with prompt delivery via sendkeys.
-// @AX:NOTE [AUTO] one-way migration — converts args mode to TUI mode; no rollback path
-func MigrateOpencodeToTUI(cfg *HarnessConfig) bool {
-	if cfg.Orchestra.Providers == nil {
-		return false
-	}
-	oc, ok := cfg.Orchestra.Providers["opencode"]
-	if !ok {
-		return false
-	}
-
-	migrated := false
-
-	// Clear args-based interactive input mode.
-	if oc.InteractiveInput == "args" {
-		oc.InteractiveInput = ""
-		migrated = true
-	}
-
-	// Disable PromptViaArgs to prevent ENAMETOOLONG on long prompts.
-	// Prompts are now delivered via stdin pipe instead of CLI args.
-	if oc.PromptViaArgs {
-		oc.PromptViaArgs = false
-		migrated = true
-	}
-
-	// Remove "run" subcmd from PaneArgs (TUI mode doesn't use it).
-	cleaned := make([]string, 0, len(oc.PaneArgs))
-	for _, arg := range oc.PaneArgs {
-		if arg == "run" {
-			migrated = true
-			continue
-		}
-		cleaned = append(cleaned, arg)
-	}
-	oc.PaneArgs = cleaned
-
-	if migrated {
-		cfg.Orchestra.Providers["opencode"] = oc
-	}
-	return migrated
 }
 
 // replaceInSlice replaces old with new in a string slice, removing duplicates.

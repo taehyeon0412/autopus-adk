@@ -27,12 +27,12 @@ type HookSession struct {
 var defaultHookProviders = map[string]bool{
 	"claude":   true,
 	"gemini":   true,
-	"opencode": true,
+	"codex":    true,
 }
 
 // NewHookSession creates a new hook session with the given session ID.
 // Creates /tmp/autopus/{session-id}/ directory with 0o700 permissions.
-// @AX:ANCHOR [AUTO] fan_in=3 — called by interactive.go, relay_pane.go, hook_watcher.go; do not change session dir layout
+// @AX:ANCHOR [AUTO] fan_in=4 — called by interactive.go, interactive_debate.go, relay_pane.go, hook_watcher.go; do not change session dir layout
 func NewHookSession(sessionID string) (*HookSession, error) {
 	dir := filepath.Join(os.TempDir(), "autopus", sanitizeProviderName(sessionID))
 

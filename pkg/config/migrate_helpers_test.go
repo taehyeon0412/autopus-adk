@@ -18,7 +18,7 @@ func TestPlatformToProvider_AllCases(t *testing.T) {
 		{"claude-code", "claude"},
 		{"codex", "codex"},
 		{"gemini-cli", "gemini"},
-		{"opencode", "opencode"},
+		{"opencode", "codex"},
 		{"cursor", ""},
 		{"unknown", ""},
 		{"", ""},

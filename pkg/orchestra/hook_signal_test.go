@@ -149,7 +149,7 @@ func TestHookSession_HasHook(t *testing.T) {
 	}{
 		{"claude has hook", "claude", true},
 		{"gemini has hook", "gemini", true},
-		{"opencode has hook", "opencode", true},
+		{"codex has hook", "codex", true},
 		{"unknown provider has no hook", "unknown-provider", false},
 	}
 

@@ -8,7 +8,7 @@ import (
 )
 
 // TestEnsureOrchestraProvider_AddsCodexEntry verifies that
-// EnsureOrchestraProvider adds a codex entry with PromptViaArgs=true
+// EnsureOrchestraProvider adds a codex entry with PromptViaArgs=false
 // when codex is not present in orchestra.providers.
 func TestEnsureOrchestraProvider_AddsCodexEntry(t *testing.T) {
 	t.Parallel()
@@ -34,7 +34,7 @@ func TestEnsureOrchestraProvider_AddsCodexEntry(t *testing.T) {
 			},
 			providerName: "codex",
 			expectExist:  true,
-			expectPrompt: true,
+			expectPrompt: false,
 		},
 		{
 			name: "no-op when codex already exists",
@@ -45,14 +45,14 @@ func TestEnsureOrchestraProvider_AddsCodexEntry(t *testing.T) {
 				Orchestra: OrchestraConf{
 					Enabled: true,
 					Providers: map[string]ProviderEntry{
-						"codex": {Binary: "codex", Args: []string{"--quiet"}, PromptViaArgs: true},
+						"codex": {Binary: "codex", Args: []string{"--quiet"}, PromptViaArgs: false},
 					},
 					Commands: map[string]CommandEntry{},
 				},
 			},
 			providerName: "codex",
 			expectExist:  true,
-			expectPrompt: true,
+			expectPrompt: false,
 		},
 	}
 

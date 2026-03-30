@@ -79,7 +79,7 @@ func resolveRounds(strategy string, rounds int) int {
 }
 
 // isStdoutTTY returns true if stdout is a terminal device.
-// @AX:NOTE [AUTO] REQ-1 TTY detection — used by auto-detach decision; returns false in CI/pipe contexts
+// @AX:NOTE: [AUTO] REQ-1 TTY detection — used by auto-detach decision; returns false in CI/pipe contexts
 func isStdoutTTY() bool {
 	fi, err := os.Stdout.Stat()
 	if err != nil {
@@ -94,7 +94,7 @@ func isStdoutTTY() bool {
 func buildProviderConfigs(names []string) []orchestra.ProviderConfig {
 	knownProviders := map[string]orchestra.ProviderConfig{
 		"claude":   {Name: "claude", Binary: "claude", Args: []string{"-p", "--model", "opus", "--effort", "high"}, PaneArgs: []string{"-p", "--model", "opus", "--effort", "high"}, PromptViaArgs: false},
-		"codex":    {Name: "codex", Binary: "codex", Args: []string{"-q"}, PaneArgs: []string{"-q"}, PromptViaArgs: false},
+		"codex":    {Name: "codex", Binary: "codex", Args: []string{"exec", "--approval-mode", "full-auto", "--quiet", "-m", "gpt-5.4"}, PaneArgs: []string{"-m", "gpt-5.4"}, PromptViaArgs: false},
 		"gemini":   {Name: "gemini", Binary: "gemini", Args: []string{"-m", "gemini-3.1-pro-preview"}, PaneArgs: []string{"-m", "gemini-3.1-pro-preview"}, PromptViaArgs: true},
 		"opencode": {Name: "opencode", Binary: "opencode", Args: []string{"run", "-m", "openai/gpt-5.4"}, PaneArgs: []string{"-m", "openai/gpt-5.4"}, PromptViaArgs: false},
 	}
@@ -121,6 +121,7 @@ func defaultProviders() []string {
 
 // isHookModeAvailable checks whether hook-based result collection can be used.
 // Returns true only when at least one provider has its hook/plugin registered.
+// @AX:NOTE: [AUTO] magic path and string constants — ~/.claude/settings.json, "autopus", "Stop"
 func isHookModeAvailable() bool {
 	home, err := os.UserHomeDir()
 	if err != nil {

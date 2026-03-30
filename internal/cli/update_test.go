@@ -82,7 +82,7 @@ func TestUpdateCmd_PreservesUserModifications(t *testing.T) {
 }
 
 // TestUpdateCmd_MigratesCodexPromptViaArgs verifies R4:
-// update must migrate codex PromptViaArgs from false to true.
+// update must preserve codex PromptViaArgs=false (migration 1 removed).
 func TestUpdateCmd_MigratesCodexPromptViaArgs(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
@@ -92,7 +92,7 @@ func TestUpdateCmd_MigratesCodexPromptViaArgs(t *testing.T) {
 	initCmd.SetArgs([]string{"init", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code,codex"})
 	require.NoError(t, initCmd.Execute())
 
-	// Manually set codex PromptViaArgs=false to simulate old config
+	// Manually set codex PromptViaArgs=false to simulate config state
 	cfg, err := loadConfigFromDir(dir)
 	require.NoError(t, err)
 	if cfg.Orchestra.Providers == nil {
@@ -108,12 +108,12 @@ func TestUpdateCmd_MigratesCodexPromptViaArgs(t *testing.T) {
 	updateCmd.SetArgs([]string{"update", "--dir", dir})
 	require.NoError(t, updateCmd.Execute())
 
-	// Then: codex must have PromptViaArgs=true (R4)
+	// Then: codex must still have PromptViaArgs=false (no migration enforces true)
 	cfgAfter, loadErr := loadConfigFromDir(dir)
 	require.NoError(t, loadErr)
 	codex, ok := cfgAfter.Orchestra.Providers["codex"]
 	require.True(t, ok, "codex must exist after update")
-	assert.True(t, codex.PromptViaArgs, "codex PromptViaArgs must be migrated to true (R4)")
+	assert.False(t, codex.PromptViaArgs, "codex PromptViaArgs must remain false (migration 1 removed)")
 }
 
 // TestUpdateCmd_NoAdapterPlatformIsSkipped verifies that a valid but adapter-less

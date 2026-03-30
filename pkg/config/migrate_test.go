@@ -7,19 +7,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestMigrateOrchestraConfig_CodexPromptViaArgsFalse verifies R4:
-// when auto update is executed and codex provider has PromptViaArgs=false,
-// MigrateOrchestraConfig must set it to true.
-func TestMigrateOrchestraConfig_CodexPromptViaArgsFalse(t *testing.T) {
+// TestMigrateOrchestraConfig_CodexPromptViaArgsPreserved verifies that
+// MigrateOrchestraConfig does not alter codex PromptViaArgs (migration 1 removed).
+func TestMigrateOrchestraConfig_CodexPromptViaArgsPreserved(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name             string
-		initialCfg       *HarnessConfig
-		expectPromptTrue bool
+		name            string
+		initialCfg      *HarnessConfig
+		expectPromptVal bool
 	}{
 		{
-			name: "codex PromptViaArgs=false is migrated to true",
+			name: "codex PromptViaArgs=false is preserved",
 			initialCfg: &HarnessConfig{
 				Mode:        ModeFull,
 				ProjectName: "test-project",
@@ -28,14 +27,14 @@ func TestMigrateOrchestraConfig_CodexPromptViaArgsFalse(t *testing.T) {
 					Enabled: true,
 					Providers: map[string]ProviderEntry{
 						"claude": {Binary: "claude", Args: []string{"--print"}},
-						"codex":  {Binary: "codex", Args: []string{"--quiet"}, PromptViaArgs: false},
+						"codex":  {Binary: "codex", Args: []string{"exec", "--quiet", "-m", "gpt-5.4"}, PromptViaArgs: false},
 					},
 					Commands: map[string]CommandEntry{
-						"review": {Strategy: "debate", Providers: []string{"claude", "codex", "gemini"}},
+						"review": {Strategy: "debate", Providers: []string{"claude", "codex"}},
 					},
 				},
 			},
-			expectPromptTrue: true,
+			expectPromptVal: false,
 		},
 		{
 			name: "codex PromptViaArgs=true is preserved",
@@ -46,12 +45,12 @@ func TestMigrateOrchestraConfig_CodexPromptViaArgsFalse(t *testing.T) {
 				Orchestra: OrchestraConf{
 					Enabled: true,
 					Providers: map[string]ProviderEntry{
-						"codex": {Binary: "codex", Args: []string{"--quiet"}, PromptViaArgs: true},
+						"codex": {Binary: "codex", Args: []string{"exec", "--quiet"}, PromptViaArgs: true},
 					},
 					Commands: map[string]CommandEntry{},
 				},
 			},
-			expectPromptTrue: true,
+			expectPromptVal: true,
 		},
 	}
 
@@ -59,17 +58,13 @@ func TestMigrateOrchestraConfig_CodexPromptViaArgsFalse(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			changed, err := MigrateOrchestraConfig(tt.initialCfg)
+			_, err := MigrateOrchestraConfig(tt.initialCfg)
 			require.NoError(t, err)
 
 			codex, ok := tt.initialCfg.Orchestra.Providers["codex"]
 			require.True(t, ok, "codex provider must exist after migration")
-			assert.Equal(t, tt.expectPromptTrue, codex.PromptViaArgs,
-				"codex PromptViaArgs must be %v after migration", tt.expectPromptTrue)
-
-			if !tt.initialCfg.Orchestra.Providers["codex"].PromptViaArgs {
-				assert.True(t, changed, "changed must be true when migration was applied (R4)")
-			}
+			assert.Equal(t, tt.expectPromptVal, codex.PromptViaArgs,
+				"codex PromptViaArgs must be preserved as %v", tt.expectPromptVal)
 		})
 	}
 }
@@ -255,18 +250,18 @@ func TestMigrateOrchestraConfig_AlreadyCorrectConfigNoChange(t *testing.T) {
 	cfg := &HarnessConfig{
 		Mode:        ModeFull,
 		ProjectName: "test-project",
-		Platforms:   []string{"claude-code", "opencode"},
+		Platforms:   []string{"claude-code", "codex"},
 		Orchestra: OrchestraConf{
 			Enabled: true,
 			Providers: map[string]ProviderEntry{
-				// opencode already present with correct args (post-migration state).
-				"claude":   {Binary: "claude", Args: []string{"--print"}},
-				"opencode": {Binary: "opencode", Args: []string{"run", "-m", "openai/gpt-5.4"}, PromptViaArgs: false},
+				// codex already present with correct args (post-migration state).
+				"claude": {Binary: "claude", Args: []string{"--print"}},
+				"codex":  {Binary: "codex", Args: []string{"exec", "--approval-mode", "full-auto", "--quiet", "-m", "gpt-5.4"}, PromptViaArgs: false},
 			},
 			Commands: map[string]CommandEntry{
 				// Both providers already listed in every command.
-				"review": {Strategy: "debate", Providers: []string{"claude", "opencode"}},
-				"plan":   {Strategy: "consensus", Providers: []string{"claude", "opencode"}},
+				"review": {Strategy: "debate", Providers: []string{"claude", "codex"}},
+				"plan":   {Strategy: "consensus", Providers: []string{"claude", "codex"}},
 			},
 		},
 	}
