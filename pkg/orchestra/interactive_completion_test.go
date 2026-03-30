@@ -175,8 +175,8 @@ func TestIsOutputIdle_RecentFile(t *testing.T) {
 // TestIdleFallbackConstants verifies the threshold constants have expected values.
 func TestIdleFallbackConstants(t *testing.T) {
 	t.Parallel()
-	assert.Equal(t, 30*time.Second, idleFallbackThreshold,
-		"idle fallback should activate after 30s")
-	assert.Equal(t, 15*time.Second, outputIdleThreshold,
-		"output idle threshold should be 15s")
+	assert.Equal(t, 60*time.Second, idleFallbackThreshold,
+		"idle fallback should activate after 60s")
+	assert.Equal(t, 30*time.Second, outputIdleThreshold,
+		"output idle threshold should be 30s")
 }

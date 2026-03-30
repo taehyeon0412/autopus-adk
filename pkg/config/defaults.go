@@ -65,7 +65,7 @@ func DefaultFullConfig(projectName string) *HarnessConfig {
 			TimeoutSeconds:  120,
 			Providers: map[string]ProviderEntry{
 				"claude":   {Binary: "claude", Args: []string{"--print"}, PaneArgs: []string{"--print"}},
-				"gemini":   {Binary: "gemini", Args: []string{}, PaneArgs: []string{}, PromptViaArgs: true},
+				"gemini":   {Binary: "gemini", Args: []string{"--prompt"}, PaneArgs: []string{}, PromptViaArgs: true},
 				"codex": {Binary: "codex", Args: []string{"exec", "--approval-mode", "full-auto", "--quiet", "-m", "gpt-5.4"}, PaneArgs: []string{"-m", "gpt-5.4"}, PromptViaArgs: false},
 			},
 			Commands: map[string]CommandEntry{

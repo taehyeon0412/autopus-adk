@@ -18,7 +18,7 @@ func buildInteractiveLaunchCmd(p ProviderConfig, prompt string) string {
 	for _, arg := range paneArgs(p) {
 		// Skip non-interactive flags that conflict with TUI mode.
 		// Only skip "run" when NOT using args-based input (args mode needs "run" for opencode).
-		if arg == "--print" || arg == "-p" || arg == "--quiet" || arg == "-q" {
+		if arg == "--print" || arg == "-p" || arg == "--prompt" || arg == "--quiet" || arg == "-q" {
 			continue
 		}
 		if arg == "run" && p.InteractiveInput != "args" {

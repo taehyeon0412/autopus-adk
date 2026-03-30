@@ -182,6 +182,49 @@ func isPromptVisible(screen string, patterns []CompletionPattern) bool {
 	return false
 }
 
+// toolApprovalPatterns matches interactive tool permission prompts from providers.
+// When detected, the orchestra auto-approves by sending "1" (Allow once).
+var toolApprovalPatterns = []*regexp.Regexp{
+	regexp.MustCompile(`(?i)Action Required`),                       // gemini tool permission
+	regexp.MustCompile(`(?i)Allow execution of`),                    // gemini sandbox prompt
+	regexp.MustCompile(`(?i)Do you want to allow`),                  // generic permission prompt
+	regexp.MustCompile(`(?i)●\s*1\.\s*Allow\s+(once|for this)`),    // gemini numbered option
+}
+
+// needsToolApproval checks if the screen shows an interactive tool permission prompt.
+func needsToolApproval(screen string) bool {
+	screen = stripANSI(screen)
+	for _, p := range toolApprovalPatterns {
+		if p.MatchString(screen) {
+			return true
+		}
+	}
+	return false
+}
+
+// providerWorkingPatterns matches progress indicators showing the provider is still active.
+var providerWorkingPatterns = []*regexp.Regexp{
+	regexp.MustCompile(`(?i)Generating`),
+	regexp.MustCompile(`(?i)Working\s*\(`),
+	regexp.MustCompile(`(?i)Thinking`),
+	regexp.MustCompile(`(?i)thinking with`),
+	regexp.MustCompile(`(?i)Running\s+\w`),
+	regexp.MustCompile(`(?i)Executing`),
+	regexp.MustCompile(`(?i)Explored\b`),
+	regexp.MustCompile(`(?i)✳`), // claude thinking indicator
+}
+
+// isProviderWorking checks if the screen shows progress indicators meaning the provider is active.
+func isProviderWorking(screen string) bool {
+	screen = stripANSI(screen)
+	for _, p := range providerWorkingPatterns {
+		if p.MatchString(screen) {
+			return true
+		}
+	}
+	return false
+}
+
 // isOutputIdle checks if the output file has not been modified for the given threshold.
 // This is the SECONDARY completion detection method (R7).
 func isOutputIdle(outputFile string, threshold time.Duration) bool {
