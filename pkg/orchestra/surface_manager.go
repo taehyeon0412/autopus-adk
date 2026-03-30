@@ -166,13 +166,13 @@ func sendPromptWithRetry(ctx context.Context, cfg OrchestraConfig, pi paneInfo, 
 		baselines[pi.provider.Name] = screen
 	}
 
-	// @AX:NOTE [AUTO] magic constant 3 — max retry attempts; paired with 500ms backoff
-	// Retry with exponential backoff
+	// @AX:NOTE [AUTO] magic constant 3 — max retry attempts; paired with 2s exponential backoff
+	// Retry with exponential backoff — longer delays give cmux surfaces time to stabilize
 	for attempt := 1; attempt <= 3; attempt++ {
 		if retryErr := cfg.Terminal.SendLongText(ctx, newPI.paneID, prompt); retryErr == nil {
 			return newPI, true, nil
 		}
-		wait := time.Duration(attempt) * 500 * time.Millisecond
+		wait := time.Duration(attempt) * 2 * time.Second
 		log.Printf("[Round %d] %s SendLongText attempt %d failed, waiting %v...", round, pi.provider.Name, attempt, wait)
 		time.Sleep(wait)
 	}

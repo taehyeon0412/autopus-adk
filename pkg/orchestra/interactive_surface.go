@@ -53,8 +53,10 @@ func recreatePane(ctx context.Context, cfg OrchestraConfig, pi paneInfo, round i
 	tmpFile.Close()
 
 	// Start pipe capture on new pane with retry — cmux surfaces need time to initialize.
-	// First attempt is immediate; retries use increasing delays (2s, 4s) to give
-	// the surface time to fully register in cmux.
+	// Pipe capture is used only for idle fallback detection (isOutputIdle).
+	// If it fails after retries, the pane is still usable for SendLongText/ReadScreen
+	// and completion detection via screen polling or signal. Non-fatal.
+	outputPath := tmpFile.Name()
 	var pipeErr error
 	for attempt := range 3 {
 		if attempt > 0 {
@@ -67,9 +69,11 @@ func recreatePane(ctx context.Context, cfg OrchestraConfig, pi paneInfo, round i
 		}
 	}
 	if pipeErr != nil {
-		_ = cfg.Terminal.Close(ctx, string(newPaneID))
+		// Pipe capture failed — disable idle fallback by clearing outputFile.
+		// The pane itself is still functional for interactive I/O.
+		log.Printf("[recreatePane] %s PipePaneStart failed after retries (non-fatal, idle fallback disabled): %v", pi.provider.Name, pipeErr)
 		_ = os.Remove(tmpFile.Name())
-		return pi, fmt.Errorf("recreatePane PipePaneStart for %s: %w", pi.provider.Name, pipeErr)
+		outputPath = ""
 	}
 
 	// Set round env on new pane before launching CLI.
@@ -103,7 +107,7 @@ func recreatePane(ctx context.Context, cfg OrchestraConfig, pi paneInfo, round i
 
 	return paneInfo{
 		paneID:     newPaneID,
-		outputFile: tmpFile.Name(),
+		outputFile: outputPath,
 		provider:   pi.provider,
 		skipWait:   false,
 	}, nil

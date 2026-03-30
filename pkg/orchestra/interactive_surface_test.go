@@ -133,8 +133,9 @@ func TestRecreatePane_SplitPaneError(t *testing.T) {
 	}
 }
 
-// TestRecreatePane_PipePaneStartError verifies that recreatePane returns an error
-// and cleans up the new pane when PipePaneStart fails.
+// TestRecreatePane_PipePaneStartError verifies that recreatePane succeeds even when
+// PipePaneStart fails — pipe capture is non-fatal; the pane is still usable for
+// interactive I/O. The outputFile should be empty to disable idle fallback.
 func TestRecreatePane_PipePaneStartError(t *testing.T) {
 	ctx := context.Background()
 	mock := &pipePaneErrorMock{mockTerminal: mockTerminal{name: "cmux"}}
@@ -146,12 +147,15 @@ func TestRecreatePane_PipePaneStartError(t *testing.T) {
 	}
 
 	cfg := OrchestraConfig{Terminal: mock}
-	_, err := recreatePane(ctx, cfg, pi, 1)
-	if err == nil {
-		t.Fatal("expected error from recreatePane when PipePaneStart fails")
+	newPI, err := recreatePane(ctx, cfg, pi, 1)
+	if err != nil {
+		t.Fatalf("recreatePane should succeed even when PipePaneStart fails, got: %v", err)
 	}
-	if !strings.Contains(err.Error(), "PipePaneStart") {
-		t.Errorf("expected PipePaneStart in error, got: %v", err)
+	if newPI.outputFile != "" {
+		t.Errorf("expected empty outputFile when PipePaneStart fails, got: %s", newPI.outputFile)
+	}
+	if newPI.paneID == pi.paneID {
+		t.Error("expected new paneID after recreation")
 	}
 }
 
