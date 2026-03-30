@@ -32,3 +32,4 @@ internal/cli/test-results/
 .claude/settings.json
 .claude/settings.local.json
 .claude/statusline.sh
+.autopus/orchestra/
