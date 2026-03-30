@@ -202,6 +202,103 @@ func TestDownloadAndVerify_EmptyArchive(t *testing.T) {
 	assert.Contains(t, err.Error(), "not found in archive")
 }
 
+// TestDownloadAndVerify_HTTPError verifies that non-200 HTTP responses
+// are detected and retried instead of silently hashing HTML error pages.
+func TestDownloadAndVerify_HTTPError(t *testing.T) {
+	t.Parallel()
+
+	archiveName := "autopus-adk_0.7.0_darwin_arm64.tar.gz"
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte("<html>rate limited</html>"))
+	}))
+	defer srv.Close()
+
+	destDir := t.TempDir()
+	dl := NewDownloader()
+	_, err := dl.DownloadAndVerify(
+		srv.URL+"/"+archiveName,
+		srv.URL+"/checksums.txt",
+		archiveName,
+		destDir,
+	)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "HTTP 403")
+}
+
+// TestDownloadAndVerify_ChecksumNotFound verifies that a missing archive entry
+// in checksums.txt returns a clear error.
+func TestDownloadAndVerify_ChecksumNotFound(t *testing.T) {
+	t.Parallel()
+
+	archiveName := "autopus-adk_0.7.0_darwin_arm64.tar.gz"
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/checksums.txt":
+			_, _ = w.Write([]byte("abc123  other_file.tar.gz\n"))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	destDir := t.TempDir()
+	dl := NewDownloader()
+	_, err := dl.DownloadAndVerify(
+		srv.URL+"/"+archiveName,
+		srv.URL+"/checksums.txt",
+		archiveName,
+		destDir,
+	)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "checksum not found")
+}
+
+// TestDownloadAndVerify_RetrySuccess verifies that transient HTTP errors
+// are retried and succeed on subsequent attempts.
+func TestDownloadAndVerify_RetrySuccess(t *testing.T) {
+	t.Parallel()
+
+	archiveContent := buildTarGz(t, "auto", "#!/bin/sh\necho hello")
+	checksum := fmt.Sprintf("%x", sha256.Sum256(archiveContent))
+	archiveName := "autopus-adk_0.7.0_darwin_arm64.tar.gz"
+	checksumLine := checksum + "  " + archiveName + "\n"
+
+	callCount := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		callCount++
+		// First 2 calls to archive fail, then succeed
+		if r.URL.Path == "/"+archiveName && callCount <= 2 {
+			w.WriteHeader(http.StatusBadGateway)
+			return
+		}
+		switch r.URL.Path {
+		case "/" + archiveName:
+			w.Header().Set("Content-Type", "application/octet-stream")
+			_, _ = w.Write(archiveContent)
+		case "/checksums.txt":
+			_, _ = w.Write([]byte(checksumLine))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	destDir := t.TempDir()
+	dl := NewDownloader()
+	binaryPath, err := dl.DownloadAndVerify(
+		srv.URL+"/"+archiveName,
+		srv.URL+"/checksums.txt",
+		archiveName,
+		destDir,
+	)
+
+	require.NoError(t, err)
+	assert.NotEmpty(t, binaryPath)
+}
+
 // TestParseChecksums verifies that the checksums.txt file format is parsed
 // correctly into a map of filename to SHA256 hash.
 func TestParseChecksums(t *testing.T) {

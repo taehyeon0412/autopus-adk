@@ -11,12 +11,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 const (
 	maxChecksumSize = 1 << 20       // 1 MB
 	maxArchiveSize  = 100 << 20     // 100 MB
 	maxExtractSize  = 100 << 20     // 100 MB per file
+	downloadRetries = 3             // retry count for transient HTTP errors
 )
 
 // Downloader downloads and verifies release archives.
@@ -28,16 +30,11 @@ func NewDownloader() *Downloader {
 }
 
 // DownloadAndVerify downloads the archive and checksums, verifies integrity, and extracts the binary.
+// Retries transient HTTP errors (non-200) up to downloadRetries times with exponential backoff.
 func (d *Downloader) DownloadAndVerify(archiveURL, checksumURL, archiveName, destDir string) (string, error) {
-	checksumResp, err := http.Get(checksumURL)
+	checksumData, err := httpGetWithRetry(checksumURL, maxChecksumSize)
 	if err != nil {
-		return "", err
-	}
-	defer checksumResp.Body.Close()
-
-	checksumData, err := io.ReadAll(io.LimitReader(checksumResp.Body, maxChecksumSize))
-	if err != nil {
-		return "", err
+		return "", fmt.Errorf("checksums download: %w", err)
 	}
 
 	checksums, err := ParseChecksums(checksumData)
@@ -46,16 +43,13 @@ func (d *Downloader) DownloadAndVerify(archiveURL, checksumURL, archiveName, des
 	}
 
 	expectedChecksum := checksums[archiveName]
-
-	archiveResp, err := http.Get(archiveURL)
-	if err != nil {
-		return "", err
+	if expectedChecksum == "" {
+		return "", fmt.Errorf("checksum not found for %s in checksums.txt", archiveName)
 	}
-	defer archiveResp.Body.Close()
 
-	archiveData, err := io.ReadAll(io.LimitReader(archiveResp.Body, maxArchiveSize))
+	archiveData, err := httpGetWithRetry(archiveURL, maxArchiveSize)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("archive download: %w", err)
 	}
 
 	// @AX:NOTE: [AUTO] security-critical — SHA256 integrity verification guards against tampered binaries
@@ -65,6 +59,38 @@ func (d *Downloader) DownloadAndVerify(archiveURL, checksumURL, archiveName, des
 	}
 
 	return extractBinary(archiveData, destDir)
+}
+
+// httpGetWithRetry downloads a URL with retry on non-200 responses.
+// Handles CDN propagation delays after new releases.
+func httpGetWithRetry(url string, maxSize int64) ([]byte, error) {
+	var lastErr error
+	for attempt := range downloadRetries {
+		if attempt > 0 {
+			time.Sleep(time.Duration(attempt*2) * time.Second)
+		}
+
+		resp, err := http.Get(url)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+
+		data, err := io.ReadAll(io.LimitReader(resp.Body, maxSize))
+		resp.Body.Close()
+		if err != nil {
+			lastErr = err
+			continue
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			lastErr = fmt.Errorf("HTTP %d", resp.StatusCode)
+			continue
+		}
+
+		return data, nil
+	}
+	return nil, fmt.Errorf("failed after %d attempts: %w", downloadRetries, lastErr)
 }
 
 // ParseChecksums parses checksums.txt format into a map.
