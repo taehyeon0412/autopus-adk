@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/insajin/autopus-adk/pkg/terminal"
@@ -234,10 +235,17 @@ func executeRound(ctx context.Context, cfg OrchestraConfig, panes []paneInfo, ho
 			}
 		}
 
+		// Normalize newlines for TUI providers (gemini) that treat each line as a separate message.
+		// Without this, long multi-line prompts get queued as 100+ individual messages.
+		sendPrompt := prompt
+		if pi.provider.InteractiveInput == "args" {
+			sendPrompt = strings.ReplaceAll(prompt, "\n", " ")
+		}
+
 		// R6: On SendLongText failure, attempt pane recreation once, then retry
 		// with exponential backoff (500ms, 1s, 2s) before skipping.
-		if err := cfg.Terminal.SendLongText(ctx, pi.paneID, prompt); err != nil {
-			log.Printf("[Round %d] %s SendLongText failed: %v — attempting pane recreation", round, pi.provider.Name, err)
+		if err := cfg.Terminal.SendLongText(ctx, pi.paneID, sendPrompt); err != nil {
+			log.Printf("[Round %d] %s SendLongText failed: %v — attempting pane recreation", round, pi.provider.Name, err)  //nolint:lll
 			newPI, recErr := recreatePane(ctx, cfg, *pi, round)
 			if recErr != nil {
 				log.Printf("[Round %d] %s recreatePane failed: %v — skipping", round, pi.provider.Name, recErr)
@@ -252,7 +260,7 @@ func executeRound(ctx context.Context, cfg OrchestraConfig, panes []paneInfo, ho
 
 			retryOK := false
 			for attempt := 1; attempt <= 3; attempt++ {
-				if retryErr := cfg.Terminal.SendLongText(ctx, newPI.paneID, prompt); retryErr == nil {
+				if retryErr := cfg.Terminal.SendLongText(ctx, newPI.paneID, sendPrompt); retryErr == nil {
 					retryOK = true
 					break
 				}

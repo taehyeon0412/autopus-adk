@@ -47,16 +47,17 @@ func waitForCompletion(ctx context.Context, term terminal.Terminal, pi paneInfo,
 			}
 			// R2: Screen unchanged from baseline — skip prompt matching to avoid
 			// false positives from previous round's leftover prompt.
-			if baseline != "" && screen == baseline {
+			// Still allow idle fallback to proceed (no continue).
+			baselineMatch := baseline != "" && screen == baseline
+			if baselineMatch {
 				candidateDetected = false
-				continue
 			}
-			if isPromptVisible(screen, patterns) {
+			if !baselineMatch && isPromptVisible(screen, patterns) {
 				if candidateDetected {
 					return true // Two consecutive matches — confirmed completion
 				}
 				candidateDetected = true // First match — wait for confirmation
-			} else {
+			} else if !baselineMatch {
 				candidateDetected = false // Reset — AI resumed output
 			}
 			// R7: Idle fallback — if 2-phase match hasn't succeeded within threshold,
