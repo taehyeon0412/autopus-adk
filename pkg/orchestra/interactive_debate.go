@@ -281,12 +281,27 @@ func executeRound(ctx context.Context, cfg OrchestraConfig, panes []paneInfo, ho
 	}
 	time.Sleep(debateDelay)
 
+	// Re-capture baselines AFTER debateDelay so poll fallback uses a fresh
+	// reference that reflects the provider's in-progress output, not the
+	// stale post-send state from 10+ seconds ago.
+	baselines = captureBaselines(ctx, cfg.Terminal, panes)
+
 	// Collect results via hook or screen polling.
+	// Use a fresh context for completion polling — by this point the round context
+	// is partially consumed by surface validation, prompt delivery, and debateDelay.
+	// The poll phase needs its own full timeout to avoid false-positive completions.
+	pollTimeout := time.Duration(cfg.TimeoutSeconds) * time.Second
+	if pollTimeout <= 0 {
+		pollTimeout = 60 * time.Second
+	}
+	pollCtx, pollCancel := context.WithTimeout(context.Background(), pollTimeout)
+	defer pollCancel()
+
 	var responses []ProviderResponse
 	if cfg.HookMode && hookSession != nil {
-		responses = collectRoundHookResults(ctx, cfg, hookSession, round)
+		responses = collectRoundHookResults(pollCtx, cfg, hookSession, round)
 	} else {
-		responses = waitAndCollectResults(ctx, cfg, panes, patterns, time.Now(), baselines)
+		responses = waitAndCollectResults(pollCtx, cfg, panes, patterns, time.Now(), baselines)
 	}
 	// R8: Mark providers with empty output for partial merge
 	for i := range responses {

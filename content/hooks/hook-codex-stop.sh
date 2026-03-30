@@ -49,6 +49,15 @@ chmod 600 "${RESULT_FILE}"
 # Write done signal (empty file).
 : > "${DONE_FILE}"
 
+# Send cmux completion signal for SignalDetector (SPEC-SURFCOMP-001 R8).
+if command -v cmux >/dev/null 2>&1; then
+  if [ -n "$AUTOPUS_ROUND" ] && [ "$AUTOPUS_ROUND" -gt 1 ] 2>/dev/null; then
+    cmux wait-for -S "done-codex-round${AUTOPUS_ROUND}" 2>/dev/null || true
+  else
+    cmux wait-for -S "done-codex" 2>/dev/null || true
+  fi
+fi
+
 # --- Bidirectional IPC: Ready signal + Input watch loop (SPEC-ORCH-017) ---
 # Only activate for round-scoped sessions.
 if [ -n "$AUTOPUS_ROUND" ]; then

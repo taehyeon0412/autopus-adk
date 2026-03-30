@@ -53,10 +53,14 @@ func recreatePane(ctx context.Context, cfg OrchestraConfig, pi paneInfo, round i
 	tmpFile.Close()
 
 	// Start pipe capture on new pane with retry — cmux surfaces need time to initialize.
+	// First attempt is immediate; retries use increasing delays (2s, 4s) to give
+	// the surface time to fully register in cmux.
 	var pipeErr error
 	for attempt := range 3 {
 		if attempt > 0 {
-			time.Sleep(time.Duration(attempt) * time.Second)
+			delay := time.Duration(attempt) * 2 * time.Second
+			log.Printf("[recreatePane] %s PipePaneStart attempt %d failed, waiting %v...", pi.provider.Name, attempt, delay)
+			time.Sleep(delay)
 		}
 		if pipeErr = cfg.Terminal.PipePaneStart(ctx, newPaneID, tmpFile.Name()); pipeErr == nil {
 			break
