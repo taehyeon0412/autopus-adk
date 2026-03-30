@@ -7,8 +7,6 @@ import (
 	"os"
 	"strings"
 	"time"
-
-	"github.com/insajin/autopus-adk/pkg/terminal"
 )
 
 // runInteractiveDebate executes a multi-turn debate loop using interactive panes.
@@ -40,6 +38,7 @@ func runInteractiveDebate(ctx context.Context, cfg OrchestraConfig) (*OrchestraR
 
 	return runPaneDebate(ctx, cfg, rounds, perRound, start)
 }
+
 
 // runNonInteractiveDebate executes the debate without terminal panes.
 // Uses runDebate (process-based execution) with multi-round support.
@@ -102,6 +101,12 @@ func runPaneDebate(ctx context.Context, cfg OrchestraConfig, rounds int, perRoun
 	launchInteractiveSessions(ctx, cfg, panes)
 	waitForSessionReady(ctx, cfg.Terminal, panes)
 
+	// Create SurfaceManager for proactive health monitoring (R1).
+	surfMgr := NewSurfaceManager(cfg.Terminal)
+	surfMgr.Start(ctx, panes)
+	defer surfMgr.Stop()
+	cfg.SurfaceMgr = surfMgr
+
 	var roundHistory [][]ProviderResponse
 
 	for round := 1; round <= rounds; round++ {
@@ -159,21 +164,35 @@ func runPaneDebate(ctx context.Context, cfg OrchestraConfig, rounds int, perRoun
 	return buildDebateResult(cfg, finalResponses, roundHistory, start), nil
 }
 
+// @AX:WARN [AUTO] file at 298 lines — near 300-line hard limit; split executeRound to a separate file if adding logic
 // executeRound sends prompts to all panes and collects responses for one round.
 func executeRound(ctx context.Context, cfg OrchestraConfig, panes []paneInfo, hookSession *HookSession, round int, prevResponses []ProviderResponse) []ProviderResponse {
 	patterns := DefaultCompletionPatterns()
 
 	// R1: Validate surfaces for Round 2+ and recreate stale panes.
-	if round > 1 {
+	if round > 1 && cfg.SurfaceMgr != nil {
 		for i, pi := range panes {
-			if pi.skipWait || !needsSurfaceCheck(pi.provider) {
+			if pi.skipWait {
+				continue
+			}
+			newPI, recovered, err := cfg.SurfaceMgr.ValidateAndRecover(ctx, cfg, pi, round)
+			if err != nil {
+				log.Printf("[Round %d] %s recovery failed: %v -- skipping", round, pi.provider.Name, err)
+				panes[i].skipWait = true
+			} else if recovered {
+				panes[i] = newPI
+			}
+		}
+	} else if round > 1 {
+		// Fallback: no SurfaceManager -- use direct validation.
+		for i, pi := range panes {
+			if pi.skipWait {
 				continue
 			}
 			if !validateSurface(ctx, cfg.Terminal, pi.paneID) {
 				newPI, err := recreatePane(ctx, cfg, pi, round)
 				if err != nil {
-					// R4: Mark as skip on recreation failure.
-					log.Printf("[Round %d] %s surface invalid, recreate failed: %v — skipping", round, pi.provider.Name, err)
+					log.Printf("[Round %d] %s surface invalid, recreate failed: %v -- skipping", round, pi.provider.Name, err)
 					panes[i].skipWait = true
 				} else {
 					panes[i] = newPI
@@ -182,26 +201,15 @@ func executeRound(ctx context.Context, cfg OrchestraConfig, panes []paneInfo, ho
 		}
 	}
 
-	// R2: Capture screen baselines AFTER surface validation/recreation to prevent
-	// false-positive completion detection. Must use current (possibly new) pane IDs.
-	baselines := make(map[string]string)
-	for _, pi := range panes {
-		if pi.skipWait {
-			continue
-		}
-		screen, _ := cfg.Terminal.ReadScreen(ctx, pi.paneID, terminal.ReadScreenOpts{})
-		baselines[pi.provider.Name] = screen
-	}
-
+	// R2: Capture screen baselines AFTER surface validation/recreation (R7).
+	baselines := captureBaselines(ctx, cfg.Terminal, panes)
 	for i := range panes {
-		pi := &panes[i] // pointer to slice element — stays current after recreation
+		pi := &panes[i]
 		if pi.skipWait {
 			continue
 		}
-
 		var prompt string
 		if prevResponses == nil {
-			// REQ-2: Topic isolation for round 1
 			prompt = topicIsolationInstruction + cfg.Prompt
 		} else {
 			var others []ProviderResponse
@@ -210,13 +218,10 @@ func executeRound(ctx context.Context, cfg OrchestraConfig, panes []paneInfo, ho
 					others = append(others, r)
 				}
 			}
-			// REQ-2: Topic isolation for rebuttal rounds
 			prompt = topicIsolationInstruction + buildRebuttalPrompt(cfg.Prompt, others, round)
 		}
-
 		if round > 1 {
 			// Only send round env to shell-based providers (args mode).
-			// TUI providers (opencode, gemini) would receive this as chat input text.
 			if pi.provider.InteractiveInput == "args" {
 				_ = SendRoundEnvToPane(ctx, cfg.Terminal, pi.paneID, round)
 			}
@@ -242,37 +247,15 @@ func executeRound(ctx context.Context, cfg OrchestraConfig, panes []paneInfo, ho
 			sendPrompt = strings.ReplaceAll(prompt, "\n", " ")
 		}
 
-		// R6: On SendLongText failure, attempt pane recreation once, then retry
-		// with exponential backoff (500ms, 1s, 2s) before skipping.
-		if err := cfg.Terminal.SendLongText(ctx, pi.paneID, sendPrompt); err != nil {
-			log.Printf("[Round %d] %s SendLongText failed: %v — attempting pane recreation", round, pi.provider.Name, err)  //nolint:lll
-			newPI, recErr := recreatePane(ctx, cfg, *pi, round)
-			if recErr != nil {
-				log.Printf("[Round %d] %s recreatePane failed: %v — skipping", round, pi.provider.Name, recErr)
-				panes[i].skipWait = true
-				continue
-			}
+		// R6: On SendLongText failure, attempt pane recreation once, then retry.
+		newPI, recreated, sendErr := sendPromptWithRetry(ctx, cfg, *pi, sendPrompt, round, baselines)
+		if sendErr != nil {
+			log.Printf("[Round %d] %s send failed: %v -- skipping", round, pi.provider.Name, sendErr)
+			panes[i].skipWait = true
+			continue
+		}
+		if recreated {
 			panes[i] = newPI
-			// Refresh baseline for the new pane to prevent false completion detection
-			if screen, err := cfg.Terminal.ReadScreen(ctx, newPI.paneID, terminal.ReadScreenOpts{}); err == nil {
-				baselines[pi.provider.Name] = screen
-			}
-
-			retryOK := false
-			for attempt := 1; attempt <= 3; attempt++ {
-				if retryErr := cfg.Terminal.SendLongText(ctx, newPI.paneID, sendPrompt); retryErr == nil {
-					retryOK = true
-					break
-				}
-				wait := time.Duration(attempt) * 500 * time.Millisecond
-				log.Printf("[Round %d] %s SendLongText attempt %d failed, waiting %v...", round, pi.provider.Name, attempt, wait)
-				time.Sleep(wait)
-			}
-			if !retryOK {
-				log.Printf("[Round %d] %s SendLongText failed after 3 attempts — skipping", round, pi.provider.Name)
-				panes[i].skipWait = true
-				continue
-			}
 		}
 		time.Sleep(500 * time.Millisecond)
 		// R8: Retry once on SendCommand (Enter) failure.
@@ -288,17 +271,8 @@ func executeRound(ctx context.Context, cfg OrchestraConfig, panes []paneInfo, ho
 		}
 	}
 
-	// Re-capture baselines AFTER prompts are sent. The screen now shows the submitted
-	// prompt text, so baseline must reflect this to avoid false completion detection
-	// when the prompt pattern (❯) is still visible from the input echo.
-	for _, pi := range panes {
-		if pi.skipWait {
-			continue
-		}
-		if screen, err := cfg.Terminal.ReadScreen(ctx, pi.paneID, terminal.ReadScreenOpts{}); err == nil {
-			baselines[pi.provider.Name] = screen
-		}
-	}
+	// Re-capture baselines AFTER prompts are sent to avoid false completion detection.
+	baselines = captureBaselines(ctx, cfg.Terminal, panes)
 
 	// @AX:NOTE: [AUTO] REQ-3 configurable initial delay — AI processing head start before polling
 	debateDelay := cfg.InitialDelay

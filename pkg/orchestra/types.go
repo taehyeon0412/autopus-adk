@@ -37,6 +37,7 @@ type ProviderConfig struct {
 	PromptViaArgs    bool          // true: pass prompt as last arg (gemini), false: pass via stdin (claude, codex)
 	InteractiveInput string        // interactive prompt delivery: "args" = via CLI arg at launch, "" = via sendkeys (default)
 	StartupTimeout   time.Duration // per-provider startup timeout; 0 uses name-based default
+	IdleThreshold    time.Duration // per-provider idle fallback threshold; 0 uses default (R10 P1)
 }
 
 // ProviderResponse는 프로바이더 실행 결과이다.
@@ -83,6 +84,10 @@ type OrchestraConfig struct {
 	SessionID          string           // unique session ID for hook file signal directory
 	ConsensusThreshold float64          // consensus threshold (0 uses default 0.66)
 	InitialDelay       time.Duration    // delay before completion polling starts (0 uses default 20s)
+	CompletionDetector CompletionDetector // completion detection strategy (nil = auto-detect from Terminal)
+	// SurfaceMgr is set during interactive debate setup.
+	// Not part of initial config -- populated by runPaneDebate().
+	SurfaceMgr *SurfaceManager
 }
 
 // CompletionPattern defines a provider-specific prompt detection pattern.
