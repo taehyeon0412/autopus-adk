@@ -231,9 +231,10 @@ func runProvider(ctx context.Context, provider ProviderConfig, prompt string) (*
 	// 실행 명령 구성
 	args := append([]string{}, provider.Args...)
 
-	// PromptViaArgs=true인 경우 프롬프트를 마지막 인자로 추가 (예: gemini -p "prompt")
+	// PromptViaArgs=true인 경우 -p 플래그와 프롬프트를 추가하여 non-interactive 모드로 실행
+	// (예: gemini -m model -p "prompt" → headless 실행)
 	if provider.PromptViaArgs {
-		args = append(args, prompt)
+		args = append(args, "-p", prompt)
 	}
 
 	// @AX:WARN: exec.CommandContext는 컨텍스트 취소 시 프로세스를 강제 종료한다.

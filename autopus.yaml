@@ -70,7 +70,7 @@ orchestra:
             args: [--print, --model, opus, --effort, high]
         gemini:
             binary: gemini
-            args: [--prompt, -m, gemini-3.1-pro-preview]
+            args: [-m, gemini-3.1-pro-preview]
             prompt_via_args: true
         codex:
             binary: codex
