@@ -288,5 +288,10 @@ func runOrchestraCommand(
 
 	fmt.Printf("%s\n", result.Merged)
 	fmt.Fprintf(os.Stderr, "\n요약: %s (총 %s)\n", result.Summary, result.Duration.Round(1e6))
+
+	// Auto-save results as markdown
+	if path, saveErr := saveOrchestraResult(commandName, strategyStr, providerNames, result); saveErr == nil {
+		fmt.Fprintf(os.Stderr, "결과 저장: %s\n", path)
+	}
 	return nil
 }
