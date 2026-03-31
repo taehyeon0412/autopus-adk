@@ -11,7 +11,7 @@
 
 - Rules: .claude/rules/autopus/
 - Skills: .claude/skills/autopus/
-- Commands: .claude/commands/auto.md
+- Commands: .claude/skills/auto/SKILL.md
 - Agents: .claude/agents/autopus/
 
 ## Rule Isolation
