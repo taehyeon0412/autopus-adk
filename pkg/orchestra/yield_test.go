@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestWriteYieldOutput_ValidJSON(t *testing.T) {
+func TestWriteYieldOutput_JSONSchema(t *testing.T) {
 	t.Parallel()
 
 	out := YieldOutput{
@@ -68,7 +68,7 @@ func TestWriteYieldOutput_EmptyRoundHistory(t *testing.T) {
 	assert.Nil(t, parsed.RoundHistory)
 }
 
-func TestBuildYieldOutput_PaneMapping(t *testing.T) {
+func TestBuildYieldOutput_RoundHistory(t *testing.T) {
 	t.Parallel()
 
 	cfg := OrchestraConfig{Strategy: StrategyDebate}

@@ -1,6 +1,7 @@
 package orchestra
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -65,6 +66,23 @@ func TestLoadSession_NotFound(t *testing.T) {
 	_, err := LoadSession("nonexistent-session-id-12345")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "read session")
+}
+
+func TestSaveSession_Permissions(t *testing.T) {
+	t.Parallel()
+
+	session := OrchestraSession{
+		ID:        "test-perms-" + NewSessionID(),
+		Panes:     map[string]string{},
+		CreatedAt: time.Now(),
+	}
+
+	require.NoError(t, SaveSession(session))
+	defer RemoveSession(session.ID)
+
+	info, err := os.Stat(sessionFilePath(session.ID))
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0o600), info.Mode().Perm(), "session file must have 0600 permissions")
 }
 
 func TestRemoveSession_Idempotent(t *testing.T) {
