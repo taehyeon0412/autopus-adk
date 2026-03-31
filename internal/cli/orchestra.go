@@ -227,9 +227,7 @@ func runOrchestraCommand(
 	// Auto-enable interactive pane mode for cmux/tmux terminals (SPEC-ORCH-006)
 	interactive := term != nil && term.Name() != "plain"
 
-	// Hook mode is only activated when hooks are installed (SPEC-ORCH-007 R5/R6)
-	// Check for hook availability by looking for the session signal directory from a prior run,
-	// or rely on explicit opt-in. For now, hooks require `auto init` to install them first.
+	// Hook mode requires `auto init` to install hooks first (SPEC-ORCH-007 R5/R6).
 	hookMode := false
 	sessionID := ""
 	if interactive {
