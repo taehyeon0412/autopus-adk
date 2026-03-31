@@ -86,37 +86,61 @@ func newInitCmd() *cobra.Command {
 			out := cmd.OutOrStdout()
 			tui.BannerWithInfo(out, project, "init")
 
-			// Step 1: Language Settings
-			tui.Step(out, 1, 5, "Language Settings")
-			if !yes {
-				promptLanguageSettings(cmd, dir, cfg)
-			}
-
-			// Step 2: Quality Gate
-			tui.Step(out, 2, 5, "Quality Gate")
+			// Detect orchestra providers for wizard and review gate.
 			providers := detect.DetectOrchestraProviders()
-			if !yes && quality == "" {
-				promptQualityMode(cmd, dir, cfg)
-			} else if quality != "" {
-				cfg.Quality.Default = quality
-			}
-			if !yes && !noReviewGate {
-				promptReviewGate(cmd, dir, cfg, providers)
-			} else if noReviewGate {
-				cfg.Spec.ReviewGate.Enabled = false
-			} else {
-				// --yes mode: auto-detect providers
-				installed := detect.InstalledOrchestraProviders()
-				cfg.Spec.ReviewGate.Providers = installed
-				if len(installed) < 2 {
-					cfg.Spec.ReviewGate.Enabled = false
+			var providerNames []string
+			for _, p := range providers {
+				if p.Installed {
+					providerNames = append(providerNames, p.Name)
 				}
 			}
 
-			// Step 3: Methodology
-			tui.Step(out, 3, 5, "Methodology")
-			if !yes {
-				promptMethodology(cmd, dir, cfg)
+			// Step 1: Configuration Wizard
+			tui.Step(out, 1, 4, "Configuration Wizard")
+			if !yes && isStdinTTY() {
+				result, err := tui.RunInitWizard(tui.InitWizardOpts{
+					Quality:      quality,
+					NoReviewGate: noReviewGate,
+					Platforms:    platformList,
+					Accessible:   false,
+					Providers:    providerNames,
+				})
+				if err != nil {
+					return fmt.Errorf("wizard failed: %w", err)
+				}
+				if result.Cancelled {
+					fmt.Fprintln(out, "  init cancelled.")
+					return nil
+				}
+				// Apply wizard results to config.
+				cfg.Language.Comments = result.CommentsLang
+				cfg.Language.Commits = result.CommitsLang
+				cfg.Language.AIResponses = result.AILang
+				cfg.Quality.Default = result.Quality
+				cfg.Spec.ReviewGate.Enabled = result.ReviewGate
+				if result.ReviewGate {
+					cfg.Spec.ReviewGate.Providers = providerNames
+				}
+				if result.Methodology == "tdd" {
+					cfg.Methodology.Mode = "tdd"
+					cfg.Methodology.Enforce = true
+				} else {
+					cfg.Methodology.Mode = "none"
+					cfg.Methodology.Enforce = false
+				}
+			} else {
+				// Non-interactive: apply flags or defaults.
+				if quality != "" {
+					cfg.Quality.Default = quality
+				}
+				if noReviewGate {
+					cfg.Spec.ReviewGate.Enabled = false
+				} else {
+					cfg.Spec.ReviewGate.Providers = providerNames
+					if len(providerNames) < 2 {
+						cfg.Spec.ReviewGate.Enabled = false
+					}
+				}
 			}
 
 			// Save config after all prompts.
@@ -124,8 +148,8 @@ func newInitCmd() *cobra.Command {
 				return fmt.Errorf("autopus.yaml 저장 실패: %w", err)
 			}
 
-			// Step 4: Platform Files
-			tui.Step(out, 4, 5, "Platform Files")
+			// Step 2: Platform Files
+			tui.Step(out, 2, 4, "Platform Files")
 			ctx := context.Background()
 			if err := generatePlatformFiles(ctx, dir, cfg, cmd); err != nil {
 				return err
@@ -135,15 +159,16 @@ func newInitCmd() *cobra.Command {
 				tui.Warnf(out, "constraints.yaml 생성 실패: %v", err)
 			}
 
-			// Step 5: Gitignore
-			tui.Step(out, 5, 5, "Gitignore")
+			// Step 3: Gitignore
+			tui.Step(out, 3, 4, "Gitignore")
 			if err := updateGitignore(dir); err != nil {
 				return fmt.Errorf(".gitignore 업데이트 실패: %w", err)
 			}
 
 			warnParentRuleConflicts(cmd, dir, cfg)
 
-			// Summary
+			// Step 4: Summary
+			tui.Step(out, 4, 4, "Summary")
 			tui.SummaryTable(out, []tui.SummaryRow{
 				{Key: "Quality", Value: cfg.Quality.Default},
 				{Key: "Review Gate", Value: fmt.Sprintf("%v (%d providers)", cfg.Spec.ReviewGate.Enabled, len(cfg.Spec.ReviewGate.Providers))},

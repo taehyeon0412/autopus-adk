@@ -2,12 +2,20 @@ package tui_test
 
 import (
 	"bytes"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 
 	"github.com/insajin/autopus-adk/internal/cli/tui"
 )
+
+// TestMain ensures styles are initialized before parallel tests read them.
+func TestMain(m *testing.M) {
+	tui.EnsureSafeEnv()
+	tui.InitStyles()
+	os.Exit(m.Run())
+}
 
 func TestBanner_ContainsBrandName(t *testing.T) {
 	t.Parallel()

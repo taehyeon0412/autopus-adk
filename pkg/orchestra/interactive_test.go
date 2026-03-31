@@ -240,7 +240,7 @@ func TestWaitForCompletion_TwoPhase_ConsecutiveMatch(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	result := waitForCompletion(ctx, mock, pi, patterns, "")
+	result := waitForCompletion(ctx, mock, pi, patterns, "", 0)
 	assert.True(t, result, "two consecutive prompt matches should confirm completion")
 }
 
@@ -255,7 +255,7 @@ func TestWaitForCompletion_TwoPhase_ContextCancel(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	result := waitForCompletion(ctx, mock, pi, patterns, "")
+	result := waitForCompletion(ctx, mock, pi, patterns, "", 0)
 	assert.False(t, result, "context cancel should return false")
 }
 
@@ -270,7 +270,7 @@ func TestWaitForCompletion_TwoPhase_ReadScreenError(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	result := waitForCompletion(ctx, mock, pi, patterns, "")
+	result := waitForCompletion(ctx, mock, pi, patterns, "", 0)
 	assert.False(t, result, "persistent ReadScreen errors should prevent completion")
 }
 

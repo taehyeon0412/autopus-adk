@@ -301,7 +301,7 @@ func executeRound(ctx context.Context, cfg OrchestraConfig, panes []paneInfo, ho
 	if cfg.HookMode && hookSession != nil {
 		responses = collectRoundHookResults(pollCtx, cfg, hookSession, round)
 	} else {
-		responses = waitAndCollectResults(pollCtx, cfg, panes, patterns, time.Now(), baselines)
+		responses = waitAndCollectResults(pollCtx, cfg, panes, patterns, time.Now(), baselines, round)
 	}
 	// R8: Mark providers with empty output for partial merge
 	for i := range responses {

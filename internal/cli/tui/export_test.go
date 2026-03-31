@@ -1,0 +1,12 @@
+package tui
+
+// Exported aliases for testing unexported functions.
+var (
+	TestBuildStepList       = buildStepList
+	TestLangOptions         = langOptions
+	TestDefaultResult       = defaultResult
+	TestBuildLangStep       = buildLangStep
+	TestBuildQualityStep    = buildQualityStep
+	TestBuildReviewGateStep = buildReviewGateStep
+	TestBuildMethodologyStep = buildMethodologyStep
+)

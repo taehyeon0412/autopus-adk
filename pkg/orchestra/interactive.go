@@ -77,10 +77,10 @@ func RunInteractivePaneOrchestra(ctx context.Context, cfg OrchestraConfig) (*Orc
 		var hookErr error
 		responses, hookErr = WaitAndCollectHookResults(cfg, cfg.SessionID)
 		if hookErr != nil {
-			responses = waitAndCollectResults(timeoutCtx, cfg, panes, patterns, start, nil)
+			responses = waitAndCollectResults(timeoutCtx, cfg, panes, patterns, start, nil, 0)
 		}
 	} else {
-		responses = waitAndCollectResults(timeoutCtx, cfg, panes, patterns, start, nil)
+		responses = waitAndCollectResults(timeoutCtx, cfg, panes, patterns, start, nil, 0)
 	}
 
 	// Step 8: Merge by strategy (reuse existing mergeByStrategy)
@@ -239,8 +239,10 @@ func sendPrompts(ctx context.Context, cfg OrchestraConfig, panes []paneInfo) []F
 }
 
 // waitAndCollectResults waits for each provider to complete and collects cleaned results.
+// The round parameter is forwarded to waitForCompletion for round-scoped signal names.
+// Pass 0 for non-debate strategies (consensus, pipeline, fastest).
 // @AX:WARN [AUTO] concurrent goroutine writes to shared responses slice — guarded by mu sync.Mutex
-func waitAndCollectResults(ctx context.Context, cfg OrchestraConfig, panes []paneInfo, patterns []CompletionPattern, start time.Time, baselines map[string]string) []ProviderResponse {
+func waitAndCollectResults(ctx context.Context, cfg OrchestraConfig, panes []paneInfo, patterns []CompletionPattern, start time.Time, baselines map[string]string, round int) []ProviderResponse {
 	var (
 		responses []ProviderResponse
 		mu        sync.Mutex
@@ -263,7 +265,7 @@ func waitAndCollectResults(ctx context.Context, cfg OrchestraConfig, panes []pan
 			if baselines != nil {
 				baseline = baselines[pi.provider.Name]
 			}
-			timedOut := !waitForCompletion(ctx, cfg.Terminal, pi, patterns, baseline)
+			timedOut := !waitForCompletion(ctx, cfg.Terminal, pi, patterns, baseline, round)
 			// Use a fresh context for the final screen read — the original ctx may be
 			// cancelled after timeout, which would cause ReadScreen to fail.
 			readCtx, readCancel := context.WithTimeout(context.Background(), 5*time.Second)
