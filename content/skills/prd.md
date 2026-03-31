@@ -27,6 +27,19 @@ Identify the four core dimensions from the user's request:
 
 Clarify any missing dimensions before proceeding.
 
+### Step 1.5: Discovery Q&A
+
+PRD 작성 전에 6개 핵심 질문으로 컨텍스트를 수집합니다. 사용자 입력이 불충분할 경우 AskUserQuestion으로 확인:
+
+1. **Problem**: 해결하려는 핵심 문제는 무엇인가? (증상이 아닌 근본 원인)
+2. **Target Users**: 누가 이것을 사용하는가? (역할, 빈도, 기대)
+3. **Success Metrics**: 성공을 어떻게 측정하는가? (정량적 지표 1개 이상)
+4. **Constraints**: 기술적/비즈니스적 제약은? (기한, 호환성, 예산)
+5. **Prior Art**: 이전에 시도된 접근이나 관련 기능이 있는가?
+6. **Scope Boundary**: 이번에 명확히 제외할 것은? (스코프 크리프 방지)
+
+모든 질문에 답변이 있어야 Step 2로 진행. 불확실한 항목은 PRD의 Open Questions 섹션에 기록.
+
 ### Step 2: Codebase Context Collection
 
 Gather relevant context to ground the PRD in the current state of the system:
@@ -53,20 +66,27 @@ Choose the appropriate mode based on scope:
 | **Standard** | New features, cross-team work, public APIs | 10 sections |
 | **Minimal** | Small changes, internal tools, hotfixes | 5 sections |
 
-#### Standard Mode (10 sections)
+#### Standard Mode (11 sections)
 
 Reference: `templates/shared/prd-standard.md.tmpl`
 
 1. **Problem & Context** — Current situation, problem statement, business impact
 2. **Goals & Success Metrics** — SMART goals with quantitative success criteria
 3. **Target Users** — User groups, roles, usage frequency, key expectations
-4. **User Stories** — As a / I want / so that + Given-When-Then acceptance criteria
+4. **User Stories / Job Stories** — Two formats supported:
+   - **User Stories**: As a [role] / I want [action] / so that [benefit] + INVEST criteria check
+   - **Job Stories** (JTBD): When [situation] / I want to [motivation] / so I can [outcome]
+   - Choose the format that best captures user intent. Job Stories work better when context matters more than role.
 5. **Functional Requirements** — MoSCoW prioritized (P0=Must, P1=Should, P2=Could)
 6. **Non-Functional Requirements** — Performance, security, scalability, compliance
 7. **Technical Constraints** — Stack constraints, external dependencies, compatibility
 8. **Out of Scope** — Explicit exclusions to prevent scope creep
 9. **Risks & Open Questions** — Risk severity/mitigation + unresolved questions
-10. **Practitioner Q&A** — Key implementation questions with answers or TBD
+10. **Pre-mortem** — "이 기능이 6개월 후 실패한다면 이유는?" 사전 분석
+    - 3-5개 실패 시나리오 도출
+    - 각 시나리오별 발생 확률 (High/Medium/Low)과 예방 조치
+    - Discovery Q&A에서 수집한 제약/위험과 연결
+11. **Practitioner Q&A** — Key implementation questions with answers or TBD
 
 #### Minimal Mode (5 sections)
 

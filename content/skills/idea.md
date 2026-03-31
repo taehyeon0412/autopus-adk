@@ -58,9 +58,50 @@ auto_chain = flags.auto    # default: false
 - **Who**: 누구를 위한 것인가? (대상 사용자)
 - **When**: 언제 필요한가? (타임라인/맥락)
 
+#### Opportunity-Solution Tree (선택)
+
+아이디어가 기존 제품 개선인 경우, OST 프레임워크로 구조화:
+
+```
+Outcome (목표)
+  └─ Opportunity (기회/문제)
+       ├─ Solution A
+       │    └─ Experiment (검증 방법)
+       ├─ Solution B
+       │    └─ Experiment
+       └─ Solution C
+            └─ Experiment
+```
+
+- **Outcome**: 달성하려는 비즈니스/사용자 목표
+- **Opportunity**: 사용자의 unmet need 또는 pain point
+- **Solution**: 기회를 해결하는 구체적 방안
+- **Experiment**: 솔루션의 가정을 검증하는 최소 실험
+
+#### Assumption Identification
+
+아이디어의 핵심 가정을 4축으로 식별:
+
+| 축 | 질문 | 예시 |
+|---|---|---|
+| **Value** | 사용자가 이것을 원하는가? | "사용자가 자동 분석을 필요로 한다" |
+| **Usability** | 사용자가 이것을 쓸 수 있는가? | "CLI 인터페이스로 충분하다" |
+| **Feasibility** | 기술적으로 구현 가능한가? | "LLM API 지연이 허용 범위 내다" |
+| **Viability** | 비즈니스적으로 지속 가능한가? | "API 비용이 수익 내에서 감당 가능하다" |
+
+가장 위험한 가정(높은 Impact × 높은 Uncertainty)을 상위 3개 식별합니다.
+
 ### [REQUIRED] Step 3: Call Orchestra Brainstorm (MUST call Bash tool)
 
 IMPORTANT: 이 단계는 반드시 Bash 툴로 CLI를 실행해야 합니다. Sequential Thinking이나 단일 모델 시뮬레이션으로 대체 금지.
+
+#### Multi-Perspective Brainstorming
+
+Orchestra 프롬프트에 3가지 관점을 포함하여 다각적 발산을 유도:
+
+- **PM 관점**: 사용자 가치, 비즈니스 임팩트, 우선순위
+- **Designer 관점**: UX, 접근성, 사용자 여정, 인터랙션 패턴
+- **Engineer 관점**: 기술적 실현 가능성, 아키텍처, 성능, 보안
 
 ```bash
 auto orchestra brainstorm "{structured idea}" --strategy {strategy}
@@ -85,6 +126,17 @@ auto orchestra brainstorm "{structured idea}" --strategy {strategy}
 `Score = (Impact × Confidence × Ease) / 100`
 
 상위 N개 아이디어를 선별하여 BS 파일에 기록합니다.
+
+#### Assumption Risk Overlay
+
+ICE Top N 아이디어 각각에 대해 Step 2에서 식별한 가정의 위험도를 오버레이:
+
+| Rank | Idea | ICE Score | Top Risk Assumption | Risk Level |
+|------|------|-----------|---------------------|------------|
+| 1 | ... | 7.2 | "사용자가 X를 원한다" (Value) | HIGH |
+| 2 | ... | 6.8 | "API 지연 < 500ms" (Feasibility) | MEDIUM |
+
+HIGH 위험 가정이 있는 아이디어는 `/auto plan` 전에 검증 실험을 권장합니다.
 
 ### Step 5: Save and Guide Next Steps
 

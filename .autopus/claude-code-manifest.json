@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "platform": "claude-code",
-  "generated_at": "2026-03-29T07:34:08+09:00",
+  "generated_at": "2026-03-30T17:44:30+09:00",
   "files": {
     ".claude/agents/autopus/annotator.md": {
       "checksum": "536af8a34ac0ca0e8f6f56d18cb671d2805640f10fc0eb02922809fdd6e73796",
@@ -72,11 +72,15 @@
       "policy": "always"
     },
     ".claude/hooks/autopus/hook-claude-stop.sh": {
-      "checksum": "32cd4edcc5bf5f0f553a575ebbe188f2b55775454bdc0f00d99fbf16c0fd4b8e",
+      "checksum": "cacdee7135d88dc06d83537a1aa1ffb2db52c4a1a1a9f6a108bda35b21f1070f",
+      "policy": "always"
+    },
+    ".claude/hooks/autopus/hook-codex-stop.sh": {
+      "checksum": "aa690eb92250dc6fa8b8d316b813c9a705e08e91b01e767762e593ac44bdd015",
       "policy": "always"
     },
     ".claude/hooks/autopus/hook-gemini-afteragent.sh": {
-      "checksum": "9ee410eabd44ec6bfa490c6ae7b0affbeb6c440cf531483498ff40d0f6d752e2",
+      "checksum": "0c5394f07d446dd9b47bb3e4b5cfcae90f5fbdf1425a6eb7239d98b4df3e09e2",
       "policy": "always"
     },
     ".claude/hooks/autopus/pre-commit-arch.sh": {
