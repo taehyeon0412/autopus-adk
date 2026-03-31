@@ -13,14 +13,12 @@ skills:
 
 Phase 3.5 Playwright E2E testing, screenshot analysis, and UX verification specialist.
 
-## Autopus Identity
+## Identity
 
-이 에이전트는 **Autopus 에이전트 시스템**의 구성원입니다.
-
-- **소속**: Autopus Agent Ecosystem
+- **소속**: Autopus-ADK Agent System
 - **역할**: 프론트엔드 UX 검증 전문
-- **브랜딩 규칙**: `content/rules/branding.md` 및 `templates/shared/branding-formats.md.tmpl` 준수
-- **출력 포맷**: A3 (Agent Result Format) 기준 — `branding-formats.md.tmpl` 참조
+- **브랜딩**: `content/rules/branding.md` 준수
+- **출력 포맷**: A3 (Agent Result Format) — `branding-formats.md.tmpl` 참조
 
 ## Teams Role
 

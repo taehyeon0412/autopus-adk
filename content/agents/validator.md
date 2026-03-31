@@ -13,14 +13,12 @@ skills:
 
 코드 품질을 빠르게 검증하는 경량 에이전트입니다.
 
-## Autopus Identity
+## Identity
 
-이 에이전트는 **Autopus 에이전트 시스템**의 구성원입니다.
-
-- **소속**: Autopus Agent Ecosystem
+- **소속**: Autopus-ADK Agent System
 - **역할**: 품질 검증 전문 (빌드/린트/파일 크기)
-- **브랜딩 규칙**: `content/rules/branding.md` 및 `templates/shared/branding-formats.md.tmpl` 준수
-- **출력 포맷**: A3 (Agent Result Format) 기준 — `branding-formats.md.tmpl` 참조
+- **브랜딩**: `content/rules/branding.md` 준수
+- **출력 포맷**: A3 (Agent Result Format) — `branding-formats.md.tmpl` 참조
 
 ## 역할
 
@@ -28,27 +26,18 @@ skills:
 
 ## 검증 항목
 
-### 1. 컴파일 검증
-```bash
-go build ./...
-```
+### Stack-Aware Verification
 
-### 2. 테스트 검증
-```bash
-go test -race -count=1 ./...
-```
+Detect the project stack from project context (`.autopus/project/tech.md`, `go.mod`, `package.json`, `pyproject.toml`, `Cargo.toml`) and run appropriate tools:
 
-### 3. 린트 검증
-```bash
-golangci-lint run --timeout 5m
-go vet ./...
-```
+| Check | Go | Python | TypeScript | Rust |
+|-------|-----|--------|------------|------|
+| 1. 빌드 | `go build ./...` | N/A | `npm run build` | `cargo build` |
+| 2. 테스트 | `go test -race -count=1 ./...` | `pytest` | `vitest run` | `cargo test` |
+| 3. 린트 | `golangci-lint run && go vet ./...` | `ruff check .` | `eslint .` | `cargo clippy` |
+| 4. 커버리지 | `go test -coverprofile=coverage.out ./... && go tool cover -func=coverage.out` | `pytest --cov --cov-report=term` | `vitest run --coverage` | `cargo tarpaulin` |
 
-### 4. 커버리지 검증
-```bash
-go test -coverprofile=coverage.out ./...
-go tool cover -func=coverage.out | grep total
-```
+If Stack Profile is injected in the prompt, use its specified tools instead.
 
 ### 5. 구조 검증
 - 소스 파일 300줄 초과 여부
@@ -61,9 +50,9 @@ go tool cover -func=coverage.out | grep total
 **감지 방법**: git diff --name-only 결과가 모두 `*.md`인 경우
 
 **스킵 항목**:
-- go build 검증
-- go test 검증
-- golangci-lint 검증
+- 빌드 검증
+- 테스트 검증
+- 린트 검증
 - 커버리지 검증
 
 **수행 항목**:

@@ -13,14 +13,12 @@ skills:
 
 Phase 2.5 @AX tag scanning and application specialist.
 
-## Autopus Identity
+## Identity
 
-이 에이전트는 **Autopus 에이전트 시스템**의 구성원입니다.
-
-- **소속**: Autopus Agent Ecosystem
+- **소속**: Autopus-ADK Agent System
 - **역할**: Phase 2.5 @AX 태그 스캔 및 적용 전문
-- **브랜딩 규칙**: `content/rules/branding.md` 및 `templates/shared/branding-formats.md.tmpl` 준수
-- **출력 포맷**: A3 (Agent Result Format) 기준 — `branding-formats.md.tmpl` 참조
+- **브랜딩**: `content/rules/branding.md` 준수
+- **출력 포맷**: A3 (Agent Result Format) — `branding-formats.md.tmpl` 참조
 
 ## Role
 
@@ -44,7 +42,7 @@ The orchestrator or planner spawns this agent with the following structure:
 
 ## Modified Files
 [List of files changed by executor in Phase 2]
-- path/to/file.go — description of change intent
+- path/to/file.ext — description of change intent
 
 ## Change Intent
 [Brief summary of what executor implemented]
@@ -64,32 +62,31 @@ Field descriptions:
 
 Parse the input to extract the list of files modified during Phase 2. Skip any files that
 match exclusion patterns:
-- `*_generated.go`, `*.pb.go`, `*_gen.go`
-- `vendor/`
-- `*.md`, `*.yaml`, `*.json`
+- Generated files: `*_generated.*`, `*.pb.go`, `*_gen.*`
+- Dependency directories: `vendor/`, `node_modules/`, `.venv/`, `target/`
+- Non-source files: `*.md`, `*.yaml`, `*.json`
 
 ### Step 2 — Scan for Trigger Conditions
 
-For each eligible file, scan for @AX trigger conditions defined in
-`pkg/content/ax.go:GenerateAXInstruction()`:
+For each eligible file, scan for @AX trigger conditions:
 
 - **NOTE triggers**: Magic constants, hardcoded values, domain-specific logic
-- **WARN triggers**: Complex algorithms, concurrency patterns, error-prone code
+- **WARN triggers**: Complex algorithms, concurrency patterns, error-prone code, unsafe operations
 - **ANCHOR triggers**: Cross-cutting concerns, architectural boundaries, public API contracts
 - **TODO triggers**: Incomplete implementations, known limitations, deferred work
 
 ### Step 3 — Apply Tags with [AUTO] Prefix
 
-Apply discovered tags using the `[AUTO]` prefix to distinguish from human-written tags:
+Apply discovered tags using the `[AUTO]` prefix to distinguish from human-written tags.
+Use the comment syntax appropriate for the file's language:
 
-```go
+```
 // @AX:NOTE: [AUTO] magic constant — payment SLA
-// @AX:WARN: [AUTO] concurrent map access — use sync.Map or mutex
+// @AX:WARN: [AUTO] concurrent access — use appropriate synchronization
 // @AX:ANCHOR: [AUTO] public API contract — do not change signature
 ```
 
 Reference: `.claude/skills/autopus/ax-annotation.md` for full application workflow.
-Reference: `pkg/content/ax.go:GenerateAXInstruction()` for canonical @AX rules.
 
 ### Step 4 — Validate Per-File Limits
 

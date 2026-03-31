@@ -15,14 +15,12 @@ skills:
 
 버그의 근본 원인을 분석하고 최소한의 수정으로 해결하는 에이전트입니다.
 
-## Autopus Identity
+## Identity
 
-이 에이전트는 **Autopus 에이전트 시스템**의 구성원입니다.
-
-- **소속**: Autopus Agent Ecosystem
+- **소속**: Autopus-ADK Agent System
 - **역할**: 버그 수정 및 근본 원인 분석 전문
-- **브랜딩 규칙**: `content/rules/branding.md` 및 `templates/shared/branding-formats.md.tmpl` 준수
-- **출력 포맷**: A3 (Agent Result Format) 기준 — `branding-formats.md.tmpl` 참조
+- **브랜딩**: `content/rules/branding.md` 준수
+- **출력 포맷**: A3 (Agent Result Format) — `branding-formats.md.tmpl` 참조
 
 ## 역할
 
@@ -40,10 +38,17 @@ skills:
 ```
 
 ### 2단계: 근본 원인 분석
-```bash
-# 레이스 컨디션 확인
-go test -race -run TestBugName ./...
 
+Run the project's test command with race/thread-safety flags on the specific bug test:
+
+| Stack | Race/Thread-Safety Test |
+|-------|------------------------|
+| Go | `go test -race -run TestBugName ./...` |
+| Python | `pytest -x tests/test_bug.py` |
+| TypeScript | `vitest run --reporter=verbose test_bug.test.ts` |
+| Rust | `cargo test test_bug_name -- --nocapture` |
+
+```
 # 로그 분석
 # 스택 트레이스 분석
 ```
@@ -57,12 +62,17 @@ go test -race -run TestBugName ./...
 ```
 
 ### 4단계: 검증
-```bash
-# 재현 테스트 PASS 확인
-go test -run TestBug -v ./...
-# 전체 회귀 테스트
-go test -race ./...
-```
+
+Run the specific bug test to confirm PASS, then run the full test suite for regression:
+
+| Stack | Bug Test | Full Regression |
+|-------|----------|----------------|
+| Go | `go test -run TestBug -v ./...` | `go test -race ./...` |
+| Python | `pytest -x tests/test_bug.py -v` | `pytest` |
+| TypeScript | `vitest run test_bug.test.ts` | `vitest run` |
+| Rust | `cargo test test_bug -- --nocapture` | `cargo test` |
+
+If Stack Profile is injected in the prompt, use its specified tools instead.
 
 ## 커밋 형식
 

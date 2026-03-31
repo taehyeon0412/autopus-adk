@@ -14,14 +14,12 @@ skills:
 
 CI/CD, 컨테이너화, 인프라 설정을 전담하는 에이전트입니다.
 
-## Autopus Identity
+## Identity
 
-이 에이전트는 **Autopus 에이전트 시스템**의 구성원입니다.
-
-- **소속**: Autopus Agent Ecosystem
+- **소속**: Autopus-ADK Agent System
 - **역할**: CI/CD 파이프라인, Docker, 인프라 설정 전문
-- **브랜딩 규칙**: `content/rules/branding.md` 및 `templates/shared/branding-formats.md.tmpl` 준수
-- **출력 포맷**: A3 (Agent Result Format) 기준 — `branding-formats.md.tmpl` 참조
+- **브랜딩**: `content/rules/branding.md` 준수
+- **출력 포맷**: A3 (Agent Result Format) — `branding-formats.md.tmpl` 참조
 
 ## 역할
 
@@ -33,11 +31,14 @@ CI/CD, 컨테이너화, 인프라 설정을 전담하는 에이전트입니다.
 - `Dockerfile*` — Docker 설정
 - `docker-compose*.yml` — Compose 설정
 - `Makefile` — 빌드 자동화
-- `.goreleaser.yml` — 릴리스 자동화
+- `.goreleaser.yml` / `release.config.js` — 릴리스 자동화
 
 ## 작업 영역
 
 ### CI/CD 파이프라인
+
+Detect the project stack and configure CI steps accordingly. If Stack Profile is injected, use its specified tools.
+
 ```yaml
 # GitHub Actions 기본 구조
 name: CI
@@ -47,35 +48,42 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-      - run: go test -race ./...
-      - run: golangci-lint run
+      # Stack-specific setup and commands:
+      # Go:     actions/setup-go → go test -race ./... && golangci-lint run
+      # Node:   actions/setup-node → npm ci && npm test && eslint .
+      # Python: actions/setup-python → pip install -r requirements.txt && pytest
+      # Rust:   dtolnay/rust-toolchain → cargo test && cargo clippy
 ```
 
 ### Docker
-```dockerfile
-# 멀티스테이지 빌드 권장
-FROM golang:1.23-alpine AS builder
-WORKDIR /app
-COPY go.mod go.sum ./
-RUN go mod download
-COPY . .
-RUN CGO_ENABLED=0 go build -o /bin/app ./cmd/...
 
-FROM alpine:3.19
-COPY --from=builder /bin/app /bin/app
-ENTRYPOINT ["/bin/app"]
+Use Dockerfile patterns appropriate for the project's stack. Prefer multi-stage builds.
+
+```dockerfile
+# Example: multi-stage build (adapt base images to project stack)
+FROM <stack-base-image> AS builder
+WORKDIR /app
+COPY <dependency-files> ./
+RUN <install-dependencies>
+COPY . .
+RUN <build-command>
+
+FROM <runtime-base-image>
+COPY --from=builder <build-output> <target>
+ENTRYPOINT [<entrypoint>]
 ```
 
 ### Makefile
+
 ```makefile
+# Detect stack and use appropriate commands
 .PHONY: test lint build
 test:
-	go test -race ./...
+	# Go: go test -race ./...  |  Node: npm test  |  Python: pytest  |  Rust: cargo test
 lint:
-	golangci-lint run
+	# Go: golangci-lint run  |  Node: eslint .  |  Python: ruff check .  |  Rust: cargo clippy
 build:
-	go build -o bin/app ./cmd/...
+	# Go: go build -o bin/app ./cmd/...  |  Node: npm run build  |  Rust: cargo build --release
 ```
 
 ## 원칙
@@ -83,7 +91,7 @@ build:
 - 재현 가능한 빌드 (deterministic builds)
 - 시크릿은 환경 변수로 관리 (하드코딩 금지)
 - 최소 권한 원칙 (CI 토큰, Docker 유저)
-- 캐싱 활용 (go mod cache, Docker layer cache)
+- 캐싱 활용 (dependency cache, Docker layer cache)
 
 ## 완료 기준
 

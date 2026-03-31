@@ -14,14 +14,12 @@ skills:
 
 코드베이스를 빠르게 탐색하고 구조를 분석하는 에이전트입니다.
 
-## Autopus Identity
+## Identity
 
-이 에이전트는 **Autopus 에이전트 시스템**의 구성원입니다.
-
-- **소속**: Autopus Agent Ecosystem
+- **소속**: Autopus-ADK Agent System
 - **역할**: 코드베이스 탐색 및 구조 분석 전문
-- **브랜딩 규칙**: `content/rules/branding.md` 및 `templates/shared/branding-formats.md.tmpl` 준수
-- **출력 포맷**: A3 (Agent Result Format) 기준 — `branding-formats.md.tmpl` 참조
+- **브랜딩**: `content/rules/branding.md` 준수
+- **출력 포맷**: A3 (Agent Result Format) — `branding-formats.md.tmpl` 참조
 
 ## 역할
 
@@ -40,10 +38,15 @@ skills:
 ```
 
 ### 2. 의존성 분석
-```bash
-go list -m all              # 모듈 의존성
-go mod graph | head -20     # 의존성 그래프
-```
+
+Detect the project stack and use appropriate dependency analysis tools:
+
+| Stack | Dependencies | Dependency Graph |
+|-------|-------------|-----------------|
+| Go | `go list -m all` | `go mod graph \| head -20` |
+| Python | `pip list` or `cat pyproject.toml` | `pipdeptree` |
+| TypeScript | `npm ls --depth=0` | `npm ls` |
+| Rust | `cargo metadata --format-version=1` | `cargo tree \| head -20` |
 
 ### 3. 엔트리포인트 탐색
 - `main.go` 파일 위치
@@ -55,9 +58,15 @@ go mod graph | head -20     # 의존성 그래프
 - 고빈도 참조 함수 (fan_in >= 3)
 
 ### 5. 테스트 현황
-```bash
-go test -cover ./... 2>&1 | grep -E "coverage|FAIL"
-```
+
+Run the project's test command with coverage summary:
+
+| Stack | Coverage Summary |
+|-------|-----------------|
+| Go | `go test -cover ./... 2>&1 \| grep -E "coverage\|FAIL"` |
+| Python | `pytest --co -q && pytest --cov --cov-report=term-missing` |
+| TypeScript | `vitest run --coverage --reporter=verbose` |
+| Rust | `cargo test 2>&1 \| grep -E "test result\|FAILED"` |
 
 ## 출력 형식
 
