@@ -146,16 +146,28 @@ func captureBaselines(ctx context.Context, term terminal.Terminal, panes []paneI
 	return baselines
 }
 
-// sendPromptWithRetry sends a prompt to a pane, recreating the pane on failure.
+// sendPromptWithRetry sends a prompt to a pane, retrying on the same pane first
+// before falling back to pane recreation as a last resort.
 // Returns updated paneInfo and whether recreation occurred.
 func sendPromptWithRetry(ctx context.Context, cfg OrchestraConfig, pi paneInfo, prompt string, round int, baselines map[string]string) (paneInfo, bool, error) {
-	// Try SendLongText
+	// Initial attempt on existing pane
 	if err := cfg.Terminal.SendLongText(ctx, pi.paneID, prompt); err == nil {
 		return pi, false, nil
 	}
 
-	// Recreation + retry logic (moved from executeRound)
-	log.Printf("[Round %d] %s SendLongText failed -- attempting recreation", round, pi.provider.Name)
+	// Same-pane retries with exponential backoff (2s, 4s) before recreation
+	samePaneBackoffs := []time.Duration{2 * time.Second, 4 * time.Second}
+	for i, wait := range samePaneBackoffs {
+		log.Printf("[Round %d] %s same-pane retry %d/%d, waiting %v...",
+			round, pi.provider.Name, i+1, len(samePaneBackoffs), wait)
+		time.Sleep(wait)
+		if err := cfg.Terminal.SendLongText(ctx, pi.paneID, prompt); err == nil {
+			return pi, false, nil
+		}
+	}
+
+	// All same-pane retries exhausted — recreate pane as last resort
+	log.Printf("[Round %d] %s all same-pane retries exhausted, recreating pane", round, pi.provider.Name)
 	newPI, err := recreatePane(ctx, cfg, pi, round)
 	if err != nil {
 		return pi, false, fmt.Errorf("recreatePane failed: %w", err)
@@ -166,15 +178,9 @@ func sendPromptWithRetry(ctx context.Context, cfg OrchestraConfig, pi paneInfo, 
 		baselines[pi.provider.Name] = screen
 	}
 
-	// @AX:NOTE [AUTO] magic constant 3 — max retry attempts; paired with 2s exponential backoff
-	// Retry with exponential backoff — longer delays give cmux surfaces time to stabilize
-	for attempt := 1; attempt <= 3; attempt++ {
-		if retryErr := cfg.Terminal.SendLongText(ctx, newPI.paneID, prompt); retryErr == nil {
-			return newPI, true, nil
-		}
-		wait := time.Duration(attempt) * 2 * time.Second
-		log.Printf("[Round %d] %s SendLongText attempt %d failed, waiting %v...", round, pi.provider.Name, attempt, wait)
-		time.Sleep(wait)
+	// Final attempt on the newly created pane
+	if retryErr := cfg.Terminal.SendLongText(ctx, newPI.paneID, prompt); retryErr != nil {
+		return newPI, true, fmt.Errorf("SendLongText failed after recreation: %w", retryErr)
 	}
-	return newPI, true, fmt.Errorf("SendLongText failed after 3 attempts")
+	return newPI, true, nil
 }
