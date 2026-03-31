@@ -26,11 +26,11 @@ func TestRouter_Generate_CreatesSingleAutoMD(t *testing.T) {
 	_, err := a.Generate(context.Background(), cfg)
 	require.NoError(t, err)
 
-	// .claude/commands/auto.md 파일이 존재해야 함
-	autoMD := filepath.Join(dir, ".claude", "commands", "auto.md")
+	// .claude/skills/auto/SKILL.md 파일이 존재해야 함
+	autoMD := filepath.Join(dir, ".claude", "skills", "auto", "SKILL.md")
 	info, err := os.Stat(autoMD)
-	require.NoError(t, err, ".claude/commands/auto.md가 존재해야 함")
-	assert.False(t, info.IsDir(), "auto.md는 파일이어야 함")
+	require.NoError(t, err, ".claude/skills/auto/SKILL.md가 존재해야 함")
+	assert.False(t, info.IsDir(), "SKILL.md는 파일이어야 함")
 
 	// .claude/commands/autopus/ 디렉터리는 존재하지 않아야 함
 	_, err = os.Stat(filepath.Join(dir, ".claude", "commands", "autopus"))
@@ -48,7 +48,7 @@ func TestRouter_Generate_AutoMDContainsSubcommands(t *testing.T) {
 	_, err := a.Generate(context.Background(), cfg)
 	require.NoError(t, err)
 
-	data, err := os.ReadFile(filepath.Join(dir, ".claude", "commands", "auto.md"))
+	data, err := os.ReadFile(filepath.Join(dir, ".claude", "skills", "auto", "SKILL.md"))
 	require.NoError(t, err)
 	content := string(data)
 
@@ -73,8 +73,8 @@ func TestRouter_Generate_LiteMode_ExcludesFullOnlyCommands(t *testing.T) {
 	_, err := a.Generate(context.Background(), cfg)
 	require.NoError(t, err)
 
-	// auto.md가 생성되어야 함 (Lite 모드에서도)
-	data, err := os.ReadFile(filepath.Join(dir, ".claude", "commands", "auto.md"))
+	// SKILL.md가 생성되어야 함 (Lite 모드에서도)
+	data, err := os.ReadFile(filepath.Join(dir, ".claude", "skills", "auto", "SKILL.md"))
 	require.NoError(t, err)
 	content := string(data)
 
@@ -121,7 +121,7 @@ func TestRouter_ClaudeMD_ShowsAutoMDPath(t *testing.T) {
 	require.NoError(t, err)
 	content := string(data)
 
-	assert.Contains(t, content, "Commands: .claude/commands/auto.md")
+	assert.Contains(t, content, "Commands: .claude/skills/auto/SKILL.md")
 	assert.NotContains(t, content, "Commands: .claude/commands/autopus/")
 }
 
@@ -162,7 +162,7 @@ func TestRouter_Validate_MissingAutoMD(t *testing.T) {
 	// auto.md 누락 오류가 있어야 함
 	found := false
 	for _, e := range errs {
-		if e.File == ".claude/commands/auto.md" {
+		if e.File == ".claude/skills/auto/SKILL.md" {
 			found = true
 			break
 		}
@@ -184,9 +184,9 @@ func TestRouter_Clean_RemovesAutoMD(t *testing.T) {
 	err = a.Clean(context.Background())
 	require.NoError(t, err)
 
-	// auto.md가 삭제되어야 함
-	_, statErr := os.Stat(filepath.Join(dir, ".claude", "commands", "auto.md"))
-	assert.True(t, os.IsNotExist(statErr), "auto.md가 삭제되어야 함")
+	// SKILL.md가 삭제되어야 함
+	_, statErr := os.Stat(filepath.Join(dir, ".claude", "skills", "auto", "SKILL.md"))
+	assert.True(t, os.IsNotExist(statErr), "SKILL.md가 삭제되어야 함")
 }
 
 // TestRouter_Clean_RemovesLegacyAutopusDir는 Clean이 구 autopus/ 디렉터리도 삭제하는지 테스트한다.
@@ -233,12 +233,12 @@ func TestRouter_Generate_FileMappingPath(t *testing.T) {
 	// auto.md 파일 매핑이 있어야 함
 	found := false
 	for _, f := range files.Files {
-		if f.TargetPath == ".claude/commands/auto.md" {
+		if f.TargetPath == ".claude/skills/auto/SKILL.md" {
 			found = true
 			break
 		}
 	}
-	assert.True(t, found, "FileMapping에 .claude/commands/auto.md가 포함되어야 함")
+	assert.True(t, found, "FileMapping에 .claude/skills/auto/SKILL.md가 포함되어야 함")
 
 	// autopus/ 하위 파일은 없어야 함
 	for _, f := range files.Files {

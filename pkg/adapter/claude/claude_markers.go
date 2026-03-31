@@ -73,12 +73,12 @@ func (a *Adapter) Validate(_ context.Context) ([]adapter.ValidationError, error)
 		}
 	}
 
-	// Check router command file
-	autoMDPath := filepath.Join(".claude", "commands", "auto.md")
+	// Check router skill file
+	autoMDPath := filepath.Join(".claude", "skills", "auto", "SKILL.md")
 	if _, err := os.Stat(filepath.Join(a.root, autoMDPath)); os.IsNotExist(err) {
 		errs = append(errs, adapter.ValidationError{
 			File:    autoMDPath,
-			Message: "라우터 커맨드 파일이 없음: .claude/commands/auto.md",
+			Message: "라우터 스킬 파일이 없음: .claude/skills/auto/SKILL.md",
 			Level:   "error",
 		})
 	}
@@ -121,7 +121,8 @@ func (a *Adapter) Clean(_ context.Context) error {
 	autopusDirs := []string{
 		filepath.Join(a.root, ".claude", "rules", "autopus"),
 		filepath.Join(a.root, ".claude", "skills", "autopus"),
-		filepath.Join(a.root, ".claude", "commands", "autopus"), // legacy dir cleanup
+		filepath.Join(a.root, ".claude", "skills", "auto"),      // router skill dir
+		filepath.Join(a.root, ".claude", "commands", "autopus"),  // legacy dir cleanup
 		filepath.Join(a.root, ".claude", "agents", "autopus"),
 	}
 	for _, d := range autopusDirs {
@@ -130,10 +131,10 @@ func (a *Adapter) Clean(_ context.Context) error {
 		}
 	}
 
-	// Remove router command file
-	autoMDPath := filepath.Join(a.root, ".claude", "commands", "auto.md")
-	if err := os.Remove(autoMDPath); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("라우터 커맨드 삭제 실패: %w", err)
+	// Remove legacy router command file
+	legacyAutoMD := filepath.Join(a.root, ".claude", "commands", "auto.md")
+	if err := os.Remove(legacyAutoMD); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("레거시 라우터 커맨드 삭제 실패: %w", err)
 	}
 
 	// Remove marker section from CLAUDE.md
@@ -162,7 +163,7 @@ const claudeMDTemplate = `# Autopus-ADK Harness
 
 - Rules: .claude/rules/autopus/
 - Skills: .claude/skills/autopus/
-- Commands: .claude/commands/auto.md
+- Commands: .claude/skills/auto/SKILL.md
 - Agents: .claude/agents/autopus/
 {{- if .IsolateRules}}
 

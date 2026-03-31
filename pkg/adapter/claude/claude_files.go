@@ -39,7 +39,7 @@ func (a *Adapter) prepareFiles(cfg *config.HarnessConfig) ([]adapter.FileMapping
 		return nil, fmt.Errorf("라우터 템플릿 렌더링 실패: %w", err)
 	}
 	files = append(files, adapter.FileMapping{
-		TargetPath:      filepath.Join(".claude", "commands", "auto.md"),
+		TargetPath:      filepath.Join(".claude", "skills", "auto", "SKILL.md"),
 		OverwritePolicy: adapter.OverwriteAlways,
 		Checksum:        checksum(rendered),
 		Content:         []byte(rendered),
@@ -213,7 +213,7 @@ func (a *Adapter) copyStatusline() ([]adapter.FileMapping, error) {
 }
 
 // renderRouterCommand는 단일 라우터 템플릿(auto-router.md.tmpl)을 렌더링하여
-// .claude/commands/auto.md 파일을 생성한다.
+// .claude/skills/auto/SKILL.md 파일을 생성한다.
 func (a *Adapter) renderRouterCommand(cfg *config.HarnessConfig) ([]adapter.FileMapping, error) {
 	tmplContent, err := templates.FS.ReadFile("claude/commands/auto-router.md.tmpl")
 	if err != nil {
@@ -225,13 +225,18 @@ func (a *Adapter) renderRouterCommand(cfg *config.HarnessConfig) ([]adapter.File
 		return nil, fmt.Errorf("라우터 템플릿 렌더링 실패: %w", err)
 	}
 
-	targetPath := filepath.Join(a.root, ".claude", "commands", "auto.md")
+	targetDir := filepath.Join(a.root, ".claude", "skills", "auto")
+	if err := os.MkdirAll(targetDir, 0755); err != nil {
+		return nil, fmt.Errorf("라우터 스킬 디렉터리 생성 실패: %w", err)
+	}
+
+	targetPath := filepath.Join(targetDir, "SKILL.md")
 	if err := os.WriteFile(targetPath, []byte(rendered), 0644); err != nil {
-		return nil, fmt.Errorf("라우터 커맨드 쓰기 실패: %w", err)
+		return nil, fmt.Errorf("라우터 스킬 쓰기 실패: %w", err)
 	}
 
 	return []adapter.FileMapping{{
-		TargetPath:      filepath.Join(".claude", "commands", "auto.md"),
+		TargetPath:      filepath.Join(".claude", "skills", "auto", "SKILL.md"),
 		OverwritePolicy: adapter.OverwriteAlways,
 		Checksum:        checksum(rendered),
 		Content:         []byte(rendered),

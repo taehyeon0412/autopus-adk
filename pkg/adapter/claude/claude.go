@@ -81,6 +81,12 @@ func (a *Adapter) Generate(ctx context.Context, cfg *config.HarnessConfig) (*ada
 		}
 	}
 
+	// Clean up legacy .claude/commands/auto.md (v2 → v3 migration: commands → skills)
+	legacyAutoMD := filepath.Join(a.root, ".claude", "commands", "auto.md")
+	if _, err := os.Stat(legacyAutoMD); err == nil {
+		os.Remove(legacyAutoMD)
+	}
+
 	var files []adapter.FileMapping
 
 	// CLAUDE.md marker section
@@ -100,7 +106,7 @@ func (a *Adapter) Generate(ctx context.Context, cfg *config.HarnessConfig) (*ada
 		Content:         []byte(claudeMD),
 	})
 
-	// Render router command → .claude/commands/auto.md
+	// Render router command → .claude/skills/auto/SKILL.md
 	commandFiles, err := a.renderRouterCommand(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("커맨드 템플릿 렌더링 실패: %w", err)

@@ -71,11 +71,11 @@ func TestClaudeAdapter_Generate_CreatesDirectories(t *testing.T) {
 		assert.True(t, info.IsDir(), "%s는 디렉터리여야 함", d)
 	}
 
-	// auto.md 파일 존재 확인
-	autoMD := filepath.Join(dir, ".claude", "commands", "auto.md")
-	info, statErr := os.Stat(autoMD)
-	require.NoError(t, statErr, "auto.md가 존재해야 함")
-	assert.False(t, info.IsDir(), "auto.md는 파일이어야 함")
+	// SKILL.md 파일 존재 확인 (router skill)
+	skillMD := filepath.Join(dir, ".claude", "skills", "auto", "SKILL.md")
+	info, statErr := os.Stat(skillMD)
+	require.NoError(t, statErr, "SKILL.md가 존재해야 함")
+	assert.False(t, info.IsDir(), "SKILL.md는 파일이어야 함")
 }
 
 func TestClaudeAdapter_Generate_ClaudeMD_MarkerSection(t *testing.T) {
