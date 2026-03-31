@@ -21,7 +21,7 @@ func TestNewOrchestraCmd_SubcommandRegistration(t *testing.T) {
 	assert.Equal(t, "orchestra", cmd.Use)
 
 	subCmds := cmd.Commands()
-	require.Len(t, subCmds, 7)
+	require.Len(t, subCmds, 10)
 
 	names := make([]string, len(subCmds))
 	for i, sc := range subCmds {
@@ -34,6 +34,9 @@ func TestNewOrchestraCmd_SubcommandRegistration(t *testing.T) {
 	assert.Contains(t, names, "status")
 	assert.Contains(t, names, "wait")
 	assert.Contains(t, names, "result")
+	assert.Contains(t, names, "collect")
+	assert.Contains(t, names, "cleanup")
+	assert.Contains(t, names, "inject")
 }
 
 // TestNewOrchestraReviewCmd_Flags verifies that review cmd registers all expected flags.

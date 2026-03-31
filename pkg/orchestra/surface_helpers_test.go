@@ -104,13 +104,15 @@ func TestSendPromptWithRetry_FailsAllAttempts(t *testing.T) {
 }
 
 // TestSendPromptWithRetry_RecreateAndRetrySuccess verifies recreation + retry success.
+// After SPEC-ORCH-018 R1, same-pane retries occur first (2x with backoff),
+// so recreation only happens after all same-pane retries are exhausted.
 func TestSendPromptWithRetry_RecreateAndRetrySuccess(t *testing.T) {
 	t.Parallel()
-	// Fail first call (initial SendLongText in sendPromptWithRetry),
-	// succeed on subsequent calls (recreatePane's SendLongText + retry).
+	// Fail first 3 calls (initial + 2 same-pane retries),
+	// succeed on 4th call (after recreation).
 	mock := &sendLongTextCountMock{
 		mockTerminal: mockTerminal{name: "cmux"},
-		failUntil:    1,
+		failUntil:    3,
 	}
 	cfg := OrchestraConfig{Terminal: mock}
 	pi := paneInfo{paneID: "pane-1", provider: ProviderConfig{Name: "claude", Binary: "echo"}}
@@ -120,7 +122,7 @@ func TestSendPromptWithRetry_RecreateAndRetrySuccess(t *testing.T) {
 		context.Background(), cfg, pi, "hello world", 1, baselines,
 	)
 	require.NoError(t, err)
-	assert.True(t, recreated, "pane should be recreated after initial failure")
+	assert.True(t, recreated, "pane should be recreated after same-pane retries exhausted")
 	assert.NotEmpty(t, newPI.paneID)
 	// Baseline should be refreshed for the provider
 	assert.NotEqual(t, "old baseline", baselines["claude"])
