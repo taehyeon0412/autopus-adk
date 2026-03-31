@@ -88,6 +88,7 @@ type OrchestraConfig struct {
 	ScrollbackLines    int                  // R3: ReadScreen scrollback depth (default 500, 0 = use terminal default)
 	NoJudge            bool                 // R4: skip judge verdict phase when true
 	YieldRounds        bool                 // R5: yield after round 1 with JSON output, keep panes alive
+	ContextAware       bool                 // R8: when true, skip topic isolation so providers can read project files
 	// SurfaceMgr is set during interactive debate setup.
 	// Not part of initial config -- populated by runPaneDebate().
 	SurfaceMgr *SurfaceManager

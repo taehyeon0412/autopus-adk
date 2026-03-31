@@ -142,8 +142,8 @@ func resolveAndValidateThreshold(orchConf *config.OrchestraConf, configErr error
 }
 
 // extractOrchestraFlags extracts positional variadic flags passed to runOrchestraCommand.
-// Order: [0]=noDetach, [1]=keepRelay, [2]=noJudge, [3]=yieldRounds (all bool).
-func extractOrchestraFlags(flags []any) (noDetach, keepRelay, noJudge, yieldRounds bool) {
+// Order: [0]=noDetach, [1]=keepRelay, [2]=noJudge, [3]=yieldRounds, [4]=contextAware (all bool).
+func extractOrchestraFlags(flags []any) (noDetach, keepRelay, noJudge, yieldRounds, contextAware bool) {
 	boolAt := func(i int) bool {
 		if i < len(flags) {
 			if v, ok := flags[i].(bool); ok {
@@ -156,6 +156,7 @@ func extractOrchestraFlags(flags []any) (noDetach, keepRelay, noJudge, yieldRoun
 	keepRelay = boolAt(1)
 	noJudge = boolAt(2)
 	yieldRounds = boolAt(3)
+	contextAware = boolAt(4)
 	return
 }
 

@@ -50,9 +50,14 @@ func executeRound(ctx context.Context, cfg OrchestraConfig, panes []paneInfo, ho
 		if pi.skipWait {
 			continue
 		}
+		// Build prompt with optional topic isolation (skipped when --context is set).
+		isolation := topicIsolationInstruction
+		if cfg.ContextAware {
+			isolation = ""
+		}
 		var prompt string
 		if prevResponses == nil {
-			prompt = topicIsolationInstruction + cfg.Prompt
+			prompt = isolation + cfg.Prompt
 		} else {
 			var others []ProviderResponse
 			for _, r := range prevResponses {
@@ -60,7 +65,7 @@ func executeRound(ctx context.Context, cfg OrchestraConfig, panes []paneInfo, ho
 					others = append(others, r)
 				}
 			}
-			prompt = topicIsolationInstruction + buildRebuttalPrompt(cfg.Prompt, others, round)
+			prompt = isolation + buildRebuttalPrompt(cfg.Prompt, others, round)
 		}
 		if round > 1 {
 			// Only send round env to shell-based providers (args mode).

@@ -220,8 +220,8 @@ func runOrchestraCommand(
 		return fmt.Errorf("--rounds 값은 1-10 범위여야 합니다 (입력: %d)", rounds)
 	}
 
-	// @AX:WARN: [AUTO] positional variadic extraction — flags[0..3]=bool(noDetach,keepRelay,noJudge,yieldRounds); order must match all callers
-	nd, keepRelay, noJudge, yieldRounds := extractOrchestraFlags(flags)
+	// @AX:WARN: [AUTO] positional variadic extraction — flags[0..4]=bool(noDetach,keepRelay,noJudge,yieldRounds,contextAware); order must match all callers
+	nd, keepRelay, noJudge, yieldRounds, contextAware := extractOrchestraFlags(flags)
 	term := terminal.DetectTerminal()
 	// Auto-enable interactive pane mode for cmux/tmux terminals (SPEC-ORCH-006)
 	interactive := term != nil && term.Name() != "plain"
@@ -254,6 +254,7 @@ func runOrchestraCommand(
 		SessionID:          sessionID,
 		NoJudge:            noJudge,
 		YieldRounds:        yieldRounds,
+		ContextAware:       contextAware,
 	}
 
 	providerNames := make([]string, len(providers))
@@ -282,12 +283,18 @@ func runOrchestraCommand(
 		return fmt.Errorf("오케스트레이션 실패: %w", err)
 	}
 
-	fmt.Printf("%s\n", result.Merged)
-	fmt.Fprintf(os.Stderr, "\n요약: %s (총 %s)\n", result.Summary, result.Duration.Round(1e6))
-
-	// Auto-save results as markdown
-	if path, saveErr := saveOrchestraResult(commandName, strategyStr, providerNames, result); saveErr == nil {
-		fmt.Fprintf(os.Stderr, "결과 저장: %s\n", path)
+	// R9: --no-judge outputs structured JSON when round history is available.
+	if noJudge && len(result.RoundHistory) > 0 {
+		yieldOut := orchestra.BuildYieldOutputFromResult(result, sessionID)
+		if writeErr := orchestra.WriteYieldOutput(os.Stdout, yieldOut); writeErr != nil {
+			return fmt.Errorf("write JSON output: %w", writeErr)
+		}
+	} else {
+		fmt.Printf("%s\n", result.Merged)
+		if path, saveErr := saveOrchestraResult(commandName, strategyStr, providerNames, result); saveErr == nil {
+			fmt.Fprintf(os.Stderr, "결과 저장: %s\n", path)
+		}
 	}
+	fmt.Fprintf(os.Stderr, "\n요약: %s (총 %s)\n", result.Summary, result.Duration.Round(1e6))
 	return nil
 }

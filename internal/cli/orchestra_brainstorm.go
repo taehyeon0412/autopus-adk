@@ -15,8 +15,9 @@ func newOrchestraBrainstormCmd() *cobra.Command {
 		judge       string
 		rounds      int
 		noDetach    bool
-		noJudge     bool
-		yieldRounds bool
+		noJudge      bool
+		yieldRounds  bool
+		contextAware bool
 	)
 
 	cmd := &cobra.Command{
@@ -33,7 +34,7 @@ judge 모델이 ICE 점수로 아이디어를 통합하고 증폭합니다.`,
 			thresholdFlag, _ := cmd.Flags().GetFloat64("threshold")
 			prompt := buildBrainstormPrompt(args[0])
 			resolvedRounds := resolveRounds(flagStrategy, rounds)
-			return runOrchestraCommand(cmd.Context(), "brainstorm", flagStrategy, flagProviders, timeout, judge, prompt, resolvedRounds, thresholdFlag, noDetach, keepRelay, noJudge, yieldRounds)
+			return runOrchestraCommand(cmd.Context(), "brainstorm", flagStrategy, flagProviders, timeout, judge, prompt, resolvedRounds, thresholdFlag, noDetach, keepRelay, noJudge, yieldRounds, contextAware)
 		},
 	}
 
@@ -48,6 +49,7 @@ judge 모델이 ICE 점수로 아이디어를 통합하고 증폭합니다.`,
 	cmd.Flags().Bool("keep-relay-output", false, "relay 전략 실행 후 임시 파일 보존")
 	cmd.Flags().BoolVar(&noJudge, "no-judge", false, "Skip judge verdict phase in debate strategy")
 	cmd.Flags().BoolVar(&yieldRounds, "yield-rounds", false, "Round 1 후 JSON 출력 및 pane 유지")
+	cmd.Flags().BoolVar(&contextAware, "context", false, "Allow providers to read project files (skip topic isolation)")
 
 	return cmd
 }
