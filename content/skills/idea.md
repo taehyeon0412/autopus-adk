@@ -186,8 +186,11 @@ IMPORTANT: 편향 방지를 위해 ICE scoring은 **서브에이전트에 위임
 
 - 프로바이더 이름을 **토론자 A, B, C**로 치환
 - 매핑 테이블은 메인 세션만 보유 (서브에이전트에 전달 금지)
-- TUI 노이즈(배너, 프롬프트 echo)를 제거하고 순수 응답 내용만 전달
-- 프로젝트 컨텍스트(ARCHITECTURE.md 요약)를 함께 주입
+- TUI 노이즈(배너, 프롬프트 echo, 시스템 메시지)만 제거하고 **응답 원문은 축약하지 않음**
+- SCAMPER 분석, HMW 질문, ICE 자체 평가, 반박 논거 등 **모든 내용을 원문 그대로** 전달
+- 프로젝트 컨텍스트(ARCHITECTURE.md, product.md)를 함께 주입
+
+IMPORTANT: 응답을 요약하거나 축약하면 judge가 충분한 맥락 없이 판단하게 됩니다. TUI 노이즈만 제거하고, 아이디어 내용 자체는 원문 보존이 원칙입니다.
 
 #### 4.2: 서브에이전트 blind judge 호출
 
@@ -196,27 +199,38 @@ Agent(
   subagent_type = "general-purpose",
   prompt = """
     ## 프로젝트 컨텍스트
-    {ARCHITECTURE.md 또는 product.md 핵심 요약}
+    {ARCHITECTURE.md 전문 또는 product.md — 프로젝트 구조, 기술 스택, 핵심 도메인}
 
     ## 토론 결과 (익명 — 어떤 AI 모델이 작성했는지 알 수 없음)
+    아래 3명의 토론자가 동일 주제에 대해 독립적으로 아이디어를 발산(Round 1)하고,
+    서로의 주장에 대해 반박(Round 2)한 결과입니다. 원문 그대로 제공됩니다.
 
     ### 토론자 A
-    **Round 1**: {cleaned output}
-    **Round 2 반박**: {cleaned output}
+    **Round 1 (원문)**:
+    {cleaned full output — 축약 금지}
+
+    **Round 2 반박 (원문)**:
+    {cleaned full output — 축약 금지}
 
     ### 토론자 B
-    **Round 1**: {cleaned output}
-    **Round 2 반박**: {cleaned output}
+    **Round 1 (원문)**:
+    {cleaned full output}
+
+    **Round 2 반박 (원문)**:
+    {cleaned full output}
 
     ### 토론자 C
-    **Round 1**: {cleaned output}
-    **Round 2 반박**: {cleaned output}
+    **Round 1 (원문)**:
+    {cleaned full output}
+
+    **Round 2 반박 (원문)**:
+    {cleaned full output}
 
     ## 과제
     위 3명의 토론자가 제시한 모든 아이디어를 통합하고, ICE 스코어링을 수행하세요.
-    - Impact (1-10): 프로젝트에 미치는 영향력
-    - Confidence (1-10): 실현 가능성에 대한 확신도
-    - Ease (1-10): 구현 용이성
+    - Impact (1-10): 프로젝트 컨텍스트를 고려한 실질적 영향력
+    - Confidence (1-10): 프로젝트의 현재 기술 스택과 아키텍처 기반 실현 가능성
+    - Ease (1-10): 현재 코드베이스에서의 구현 용이성
     - Score = (Impact × Confidence × Ease) / 100
 
     Top 5 아이디어를 선정하고, 나머지는 부록에 포함하세요.
