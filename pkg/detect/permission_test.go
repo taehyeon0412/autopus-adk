@@ -44,6 +44,8 @@ func TestDetectPermissionMode_InvalidEnv_FallsBackToProcessCheck(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv("AUTOPUS_PERMISSION_MODE", tt.envVal)
+			// Clear cmux env to prevent cmux heuristic from returning bypass
+			t.Setenv("CMUX_CLAUDE_PID", "")
 
 			result := DetectPermissionMode()
 			// When env is invalid, falls back to process check.
@@ -59,6 +61,8 @@ func TestDetectPermissionMode_InvalidEnv_FallsBackToProcessCheck(t *testing.T) {
 func TestDetectPermissionMode_ProcessCheckFails_ReturnsSafe(t *testing.T) {
 	// Ensure env override is not set so process check path is taken.
 	t.Setenv("AUTOPUS_PERMISSION_MODE", "")
+	// Clear cmux env to prevent cmux heuristic from returning bypass
+	t.Setenv("CMUX_CLAUDE_PID", "")
 
 	result := DetectPermissionMode()
 	// In test environment, no parent has --dangerously-skip-permissions,
@@ -137,6 +141,27 @@ func TestPermissionResult_JSON(t *testing.T) {
 			assert.Equal(t, tt.expected["flag_found"], got["flag_found"])
 		})
 	}
+}
+
+// TestDetectPermissionMode_CmuxHeuristic_ReturnsBypass verifies that when
+// CMUX_CLAUDE_PID is set and process tree has no flag, cmux heuristic kicks in.
+func TestDetectPermissionMode_CmuxHeuristic_ReturnsBypass(t *testing.T) {
+	t.Setenv("AUTOPUS_PERMISSION_MODE", "")
+	t.Setenv("CMUX_CLAUDE_PID", "12345")
+
+	result := DetectPermissionMode()
+	assert.Equal(t, "bypass", result.Mode)
+	assert.True(t, result.FlagFound)
+}
+
+// TestDetectPermissionMode_NoCmux_ReturnsSafe verifies that without CMUX_CLAUDE_PID
+// and no flag in process tree, mode is "safe".
+func TestDetectPermissionMode_NoCmux_ReturnsSafe(t *testing.T) {
+	t.Setenv("AUTOPUS_PERMISSION_MODE", "")
+	t.Setenv("CMUX_CLAUDE_PID", "")
+
+	result := DetectPermissionMode()
+	assert.Equal(t, "safe", result.Mode)
 }
 
 // TestDetectPermissionModeWith_ErrorFallback verifies that when the process

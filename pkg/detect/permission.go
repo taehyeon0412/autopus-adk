@@ -27,12 +27,23 @@ const (
 
 // DetectPermissionMode checks the parent process tree for the
 // --dangerously-skip-permissions flag and returns the permission mode.
-// Environment variable AUTOPUS_PERMISSION_MODE overrides process detection.
+// Priority: AUTOPUS_PERMISSION_MODE env > process tree scan > cmux heuristic.
+// cmux launches Claude Code without visible CLI flags, so process tree scan
+// always returns "safe". When cmux is detected, assume bypass mode.
 func DetectPermissionMode() PermissionResult {
 	if env := os.Getenv(envKey); env == modeBypass || env == modeSafe {
 		return PermissionResult{Mode: env}
 	}
-	return detectPermissionModeWith(checkParentProcessTree)
+	result := detectPermissionModeWith(checkParentProcessTree)
+	if result.FlagFound {
+		return result
+	}
+	// cmux heuristic: cmux runs Claude in bypass mode but does not pass the
+	// flag as a visible CLI argument. Detect via CMUX_CLAUDE_PID env var.
+	if os.Getenv("CMUX_CLAUDE_PID") != "" {
+		return PermissionResult{Mode: modeBypass, ParentPID: result.ParentPID, FlagFound: true}
+	}
+	return result
 }
 
 // detectPermissionModeWith uses an injectable checker for testability.
