@@ -41,6 +41,7 @@ func newOrchestraReviewCmd() *cobra.Command {
 		providers []string
 		timeout   int
 		judge     string
+		rounds    int
 		noDetach  bool
 	)
 
@@ -54,8 +55,9 @@ func newOrchestraReviewCmd() *cobra.Command {
 			flagProviders := flagStringSliceIfChanged(cmd, "providers", providers)
 			keepRelay, _ := cmd.Flags().GetBool("keep-relay-output")
 			thresholdFlag, _ := cmd.Flags().GetFloat64("threshold")
+			resolvedRounds := resolveRounds(flagStrategy, rounds)
 			prompt := buildReviewPrompt(args)
-			return runOrchestraCommand(cmd.Context(), "review", flagStrategy, flagProviders, timeout, judge, prompt, 0, thresholdFlag, noDetach, keepRelay)
+			return runOrchestraCommand(cmd.Context(), "review", flagStrategy, flagProviders, timeout, judge, prompt, resolvedRounds, thresholdFlag, noDetach, keepRelay)
 		},
 	}
 
@@ -64,6 +66,7 @@ func newOrchestraReviewCmd() *cobra.Command {
 	cmd.Flags().IntVarP(&timeout, "timeout", "t", 120, "타임아웃 (초)")
 	cmd.Flags().StringVar(&judge, "judge", "", "debate 전략에서 최종 판정 프로바이더")
 	cmd.Flags().Float64("threshold", 0, "consensus 전략 합의 임계값 (0.0-1.0)")
+	cmd.Flags().IntVar(&rounds, "rounds", 0, "debate 라운드 수 (1-10, debate 전략 전용)")
 	cmd.Flags().BoolVar(&noDetach, "no-detach", false, "Disable auto-detach mode")
 	cmd.Flags().Bool("keep-relay-output", false, "relay 전략 실행 후 임시 파일 보존")
 
@@ -113,6 +116,7 @@ func newOrchestraSecureCmd() *cobra.Command {
 		strategy  string
 		providers []string
 		timeout   int
+		rounds    int
 		noDetach  bool
 	)
 
@@ -125,8 +129,9 @@ func newOrchestraSecureCmd() *cobra.Command {
 			flagProviders := flagStringSliceIfChanged(cmd, "providers", providers)
 			keepRelay, _ := cmd.Flags().GetBool("keep-relay-output")
 			thresholdFlag, _ := cmd.Flags().GetFloat64("threshold")
+			resolvedRounds := resolveRounds(flagStrategy, rounds)
 			prompt := buildSecurePrompt(args)
-			return runOrchestraCommand(cmd.Context(), "secure", flagStrategy, flagProviders, timeout, "", prompt, 0, thresholdFlag, noDetach, keepRelay)
+			return runOrchestraCommand(cmd.Context(), "secure", flagStrategy, flagProviders, timeout, "", prompt, resolvedRounds, thresholdFlag, noDetach, keepRelay)
 		},
 	}
 
@@ -134,6 +139,7 @@ func newOrchestraSecureCmd() *cobra.Command {
 	cmd.Flags().StringSliceVarP(&providers, "providers", "p", nil, "사용할 프로바이더 목록")
 	cmd.Flags().IntVarP(&timeout, "timeout", "t", 120, "타임아웃 (초)")
 	cmd.Flags().Float64("threshold", 0, "consensus 전략 합의 임계값 (0.0-1.0)")
+	cmd.Flags().IntVar(&rounds, "rounds", 0, "debate 라운드 수 (1-10, debate 전략 전용)")
 	cmd.Flags().BoolVar(&noDetach, "no-detach", false, "Disable auto-detach mode")
 	cmd.Flags().Bool("keep-relay-output", false, "relay 전략 실행 후 임시 파일 보존")
 
