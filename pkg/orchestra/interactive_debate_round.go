@@ -3,7 +3,6 @@ package orchestra
 import (
 	"context"
 	"log"
-	"strings"
 	"time"
 )
 
@@ -87,11 +86,10 @@ func executeRound(ctx context.Context, cfg OrchestraConfig, panes []paneInfo, ho
 			}
 		}
 
-		// Normalize newlines for TUI providers (gemini) that treat each line as a separate message.
+		// SendLongText uses set-buffer/paste-buffer which preserves newlines natively.
+		// No newline normalization needed — the old ReplaceAll("\n", " ") broke
+		// Gemini TUI rendering for long rebuttal prompts in Round 2+.
 		sendPrompt := prompt
-		if pi.provider.InteractiveInput == "args" {
-			sendPrompt = strings.ReplaceAll(prompt, "\n", " ")
-		}
 
 		// R6: On SendLongText failure, attempt pane recreation once, then retry.
 		newPI, recreated, sendErr := sendPromptWithRetry(ctx, cfg, *pi, sendPrompt, round, baselines)
