@@ -104,10 +104,11 @@ Orchestra 프롬프트에 3가지 관점을 포함하여 다각적 발산을 유
 - **Engineer 관점**: 기술적 실현 가능성, 아키텍처, 성능, 보안
 
 ```bash
-auto orchestra brainstorm "{structured idea}" --strategy debate --no-judge --yield-rounds --timeout 300 --no-detach
+auto orchestra brainstorm "{structured idea}" --strategy debate --no-judge --yield-rounds --context --timeout 300 --no-detach
 ```
 
 - `--no-judge --yield-rounds`: Round 1만 실행 후 JSON 결과 출력, pane 유지
+- `--context`: 프로젝트 컨텍스트(ARCHITECTURE.md, product.md, structure.md)를 brainstorm 프롬프트에 주입하여 프로바이더가 프로젝트를 이해한 상태에서 발산
 - 메인 세션이 직접 judge 역할 수행 (프로젝트 전체 컨텍스트 활용 가능)
 - Bash 호출이 에러를 반환한 경우에만 사용자에게 fallback 여부를 확인
 
