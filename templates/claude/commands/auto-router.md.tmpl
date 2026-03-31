@@ -792,6 +792,7 @@ Phase 0.5: Permission    → detect      (auto permission detect)
 Phase 1: Planning        → planner     (mode: plan)
 Phase 1.5: Test Scaffold → tester      (mode: bypassPermissions) — skip if --skip-scaffold
 Gate 1:  Approval        → skip if AUTO_MODE
+Phase 1.8: Doc Fetch     → main session (Context7 MCP) — skip if no external libs detected
 Phase 2: Implementation  → executor×N  (mode: bypassPermissions, parallel with worktree isolation)
 Phase 2.1: Worktree Merge → main session (merge worktree branches into working branch)
 Gate 2:  Validation      → validator   (mode: plan)  — retry up to 3× on FAIL
@@ -966,6 +967,21 @@ WHEN `SKIP_SCAFFOLD = true` → [INTENDED SKIP: Phase 1.5]
 
 **[GATE] Gate 1: Approval** — If `AUTO_MODE = false`, show the planner's assignment table and ask user to approve before proceeding. If `AUTO_MODE = true` → [INTENDED SKIP: Gate 1]
 
+**[REQUIRED] Phase 1.8 — Doc Fetch (Context7 MCP)**
+
+WHEN Gate 1 completes (or is skipped), THE SYSTEM SHALL fetch latest documentation for external libraries referenced in the SPEC using Context7 MCP. This phase runs in the **main session** — subagents cannot access MCP tools.
+
+1. **Detect technologies**: Scan SPEC requirements, plan.md tasks, and file imports for external library names (skip standard library modules)
+2. **Fetch docs** (up to 5 libraries): Call `mcp__context7__resolve-library-id` → `mcp__context7__query-docs` for each detected library
+3. **Cache and prepare**: Adaptive token budget (1 lib→~5000, 2→~3000, 3→~2500, 4-5→~2000 tokens/lib), format as `## Reference Documentation` section
+4. **Skip condition**: If no external libraries detected, skip Phase 1.8 entirely
+
+Error handling: Log and skip on any Context7 failure — documentation is supplementary, never blocks the pipeline.
+
+Ref: `.claude/rules/autopus/context7-docs.md` for full detection heuristics, token limits, and anti-patterns.
+
+> **⏭ POST-PHASE**: Doc Fetch complete (or skipped). NEXT REQUIRED STEP: Phase 2: Implementation. Do NOT skip to Completion.
+
 **[REQUIRED] Phase 2 — Implementation (MUST call Agent tool)**
 
 For each task in the planner's assignment table, spawn executor agents:
@@ -977,19 +993,20 @@ Parallel tasks (Mode = "parallel" AND no file ownership conflict):
 # Call MULTIPLE Agent() in a SINGLE message for parallel execution
 # Each parallel executor runs in an isolated git worktree (R1)
 # Use git -c gc.auto=0 for all git commands during parallel execution (R5)
+# Include {ctx7_docs} from Phase 1.8 in each executor prompt
 Agent(
   subagent_type = "executor",
   model = "opus",          ← Ultra only; omit for Balanced
   mode = "bypassPermissions",
   isolation = "worktree",  ← R1: worktree isolation for parallel tasks
-  prompt = "Implement T1: {task description}. Files: {file ownership}. SPEC requirements: {relevant requirements}. Working directory: {WORKING_DIR}. Run all build/test commands inside {WORKING_DIR}: cd {WORKING_DIR} && go build ./..."
+  prompt = "## Reference Documentation\n{ctx7_docs}\n\nImplement T1: {task description}. Files: {file ownership}. SPEC requirements: {relevant requirements}. Working directory: {WORKING_DIR}. Run all build/test commands inside {WORKING_DIR}: cd {WORKING_DIR} && go build ./..."
 )
 Agent(
   subagent_type = "executor",
   model = "opus",          ← Ultra only; omit for Balanced
   mode = "bypassPermissions",
   isolation = "worktree",  ← R1: worktree isolation for parallel tasks
-  prompt = "Implement T2: {task description}. Files: {file ownership}. SPEC requirements: {relevant requirements}. Working directory: {WORKING_DIR}. Run all build/test commands inside {WORKING_DIR}: cd {WORKING_DIR} && go build ./..."
+  prompt = "## Reference Documentation\n{ctx7_docs}\n\nImplement T2: {task description}. Files: {file ownership}. SPEC requirements: {relevant requirements}. Working directory: {WORKING_DIR}. Run all build/test commands inside {WORKING_DIR}: cd {WORKING_DIR} && go build ./..."
 )
 ```
 
@@ -1259,6 +1276,7 @@ Before displaying completion output, verify ALL phases were evaluated:
 - [ ] Phase 1: Planning — completed
 - [ ] Phase 1.5: Test Scaffold — completed OR skipped (--skip-scaffold)
 - [ ] Gate 1: Approval — completed OR skipped (AUTO_MODE)
+- [ ] Phase 1.8: Doc Fetch — completed OR skipped (no external libs)
 - [ ] Phase 2: Implementation — all tasks completed
 - [ ] Phase 2.1: Worktree Merge — completed (if parallel tasks existed) OR N/A
 - [ ] Gate 2: Validation — PASS

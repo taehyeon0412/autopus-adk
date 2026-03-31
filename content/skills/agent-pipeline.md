@@ -60,6 +60,7 @@ WHEN `PERMISSION_MODE = "safe"`, THE SYSTEM SHALL preserve the existing mode ass
 Phase 1:   Planning        → planner     (model: depends on quality mode, plan)
 Phase 1.5: Test Scaffold   → tester      (sonnet, bypassPermissions) — skip if --skip-scaffold
 Gate 1:    Approval        → skipped if --auto
+Phase 1.8: Doc Fetch       → main session (Context7 MCP) — skip if no external libs detected
 Phase 2:   Implementation  → executor×N  (sonnet, acceptEdits, parallel with worktree isolation)
 Phase 2.1: Worktree Merge  → main session (merge worktree branches into working branch)
 Gate 2:    Validation      → validator   (haiku,  plan)  — retry up to 3x on FAIL
@@ -162,6 +163,44 @@ Skip Phase 1.5 when `--skip-scaffold` flag is set.
 
 Executor constraint: Phase 2 executors MUST NOT modify test files generated in Phase 1.5. These tests serve as read-only specifications.
 
+### Phase 1.8: Doc Fetch (Context7 MCP)
+
+WHEN Phase 1.5 (or Gate 1) completes, THE SYSTEM SHALL fetch latest documentation for external libraries referenced in the SPEC, using the Context7 MCP tools. This phase runs in the **main session** (subagents cannot access MCP tools).
+
+**Skip condition**: If no external libraries are detected in the SPEC, plan.md, or affected file imports, skip Phase 1.8 entirely.
+
+```
+Step 1: Detect Technologies
+  → Scan SPEC requirements, plan.md tasks, and file imports for library names
+  → Filter out standard library modules
+  → Select top 5 libraries by relevance (prioritize P0 task dependencies)
+
+Step 2: Fetch Documentation (for each detected library, max 5)
+  → Call mcp__context7__resolve-library-id(libraryName)
+  → If no match: log "[CTX7] No match: {name}", skip to next
+  → Call mcp__context7__query-docs(libraryId, topic="{task-relevant topic}")
+  → Cache result keyed by library-id + topic
+
+Step 3: Prepare Injection Payload (Adaptive Token Budget)
+  → Apply adaptive token budget based on library count:
+    1 lib → ~5000 tokens/lib | 2 libs → ~3000/lib | 3 libs → ~2500/lib | 4-5 libs → ~2000/lib
+  → Hard cap: total injected docs ≤ 10000 tokens
+  → Trimming priority: API signatures > config examples > breaking changes > error patterns > tutorials
+  → Format as "## Reference Documentation" section
+
+Step 4 (optional): Per-Executor Refinement
+  → If an executor's task targets a specific API area (e.g., "routing", "testing"),
+    query-docs again with task-specific topic
+  → Merge with base docs, dedup, stay within per-library token limit
+  → Max 3 refinement queries per pipeline
+```
+
+**Injection into subsequent phases**: The cached documentation is injected into Phase 2 executor and Phase 3 tester prompts as a `## Reference Documentation` section, following the same pattern as Phase 2 Profile Injection.
+
+**Error handling**: Context7 failures (MCP unavailable, no match, empty response) are logged and skipped — documentation is supplementary, never blocks the pipeline.
+
+Ref: `.claude/rules/autopus/context7-docs.md` for detection heuristics, token limits, and anti-patterns.
+
 ### Phase 2: Implementation
 
 Tasks that can run in parallel are spawned with multiple Agent() calls in a single message.
@@ -196,12 +235,15 @@ WHEN executor agents are spawned in Phase 2, THE SYSTEM SHALL inject the assigne
 1. Read the task's assigned Profile from the planner's assignment table
 2. Load the profile: check `.autopus/profiles/executor/{profile}.md` first (Tier 2/3), then `content/profiles/executor/{profile}.md` (Tier 1)
 3. If `extends` is set, resolve the base profile and merge Instructions
-4. Prepend the merged profile content to the executor prompt:
+4. Prepend the merged profile content and Context7 docs (from Phase 1.8) to the executor prompt:
 
 ```
 Agent(
   subagent_type = "executor",
   prompt = """
+    ## Reference Documentation
+    {ctx7_docs}
+
     ## Stack Profile
     {merged_profile_instructions}
 
@@ -321,6 +363,9 @@ Phase 3.5 does NOT renumber existing phases. Testing remains Phase 3, Review rem
 Agent(
   subagent_type = "tester",
   prompt = """
+    ## Reference Documentation
+    {ctx7_docs}
+
     Raise coverage to 85%+.
     Add missing edge case tests.
   """,
