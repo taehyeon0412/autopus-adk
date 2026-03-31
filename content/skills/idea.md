@@ -91,7 +91,7 @@ Outcome (목표)
 
 가장 위험한 가정(높은 Impact × 높은 Uncertainty)을 상위 3개 식별합니다.
 
-### [REQUIRED] Step 3: Call Orchestra Brainstorm (MUST call Bash tool)
+### [REQUIRED] Step 3: Orchestra Round 1 (MUST call Bash tool)
 
 IMPORTANT: 이 단계는 반드시 Bash 툴로 CLI를 실행해야 합니다. Sequential Thinking이나 단일 모델 시뮬레이션으로 대체 금지.
 
@@ -104,28 +104,131 @@ Orchestra 프롬프트에 3가지 관점을 포함하여 다각적 발산을 유
 - **Engineer 관점**: 기술적 실현 가능성, 아키텍처, 성능, 보안
 
 ```bash
-auto orchestra brainstorm "{structured idea}" --strategy {strategy}
+auto orchestra brainstorm "{structured idea}" --strategy debate --no-judge --yield-rounds --timeout 300 --no-detach
 ```
 
-- `orchestra.timeout_seconds` 설정에서 프로바이더별 타임아웃 적용
-- 프로바이더 실패 시 graceful degradation — 나머지 프로바이더 결과로 계속 진행
+- `--no-judge --yield-rounds`: Round 1만 실행 후 JSON 결과 출력, pane 유지
+- 메인 세션이 직접 judge 역할 수행 (프로젝트 전체 컨텍스트 활용 가능)
 - Bash 호출이 에러를 반환한 경우에만 사용자에게 fallback 여부를 확인
 
-> **⏭ POST-STEP**: Orchestra 결과 수신 후 Step 4로 진행. Step 5로 건너뛰지 말 것.
+#### JSON 출력 파싱
 
-### Step 4: ICE Scoring and Top N Selection
+Orchestra는 stdout에 JSON을 출력합니다. 파싱하여 각 프로바이더의 Round 1 응답과 pane ID를 추출합니다.
 
-브레인스토밍 결과를 파싱하고 ICE 점수로 수렴합니다:
+> **⏭ POST-STEP**: Round 1 JSON 수신 후 Step 3.5로 진행.
 
-| 항목 | 설명 | 범위 |
-|------|------|------|
-| Impact | 영향력 | 1-10 |
-| Confidence | 확신도 | 1-10 |
-| Ease | 실행 용이성 | 1-10 |
+### [REQUIRED] Step 3.5: Rebuttal 준비 및 주입 (메인 세션)
 
-`Score = (Impact × Confidence × Ease) / 100`
+메인 세션이 Round 1 결과를 정리하고, 각 프로바이더 pane에 rebuttal 프롬프트를 직접 주입합니다.
 
-상위 N개 아이디어를 선별하여 BS 파일에 기록합니다.
+#### Rebuttal 품질 가이드라인
+
+1. **축약 금지**: 각 프로바이더의 핵심 주장을 원문에 가깝게 전달. 아이디어의 구체적 제안, 근거, ICE 순위를 포함
+2. **익명화 필수**: 프로바이더 이름 대신 "토론자 A", "토론자 B"로 표기하여 편향 방지 (메인 세션이 특정 프로바이더 편을 드는 것을 방지)
+3. **반박 유도**: "이 주장들에 대해 반박하고, 당신만의 차별화된 관점을 제시해주세요" 형식으로 구성
+
+#### Rebuttal 주입 절차
+
+각 프로바이더 pane에 cmux를 통해 rebuttal을 주입합니다:
+
+```bash
+# 1. pane 식별 (JSON의 panes 필드, 또는 cmux list-panes로 확인)
+# 2. 각 프로바이더에게 다른 프로바이더들의 요약된 주장을 전달
+cmux set-buffer "{rebuttal prompt for provider}"
+cmux paste-buffer --surface "{surface_id}"
+sleep 1
+cmux send --surface "{surface_id}" "\n"
+```
+
+#### 익명화 매핑 예시
+
+| 실제 프로바이더 | Rebuttal 내 표기 |
+|----------------|-----------------|
+| claude | 토론자 A |
+| codex | 토론자 B |
+| gemini | 토론자 C |
+
+매핑은 라운드마다 셔플하지 않음 (일관성 유지). 메인 세션만 매핑을 알고 있음.
+
+> **⏭ POST-STEP**: 3개 프로바이더에 rebuttal 주입 완료 후 Step 3.6으로 진행.
+
+### [REQUIRED] Step 3.6: Round 2 결과 수집 (메인 세션)
+
+Rebuttal 주입 후 2-3분 대기한 뒤, 각 pane에서 결과를 수집합니다:
+
+```bash
+# 각 pane의 idle 프롬프트(❯, codex>, > Type your) 확인 후 scrollback 읽기
+cmux read-screen --surface "{surface_id}" --scrollback --lines 500
+```
+
+모든 프로바이더가 응답 완료 시 Round 2 결과를 취합합니다.
+
+> **⏭ POST-STEP**: Round 2 결과 수집 후 Step 3.7로 진행.
+
+### [REQUIRED] Step 3.7: Pane 정리
+
+```bash
+cmux close-surface --surface "{surface_id}"
+```
+
+모든 프로바이더 pane을 닫습니다.
+
+> **⏭ POST-STEP**: Pane 정리 후 Step 4로 진행.
+
+### [REQUIRED] Step 4: Blind ICE Scoring (MUST call Agent tool)
+
+IMPORTANT: 편향 방지를 위해 ICE scoring은 **서브에이전트에 위임**합니다. 메인 세션이 직접 scoring하지 않습니다.
+
+#### 4.1: 익명화된 입력 준비 (메인 세션)
+
+메인 세션은 Round 1 + Round 2 결과를 **익명화**하여 서브에이전트에 전달합니다:
+
+- 프로바이더 이름을 **토론자 A, B, C**로 치환
+- 매핑 테이블은 메인 세션만 보유 (서브에이전트에 전달 금지)
+- TUI 노이즈(배너, 프롬프트 echo)를 제거하고 순수 응답 내용만 전달
+- 프로젝트 컨텍스트(ARCHITECTURE.md 요약)를 함께 주입
+
+#### 4.2: 서브에이전트 blind judge 호출
+
+```
+Agent(
+  subagent_type = "general-purpose",
+  prompt = """
+    ## 프로젝트 컨텍스트
+    {ARCHITECTURE.md 또는 product.md 핵심 요약}
+
+    ## 토론 결과 (익명 — 어떤 AI 모델이 작성했는지 알 수 없음)
+
+    ### 토론자 A
+    **Round 1**: {cleaned output}
+    **Round 2 반박**: {cleaned output}
+
+    ### 토론자 B
+    **Round 1**: {cleaned output}
+    **Round 2 반박**: {cleaned output}
+
+    ### 토론자 C
+    **Round 1**: {cleaned output}
+    **Round 2 반박**: {cleaned output}
+
+    ## 과제
+    위 3명의 토론자가 제시한 모든 아이디어를 통합하고, ICE 스코어링을 수행하세요.
+    - Impact (1-10): 프로젝트에 미치는 영향력
+    - Confidence (1-10): 실현 가능성에 대한 확신도
+    - Ease (1-10): 구현 용이성
+    - Score = (Impact × Confidence × Ease) / 100
+
+    Top 5 아이디어를 선정하고, 나머지는 부록에 포함하세요.
+    아이디어의 내용만으로 평가하세요. 토론자의 정체는 알 수 없으며 알 필요도 없습니다.
+  """
+)
+```
+
+#### 4.3: 결과 수신 및 매핑 복원
+
+서브에이전트의 ICE 결과를 수신한 후, 메인 세션이 익명 매핑을 복원하여 BS 파일에 기록합니다:
+- 토론자 A → {실제 프로바이더 이름} (BS 파일의 프로바이더별 발산 결과 섹션용)
+- ICE Top N은 익명 상태 그대로 기록 (어떤 프로바이더가 제안했는지는 부차적)
 
 #### Assumption Risk Overlay
 
