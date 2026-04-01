@@ -9,7 +9,7 @@
 [![GitHub Stars](https://img.shields.io/github/stars/Insajin/autopus-adk?style=social)](https://github.com/Insajin/autopus-adk/stargazers)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Go Version](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)](https://golang.org)
-[![Platforms](https://img.shields.io/badge/Platforms-3-orange)](#-one-config-three-platforms)
+[![Platforms](https://img.shields.io/badge/Platforms-4-orange)](#-one-config-four-platforms)
 [![Agents](https://img.shields.io/badge/Agents-16-blueviolet)](#-16-specialized-agents)
 [![Skills](https://img.shields.io/badge/Skills-40-ff69b4)](#-all-commands)
 
@@ -195,13 +195,14 @@ Not one model reviewing your code — **multiple models arguing about it.**
 auto orchestra review --strategy debate
 ```
 
-Claude, Codex, and Gemini independently review your code, then **debate each other's findings** in a structured 2-phase argument. A judge renders the final verdict.
+Claude, Codex, Gemini, and OpenCode independently review your code, then **debate each other's findings** in a structured 2-phase argument. A judge renders the final verdict.
 
 ```mermaid
 flowchart TB
     C["🔍 Claude\nIndependent Review"] --> D["⚔️ Debate Phase\nRebuttals & Counter-arguments"]
     X["🔍 Codex\nIndependent Review"] --> D
     G["🔍 Gemini\nIndependent Review"] --> D
+    O["🔍 OpenCode\nIndependent Review"] --> D
     D --> J["🏛️ Judge Verdict"]
 ```
 
@@ -317,6 +318,64 @@ auto test run -s init --verbose  # Run a specific scenario
 
 Autopus analyzes your codebase (Cobra commands, API routes, frontend pages) and generates typed scenarios with **verification primitives** (`exit_code`, `stdout_contains`, `status_code`, `json_path`, etc.). Incremental sync keeps scenarios up-to-date as code evolves.
 
+### 🌐 Browser Automation — AI Agents That See and Click
+
+AI agents can directly interact with web pages — open URLs, read accessibility trees, click elements, fill forms, and capture screenshots.
+
+```bash
+/auto browse --url https://example.com/settings
+```
+
+```
+- @e1 heading "AI Settings"
+- @e2 button "Provider Mode"
+- @e3 switch "Auto Fallback" [checked]
+- @e7 button "Save"
+```
+
+Terminal-aware: automatically selects `cmux browser` (in cmux) or `agent-browser` (fallback). Snapshot → Act → Verify loop — agents see the page as an accessibility tree and interact by reference.
+
+### 📺 Live Agent Dashboard
+
+In `--team` mode, each team member gets its own terminal pane with real-time log streaming.
+
+```
+┌─ lead ──────────┬─ builder-1 ───────┐
+│ Phase 1: Plan   │ T1: auth.go       │
+│ 5 tasks created │ implementing...   │
+├─ tester ────────┼─ guardian ────────┤
+│ scaffold: 12    │ waiting...        │
+│ RED state ✓     │                   │
+└─────────────────┴───────────────────┘
+```
+
+Works in cmux and tmux. Plain terminals degrade gracefully to log-only output.
+
+### 📚 Auto-Documentation with Context7
+
+Before implementation, Autopus fetches latest library docs automatically — so agents never work with stale API knowledge.
+
+```
+Phase 1.8: Doc Fetch
+  → Detected: cobra v1.9, testify v1.11
+  → Fetched: 2 libraries (6000 tokens)
+  → Injected into executor + tester prompts
+```
+
+Context7 MCP → WebSearch fallback → skip (never blocks pipeline). Adaptive token budget: 1 lib → 5000 tokens, 5 libs → 2000 tokens each.
+
+### 🔌 Hook-Based Result Collection
+
+Instead of scraping terminal output, Autopus uses each provider's native hook system to collect structured JSON results.
+
+| Provider | Hook Type | How |
+|----------|-----------|-----|
+| Claude Code | Stop hook | Extracts `last_assistant_message` |
+| Gemini CLI | AfterAgent hook | Extracts `prompt_response` |
+| OpenCode | Plugin | Extracts `text` field |
+
+Fallback: providers without hooks use ReadScreen + idle detection (SPEC-ORCH-006).
+
 ### 🔧 More Power Tools
 
 | Feature | Command | What It Does |
@@ -330,7 +389,7 @@ Autopus analyzes your codebase (Cobra commands, API routes, frontend pages) and 
 | **Signature Map** | `auto setup` | Extract exported API signatures (Go + TypeScript) via AST analysis |
 | **Test Runner Detection** | `auto init` | Auto-detect jest, vitest, pytest, cargo test frameworks |
 
-### 🌐 One Config, Three Platforms
+### 🌐 One Config, Four Platforms
 
 ```bash
 auto init   # auto-detects all installed AI coding CLIs
@@ -343,6 +402,7 @@ One `autopus.yaml` generates **native configuration** for every detected platfor
 | **Claude Code** | `.claude/rules/`, `.claude/skills/`, `.claude/agents/`, `CLAUDE.md` |
 | **Codex** | `.codex/`, `AGENTS.md` |
 | **Gemini CLI** | `.gemini/`, `GEMINI.md` |
+| **OpenCode** | `opencode.json`, plugins |
 
 Same 16 agents. Same 40 skills. Same rules. **Everywhere.**
 
@@ -386,12 +446,13 @@ cd your-project
 auto init
 ```
 
-`auto init` scans your machine for installed AI coding CLIs (Claude Code, Codex, Gemini CLI) and generates **native configuration** for each one — rules, skills, agents, and platform-specific settings — all from a single `autopus.yaml`.
+`auto init` scans your machine for installed AI coding CLIs (Claude Code, Codex, Gemini CLI, OpenCode) and generates **native configuration** for each one — rules, skills, agents, and platform-specific settings — all from a single `autopus.yaml`.
 
 ```
-✓ Detected: claude-code, gemini-cli
+✓ Detected: claude-code, gemini-cli, opencode
 ✓ Generated: .claude/rules/, .claude/skills/, .claude/agents/, CLAUDE.md
 ✓ Generated: .gemini/, GEMINI.md
+✓ Generated: opencode.json
 ✓ Created: autopus.yaml
 ```
 
@@ -649,14 +710,16 @@ Every review scores across 5 dimensions:
 | **🔗 Pipeline** | Provider N's output → Provider N+1's input | Iterative refinement |
 | **⚡ Fastest** | First completed response wins | Quick queries |
 
-Providers: **Claude** · **Codex** · **Gemini** — with graceful degradation.
+Providers: **Claude** · **Codex** · **Gemini** · **OpenCode** — with graceful degradation.
+
+**Interactive debate** with real-time pane visualization (cmux/tmux). **Hook-based result collection** for structured JSON output. **WebSearch fallback** when Context7 docs are unavailable.
 
 ---
 
 ## 📖 All Commands
 
 <details>
-<summary><strong>CLI Commands</strong> (26 root commands, 85 total with subcommands)</summary>
+<summary><strong>CLI Commands</strong> (28 root commands, 110+ total with subcommands)</summary>
 
 | Command | Description |
 |---------|-------------|
@@ -685,6 +748,8 @@ Providers: **Claude** · **Codex** · **Gemini** — with graceful degradation.
 | `auto agent` | Agent management (create / run) |
 | `auto terminal` | Terminal multiplexer management (detect / workspace / split / send / notify) |
 | `auto pipeline` | Pipeline state management and monitoring |
+| `auto permission` | Permission mode detection (bypass / safe) |
+| `auto browse` | Browser automation (cmux browser / agent-browser) |
 | `auto update --self` | CLI binary self-update (GitHub Releases + SHA256) |
 
 </details>
@@ -711,6 +776,8 @@ Providers: **Claude** · **Codex** · **Gemini** — with graceful degradation.
 | `/auto experiment` | Autonomous experiment loop (metric-driven iteration) |
 | `/auto test` | Run E2E scenarios against your project |
 | `/auto go SPEC-ID --continue` | Resume interrupted pipeline from checkpoint |
+| `/auto browse` | Browser automation — open, snapshot, click, verify |
+| `/auto idea "description"` | Multi-provider brainstorm with ICE scoring |
 
 </details>
 
@@ -757,6 +824,8 @@ orchestra:
       binary: codex
     gemini:
       binary: gemini
+    opencode:
+      binary: opencode
 ```
 
 </details>
@@ -768,30 +837,32 @@ orchestra:
 ```
 autopus-adk/
 ├── cmd/auto/           # Entry point
-├── internal/cli/       # 26 Cobra commands (85 total with subcommands)
+├── internal/cli/       # 28 Cobra commands (110+ total with subcommands)
 ├── pkg/
-│   ├── adapter/        # 3 platform adapters (Claude, Codex, Gemini)
-│   ├── orchestra/      # Multi-model orchestration (4 strategies + brainstorm + job management)
-│   ├── spec/           # SPEC engine (EARS format)
-│   ├── lore/           # Decision tracking (9-trailer protocol)
-│   ├── content/        # Agent/skill/hook/profile generation + skill activator
+│   ├── adapter/        # 4 platform adapters (Claude, Codex, Gemini, OpenCode)
 │   ├── arch/           # Architecture analysis + rule enforcement
-│   ├── sigmap/         # go/ast API signature extraction
-│   ├── constraint/     # Anti-pattern scanning
-│   ├── telemetry/      # Pipeline telemetry (JSONL event recording)
-│   ├── cost/           # Token-based cost estimator
-│   ├── setup/          # Project doc generation + validation
-│   ├── lsp/            # LSP integration
-│   ├── search/         # Knowledge search (Context7/Exa) + hash-based search
-│   ├── issue/          # Auto issue reporter (context collection, sanitization)
-│   ├── experiment/     # Autonomous experiment loop (metric execution, circuit breaker)
-│   ├── e2e/            # E2E scenario generation, execution, verification
-│   ├── selfupdate/     # CLI binary self-update (SHA256, atomic replace)
-│   ├── pipeline/       # Pipeline state persistence + checkpoint resume + monitoring
 │   ├── browse/         # Browser automation backend (cmux/agent-browser routing)
+│   ├── config/         # Configuration schema + YAML loading
+│   ├── constraint/     # Anti-pattern scanning
+│   ├── content/        # Agent/skill/hook/profile generation + skill activator
+│   ├── cost/           # Token-based cost estimator
+│   ├── detect/         # Platform/framework/permission detection
+│   ├── e2e/            # E2E scenario generation, execution, verification
+│   ├── experiment/     # Autonomous experiment loop (metric, circuit breaker)
+│   ├── issue/          # Auto issue reporter (context collection, sanitization)
+│   ├── lore/           # Decision tracking (9-trailer protocol)
+│   ├── lsp/            # LSP integration
+│   ├── orchestra/      # Multi-model orchestration (4 strategies + brainstorm + interactive debate + hooks)
+│   ├── pipeline/       # Pipeline state persistence + checkpoint + team monitor
+│   ├── search/         # Knowledge search (Context7/Exa) + hash-based search
+│   ├── selfupdate/     # CLI binary self-update (SHA256, atomic replace)
+│   ├── setup/          # Project doc generation + validation
+│   ├── sigmap/         # AST-based API signature extraction (Go + TypeScript)
+│   ├── spec/           # EARS requirement parsing/validation
+│   ├── telemetry/      # Pipeline telemetry (JSONL event recording)
+│   ├── template/       # Go template rendering
 │   ├── terminal/       # Terminal multiplexer adapters (cmux, tmux, plain)
-│   ├── detect/         # Framework detection + test runner identification
-│   └── ...             # template, config, version
+│   └── version/        # Build metadata
 ├── templates/          # Platform-specific templates
 ├── content/            # Embedded content (16 agents, 40 skills)
 └── configs/            # Default configuration
