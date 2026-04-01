@@ -161,12 +161,21 @@ func isPromptLine(line string) bool {
 // isPromptVisible checks if the screen content contains a visible prompt pattern,
 // indicating the CLI session has returned to input-ready state.
 // This is the PRIMARY completion detection method (R7).
+// If a working indicator (spinner, "Thinking", etc.) is also visible, the prompt
+// is considered a false positive — the provider's TUI shows the prompt at all times.
 // @AX:NOTE [AUTO] called by pollUntilPrompt and waitForCompletion — central prompt detection logic
 func isPromptVisible(screen string, patterns []CompletionPattern) bool {
 	// Strip ANSI escape codes before matching — providers like claude/opencode
 	// render the ">" prompt with color codes (e.g. \x1b[32m>\x1b[0m) that break
 	// the ^>\s*$ pattern when matching raw ReadScreen output.
 	screen = stripANSI(screen)
+
+	// Guard: if working indicators are visible, the provider is still active.
+	// Some TUIs (e.g., Gemini) show the idle prompt alongside a spinner.
+	if isProviderWorking(screen) {
+		return false
+	}
+
 	// Check provider-specific patterns first
 	for _, cp := range patterns {
 		if cp.Pattern.MatchString(screen) {
@@ -211,7 +220,11 @@ var providerWorkingPatterns = []*regexp.Regexp{
 	regexp.MustCompile(`(?i)Running\s+\w`),
 	regexp.MustCompile(`(?i)Executing`),
 	regexp.MustCompile(`(?i)Explored\b`),
-	regexp.MustCompile(`(?i)✳`), // claude thinking indicator
+	regexp.MustCompile(`(?i)✳`),                        // claude thinking indicator
+	regexp.MustCompile(`[⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏]`),                // braille spinner (gemini "taking a bit longer")
+	regexp.MustCompile(`(?i)taking a bit longer`),       // gemini processing message
+	regexp.MustCompile(`(?i)still on it`),               // gemini processing message
+	regexp.MustCompile(`(?i)esc to cancel,\s*\d+[ms]`), // gemini cancel hint with elapsed time
 }
 
 // isProviderWorking checks if the screen shows progress indicators meaning the provider is active.
