@@ -46,6 +46,20 @@ func TestArchiveName(t *testing.T) {
 			version: "0.7.0",
 			want:    "autopus-adk_0.7.0_linux_arm64.tar.gz",
 		},
+		{
+			name:    "windows amd64",
+			goos:    "windows",
+			goarch:  "amd64",
+			version: "0.7.0",
+			want:    "autopus-adk_0.7.0_windows_amd64.zip",
+		},
+		{
+			name:    "windows arm64",
+			goos:    "windows",
+			goarch:  "arm64",
+			version: "0.7.0",
+			want:    "autopus-adk_0.7.0_windows_arm64.zip",
+		},
 	}
 
 	for _, tt := range tests {
