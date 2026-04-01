@@ -96,7 +96,9 @@ func promptLanguageSettings(cmd *cobra.Command, dir string, cfg *config.HarnessC
 
 // warnParentRuleConflicts detects parent directory rule conflicts and
 // offers to isolate them using a huh Confirm dialog.
-func warnParentRuleConflicts(cmd *cobra.Command, dir string, cfg *config.HarnessConfig) {
+// When skipPrompt is true, conflicts are logged but the interactive
+// prompt is skipped (used with --yes flag).
+func warnParentRuleConflicts(cmd *cobra.Command, dir string, cfg *config.HarnessConfig, skipPrompt ...bool) {
 	conflicts := detect.CheckParentRuleConflicts(dir)
 	if len(conflicts) == 0 {
 		return
@@ -123,8 +125,8 @@ func warnParentRuleConflicts(cmd *cobra.Command, dir string, cfg *config.Harness
 	fmt.Fprintln(out, "  These rules will apply alongside autopus rules in this project.")
 	fmt.Fprintln(out, "")
 
-	// Non-TTY: don't prompt.
-	if !isStdinTTY() {
+	// Non-TTY or --yes mode: don't prompt.
+	if !isStdinTTY() || (len(skipPrompt) > 0 && skipPrompt[0]) {
 		return
 	}
 

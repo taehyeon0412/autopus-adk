@@ -165,7 +165,7 @@ func newInitCmd() *cobra.Command {
 				return fmt.Errorf(".gitignore 업데이트 실패: %w", err)
 			}
 
-			warnParentRuleConflicts(cmd, dir, cfg)
+			warnParentRuleConflicts(cmd, dir, cfg, yes)
 
 			// Step 4: Summary
 			tui.Step(out, 4, 4, "Summary")
