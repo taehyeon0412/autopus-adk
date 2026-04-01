@@ -173,12 +173,15 @@ func linuxInstallCmd(name string) string {
 }
 
 func windowsInstallCmd(name string) string {
+	// --accept-source-agreements --accept-package-agreements: prevent interactive hang
+	// --disable-interactivity: no prompts (winget 1.6+)
+	const wingetFlags = " --accept-source-agreements --accept-package-agreements --disable-interactivity"
 	cmds := map[string]string{
-		"git":    "winget install Git.Git",
-		"node":   "winget install OpenJS.NodeJS.LTS",
-		"go":     "winget install GoLang.Go",
-		"python": "winget install Python.Python.3.12",
-		"gh":     "winget install GitHub.cli",
+		"git":    "winget install Git.Git" + wingetFlags,
+		"node":   "winget install OpenJS.NodeJS.LTS" + wingetFlags,
+		"go":     "winget install GoLang.Go" + wingetFlags,
+		"python": "winget install Python.Python.3.12" + wingetFlags,
+		"gh":     "winget install GitHub.cli" + wingetFlags,
 	}
 	return cmds[name]
 }

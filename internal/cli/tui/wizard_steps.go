@@ -2,6 +2,8 @@ package tui
 
 import (
 	"fmt"
+	"os"
+	"runtime"
 
 	"github.com/charmbracelet/huh"
 )
@@ -43,6 +45,16 @@ func RunInitWizard(opts InitWizardOpts) (*InitWizardResult, error) {
 	// Non-TTY / --yes mode: return defaults directly (R3, C2)
 	if opts.Accessible {
 		return result, nil
+	}
+
+	// Windows safety: huh/bubbletea may hang on cmd.exe or non-Windows Terminal.
+	// Detect by checking TERM_PROGRAM or WT_SESSION (Windows Terminal sets these).
+	if runtime.GOOS == "windows" {
+		if os.Getenv("WT_SESSION") == "" && os.Getenv("TERM_PROGRAM") == "" {
+			fmt.Fprintln(os.Stderr, "  TUI wizard not supported in this terminal. Using defaults.")
+			fmt.Fprintln(os.Stderr, "  Tip: use Windows Terminal or run with --yes flag.")
+			return result, nil
+		}
 	}
 
 	steps := buildStepList(opts)
