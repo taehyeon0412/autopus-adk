@@ -55,8 +55,9 @@ func RunInteractivePaneOrchestra(ctx context.Context, cfg OrchestraConfig) (*Orc
 	defer cleanupInteractivePanes(cfg.Terminal, panes)
 
 	if err := startPipeCapture(timeoutCtx, cfg.Terminal, panes); err != nil {
-		cfg.Interactive = false
-		return RunPaneOrchestra(ctx, cfg)
+		// Pipe-pane is for idle detection (secondary signal) only.
+		// Primary completion uses ReadScreen polling — continue without pipe capture.
+		log.Printf("[interactive] startPipeCapture failed: %v -- continuing without idle detection", err)
 	}
 
 	launchFailed := launchInteractiveSessions(timeoutCtx, cfg, panes)

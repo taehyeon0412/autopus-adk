@@ -3,6 +3,7 @@ package orchestra
 import (
 	"context"
 	"log"
+	"strings"
 	"time"
 )
 
@@ -86,13 +87,23 @@ func executeRound(ctx context.Context, cfg OrchestraConfig, panes []paneInfo, ho
 			}
 		}
 
-		// SendLongText uses set-buffer/paste-buffer which preserves newlines natively.
-		// No newline normalization needed — the old ReplaceAll("\n", " ") broke
-		// Gemini TUI rendering for long rebuttal prompts in Round 2+.
 		sendPrompt := prompt
 
-		// R6: On SendLongText failure, attempt pane recreation once, then retry.
-		newPI, recreated, sendErr := sendPromptWithRetry(ctx, cfg, *pi, sendPrompt, round, baselines)
+		// Sendkeys mode: use SendCommand (cmux send) instead of paste-buffer.
+		// Some TUIs (e.g., Codex/ink) display paste-buffer as "[Pasted Content N chars]"
+		// instead of processing it as input.
+		var newPI paneInfo
+		var recreated bool
+		var sendErr error
+		if pi.provider.InteractiveInput == "sendkeys" {
+			// Normalize newlines to spaces for sendkeys (shell line continuation prevention).
+			normalized := strings.ReplaceAll(sendPrompt, "\n", " ")
+			sendErr = cfg.Terminal.SendCommand(ctx, pi.paneID, normalized)
+			newPI = *pi
+		} else {
+			// R6: On SendLongText failure, attempt pane recreation once, then retry.
+			newPI, recreated, sendErr = sendPromptWithRetry(ctx, cfg, *pi, sendPrompt, round, baselines)
+		}
 		if sendErr != nil {
 			log.Printf("[Round %d] %s send failed: %v -- skipping", round, pi.provider.Name, sendErr)
 			panes[i].skipWait = true

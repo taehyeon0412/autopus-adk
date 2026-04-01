@@ -102,8 +102,9 @@ func runPaneDebate(ctx context.Context, cfg OrchestraConfig, rounds int, perRoun
 	}
 
 	if err := startPipeCapture(ctx, cfg.Terminal, panes); err != nil {
-		log.Printf("[debate] startPipeCapture failed: %v -- falling back to non-interactive", err)
-		return runNonInteractiveDebate(ctx, cfg, rounds, start)
+		// Pipe-pane is for idle detection (secondary signal) only.
+		// Primary completion uses ReadScreen polling — continue without pipe capture.
+		log.Printf("[debate] startPipeCapture failed: %v -- continuing without idle detection", err)
 	}
 
 	launchInteractiveSessions(ctx, cfg, panes)
