@@ -10,6 +10,12 @@ import (
 // ansiEscapeRe matches ANSI escape sequences including color codes, cursor movement, etc.
 var ansiEscapeRe = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
 
+// iceTableHeaderRe matches ICE scoring table headers (various formats).
+var iceTableHeaderRe = regexp.MustCompile(`(?i)(ICE\s*(Score|스코어)|통합\s*ICE|Top\s*\d+\s*(통합|아이디어)|Judge.*Merge|Judge.*Integration|Impact.*Confidence.*Ease)`)
+
+// iceScoreLineRe matches standalone ICE score lines like "ICE: 5.12" or "Score: 432".
+var iceScoreLineRe = regexp.MustCompile(`(?i)^\s*(ICE|Score)\s*[:=]\s*[\d.]+\s*$`)
+
 // stripANSI removes all ANSI escape sequences from the input string.
 func stripANSI(s string) string {
 	return ansiEscapeRe.ReplaceAllString(s, "")
@@ -279,4 +285,42 @@ func cleanScreenOutput(raw string) string {
 	cleaned := SanitizeScreenOutput(raw)
 	cleaned = stripInlineNoise(cleaned)
 	return filterPromptLines(cleaned)
+}
+
+// CleanScreenForCrossPollination applies full sanitization for Round 2 cross-pollination.
+// Strips TUI noise and self-assigned ICE scores (to prevent confidence cascade),
+// but preserves all idea content, SCAMPER analysis, HMW questions, and reasoning.
+func CleanScreenForCrossPollination(raw string) string {
+	cleaned := cleanScreenOutput(raw)
+	cleaned = stripICEScores(cleaned)
+	return strings.TrimSpace(cleaned)
+}
+
+// stripICEScores removes self-assigned ICE scoring sections from provider output.
+// This prevents confidence cascade where later rounds blindly adopt earlier scores.
+func stripICEScores(s string) string {
+	lines := strings.Split(s, "\n")
+	filtered := make([]string, 0, len(lines))
+	inICETable := false
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		// Detect ICE table headers and skip until next non-table line
+		if iceTableHeaderRe.MatchString(trimmed) {
+			inICETable = true
+			continue
+		}
+		if inICETable {
+			// Stay in ICE table while lines look like table rows
+			if strings.HasPrefix(trimmed, "|") || strings.HasPrefix(trimmed, "+-") || strings.HasPrefix(trimmed, "┌") || strings.HasPrefix(trimmed, "├") || strings.HasPrefix(trimmed, "└") || strings.HasPrefix(trimmed, "│") || trimmed == "" {
+				continue
+			}
+			inICETable = false
+		}
+		// Skip standalone ICE score lines
+		if iceScoreLineRe.MatchString(trimmed) {
+			continue
+		}
+		filtered = append(filtered, line)
+	}
+	return strings.Join(filtered, "\n")
 }

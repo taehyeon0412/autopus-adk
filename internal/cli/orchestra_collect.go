@@ -26,8 +26,10 @@ type CollectProviderResult struct {
 
 // newOrchestraCollectCmd creates the "orchestra collect" subcommand.
 // Loads a persisted session, reads each provider's pane screen, and outputs JSON.
+// With --clean, applies the orchestra sanitizer to strip TUI noise while preserving content.
 func newOrchestraCollectCmd() *cobra.Command {
 	var round int
+	var clean bool
 
 	cmd := &cobra.Command{
 		Use:   "collect <session-id>",
@@ -66,7 +68,8 @@ func newOrchestraCollectCmd() *cobra.Command {
 				}
 
 				screen, err := term.ReadScreen(ctx, terminal.PaneID(paneID), terminal.ReadScreenOpts{
-					Scrollback: true,
+					Scrollback:      true,
+					ScrollbackLines: 500,
 				})
 				if err != nil {
 					responses = append(responses, CollectProviderResult{
@@ -76,9 +79,14 @@ func newOrchestraCollectCmd() *cobra.Command {
 					continue
 				}
 
+				output := screen
+				if clean {
+					output = orchestra.CleanScreenForCrossPollination(screen)
+				}
+
 				responses = append(responses, CollectProviderResult{
 					Provider: p.Name,
-					Output:   screen,
+					Output:   output,
 				})
 			}
 
@@ -98,5 +106,6 @@ func newOrchestraCollectCmd() *cobra.Command {
 	}
 
 	cmd.Flags().IntVar(&round, "round", 0, "Round number to collect (0 = latest)")
+	cmd.Flags().BoolVar(&clean, "clean", false, "Apply TUI sanitizer (strip noise, preserve content)")
 	return cmd
 }
