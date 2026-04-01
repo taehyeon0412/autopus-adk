@@ -29,7 +29,7 @@ func TestGeminiAdapter_CLIBinary(t *testing.T) {
 func TestGeminiAdapter_SupportsHooks(t *testing.T) {
 	t.Parallel()
 	a := gemini.New()
-	assert.False(t, a.SupportsHooks())
+	assert.True(t, a.SupportsHooks())
 }
 
 func TestGeminiAdapter_Detect_NotInstalled(t *testing.T) {

@@ -1,0 +1,33 @@
+---
+description: "문서 동기화 — 구현 완료 후 코드와 문서를 동기화합니다"
+---
+
+# auto-sync — 문서 동기화
+
+**프로젝트**: {{.ProjectName}} | **모드**: {{.Mode}}
+
+## 사용법
+
+SPEC-ID를 인자로 받아 문서를 동기화합니다.
+인자 없이 실행 시 전체 프로젝트를 동기화합니다.
+
+## 동기화 항목
+
+1. SPEC 상태 → completed
+2. API 문서 갱신
+3. 아키텍처 다이어그램 업데이트
+{{if .IsFullMode}}4. Lore 의사결정 기록
+5. CHANGELOG 갱신
+6. Lore 형식 자동 커밋{{end}}
+
+## 품질 게이트
+
+- 에러: 0
+- 경고: 최대 10
+{{if .IsFullMode}}
+## Lore 커밋
+
+동기화 완료 후 Lore 형식으로 자동 커밋합니다.
+- SPEC-ID 있으면: `docs(<scope>): sync SPEC-{ID} 문서 갱신`
+- SPEC-ID 없으면: `docs(sync): 프로젝트 문서 동기화`
+{{end}}

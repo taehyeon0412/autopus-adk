@@ -96,7 +96,7 @@ func TestPerRoundTimeout(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tt.expected, perRoundTimeout(tt.total, tt.rounds))
+			assert.Equal(t, tt.expected, perRoundTimeout(tt.total, tt.rounds, false))
 		})
 	}
 }
@@ -117,7 +117,7 @@ func TestPerRoundTimeout_MinimumFloor(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tt.expected, perRoundTimeout(tt.total, tt.rounds))
+			assert.Equal(t, tt.expected, perRoundTimeout(tt.total, tt.rounds, false))
 		})
 	}
 }
@@ -214,7 +214,7 @@ func TestPerRoundTimeout_JudgeBudgetSubtracted(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got := perRoundTimeout(tt.total, tt.rounds)
+			got := perRoundTimeout(tt.total, tt.rounds, false)
 			assert.Equal(t, tt.expected, got,
 				"perRoundTimeout must subtract judge budget (min 60s) before dividing")
 		})
@@ -228,9 +228,46 @@ func TestPerRoundTimeout_JudgeBudgetMinimum60s(t *testing.T) {
 	// Current code returns 80/2=40<45=45, but with judge subtraction: (80-60)/2=10<45=45
 	// Both give 45 due to floor — add a case that distinguishes:
 	// total=200, rounds=2 -> without judge: 200/2=100; with judge: (200-60)/2=70
-	got := perRoundTimeout(200, 2)
+	got := perRoundTimeout(200, 2, false)
 	assert.Equal(t, 70*time.Second, got,
 		"judge budget must be minimum 60s; total=200, rounds=2 -> debate=140, perRound=70")
+}
+
+// TestPerRoundTimeout_NoJudge verifies that noJudge=true skips judge budget reservation,
+// giving the full timeout to debate rounds.
+func TestPerRoundTimeout_NoJudge(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		total    int
+		rounds   int
+		noJudge  bool
+		expected time.Duration
+	}{
+		{
+			"noJudge=true total=120 rounds=2 -> no reserve, 120/2=60",
+			120, 2, true, 60 * time.Second,
+		},
+		{
+			"noJudge=true total=300 rounds=1 -> no reserve, 300/1=300",
+			300, 1, true, 300 * time.Second,
+		},
+		{
+			"noJudge=false total=300 rounds=1 -> reserve=60, 240/1=240",
+			300, 1, false, 240 * time.Second,
+		},
+		{
+			"noJudge=true total=120 rounds=1 -> no reserve, 120/1=120 (brainstorm yield)",
+			120, 1, true, 120 * time.Second,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := perRoundTimeout(tt.total, tt.rounds, tt.noJudge)
+			assert.Equal(t, tt.expected, got)
+		})
+	}
 }
 
 // TestJudgeTimeout_IndependentContext verifies judge uses context.Background()

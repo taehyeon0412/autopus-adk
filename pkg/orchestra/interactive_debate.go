@@ -32,7 +32,13 @@ func runInteractiveDebate(ctx context.Context, cfg OrchestraConfig) (*OrchestraR
 	}
 
 	start := time.Now()
-	perRound := perRoundTimeout(cfg.TimeoutSeconds, rounds)
+	// When yield mode is active, only Round 1 runs — allocate full budget
+	// to a single round instead of dividing among all planned rounds.
+	effectiveRounds := rounds
+	if cfg.YieldRounds && effectiveRounds > 1 {
+		effectiveRounds = 1
+	}
+	perRound := perRoundTimeout(cfg.TimeoutSeconds, effectiveRounds, cfg.NoJudge)
 
 	// Fallback: no terminal available — delegate to non-interactive debate.
 	if cfg.Terminal == nil {

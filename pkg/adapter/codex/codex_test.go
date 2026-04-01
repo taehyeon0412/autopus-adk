@@ -29,7 +29,7 @@ func TestCodexAdapter_CLIBinary(t *testing.T) {
 func TestCodexAdapter_SupportsHooks(t *testing.T) {
 	t.Parallel()
 	a := codex.New()
-	assert.False(t, a.SupportsHooks(), "Codex는 훅을 지원하지 않음 (Git 훅 폴백 사용)")
+	assert.True(t, a.SupportsHooks(), "Codex는 hooks.json을 통해 훅을 지원")
 }
 
 func TestCodexAdapter_Detect_NotInstalled(t *testing.T) {

@@ -45,8 +45,8 @@ judge 모델이 ICE 점수로 아이디어를 통합하고 증폭합니다.`,
 
 	cmd.Flags().StringVarP(&strategy, "strategy", "s", "", "오케스트레이션 전략 (consensus|pipeline|debate|fastest|relay)")
 	cmd.Flags().StringSliceVarP(&providers, "providers", "p", nil, "사용할 프로바이더 목록")
-	// @AX:NOTE: [AUTO] magic constant — default timeout 120s matches orchestra consensus SLA
-	cmd.Flags().IntVarP(&timeout, "timeout", "t", 120, "타임아웃 (초)")
+	// @AX:NOTE: [AUTO] magic constant — default timeout 300s; brainstorm needs more time than consensus due to SCAMPER+HMW+ICE complexity
+	cmd.Flags().IntVarP(&timeout, "timeout", "t", 300, "타임아웃 (초)")
 	cmd.Flags().StringVar(&judge, "judge", "", "debate 전략에서 최종 판정 프로바이더")
 	cmd.Flags().Float64("threshold", 0, "consensus 전략 합의 임계값 (0.0-1.0)")
 	cmd.Flags().IntVar(&rounds, "rounds", 0, "debate 라운드 수 (1-10, debate 전략 전용)")

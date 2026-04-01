@@ -1,0 +1,76 @@
+// Package gemini provides custom command rendering for Gemini CLI.
+package gemini
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/insajin/autopus-adk/pkg/adapter"
+	"github.com/insajin/autopus-adk/pkg/config"
+	"github.com/insajin/autopus-adk/templates"
+)
+
+const commandsTemplateDir = "gemini/commands/auto"
+
+// renderCommandTemplates reads Gemini command templates from embedded FS,
+// renders them, and writes to .gemini/commands/auto/.
+func (a *Adapter) renderCommandTemplates(cfg *config.HarnessConfig) ([]adapter.FileMapping, error) {
+	mappings, err := a.prepareCommandMappings(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, m := range mappings {
+		destPath := filepath.Join(a.root, m.TargetPath)
+		if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+			return nil, fmt.Errorf("gemini commands 디렉터리 생성 실패: %w", err)
+		}
+		if err := os.WriteFile(destPath, m.Content, 0644); err != nil {
+			return nil, fmt.Errorf("gemini command 파일 쓰기 실패 %s: %w", destPath, err)
+		}
+	}
+
+	return mappings, nil
+}
+
+// prepareCommandMappings renders command templates and returns file mappings
+// without writing to disk.
+func (a *Adapter) prepareCommandMappings(cfg *config.HarnessConfig) ([]adapter.FileMapping, error) {
+	var files []adapter.FileMapping
+
+	entries, err := templates.FS.ReadDir(commandsTemplateDir)
+	if err != nil {
+		return nil, fmt.Errorf("gemini command 템플릿 디렉터리 읽기 실패: %w", err)
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".tmpl") {
+			continue
+		}
+
+		name := entry.Name()
+		outFile := strings.TrimSuffix(name, ".tmpl")
+
+		tmplContent, err := templates.FS.ReadFile(commandsTemplateDir + "/" + name)
+		if err != nil {
+			return nil, fmt.Errorf("gemini command 템플릿 읽기 실패 %s: %w", name, err)
+		}
+
+		rendered, err := a.engine.RenderString(string(tmplContent), cfg)
+		if err != nil {
+			return nil, fmt.Errorf("gemini command 템플릿 렌더링 실패 %s: %w", name, err)
+		}
+
+		relPath := filepath.Join(".gemini", "commands", "auto", outFile)
+		files = append(files, adapter.FileMapping{
+			TargetPath:      relPath,
+			OverwritePolicy: adapter.OverwriteAlways,
+			Checksum:        checksum(rendered),
+			Content:         []byte(rendered),
+		})
+	}
+
+	return files, nil
+}

@@ -1,3 +1,9 @@
+---
+name: lore-commit
+description: Lore commit format rules for structured, traceable commit messages
+category: workflow
+---
+
 # Lore Commit
 
 IMPORTANT: All commits MUST use Lore format. Never use plain commit messages or Co-Authored-By trailers.

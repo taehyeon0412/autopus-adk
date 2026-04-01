@@ -34,6 +34,45 @@ SPEC 문서를 기반으로 코드를 구현합니다.{{if .IsFullMode}} {{.Meth
 - LSP 에러: 0
 - 린트 에러: 0
 
+## Subagent Delegation
+
+When a task modifies 3+ files, exceeds 200 lines, or spans multiple domains, delegate to specialized agents using `spawn_agent`.
+
+### Executor Agent
+
+```
+spawn_agent executor \
+  --task "Implement {task description}" \
+  --spec ".autopus/specs/{SPEC-ID}/spec.md" \
+  --plan ".autopus/specs/{SPEC-ID}/plan.md" \
+  --constraint "File size limit: 300 lines per source file"
+```
+
+### Tester Agent
+
+```
+spawn_agent tester \
+  --task "Write tests for {scope}" \
+  --spec ".autopus/specs/{SPEC-ID}/acceptance.md" \
+  --coverage-target {{if .IsFullMode}}85{{else}}80{{end}}
+```
+
+### Reviewer Agent
+
+```
+spawn_agent reviewer \
+  --task "Review implementation for {SPEC-ID}" \
+  --criteria "TRUST-5"
+```
+
+### Delegation Rules
+
+- Define clear scope with expected output for each agent
+- Include SPEC context files in the agent prompt
+- Review agent output before integrating
+- Use parallel delegation for independent subtasks
+- Maximum 3 sequential agent chains
+
 ## Branding Formats
 
 ### Pipeline Progress (show at Phase transitions)
