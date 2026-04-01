@@ -132,14 +132,28 @@ func (d Dependency) IsNpmBased() bool {
 
 // FullModeDeps는 Full 모드의 의존성 목록이다.
 var FullModeDeps = []Dependency{
+	// Core tools
 	{Name: "git", Binary: "git", InstallCmd: platformInstallCmd("git"), Required: true, Description: "Version control"},
 	{Name: "node", Binary: "node", InstallCmd: platformInstallCmd("node"), Required: true, Description: "Node.js runtime (npm packages, Playwright)"},
 	{Name: "go", Binary: "go", InstallCmd: platformInstallCmd("go"), Required: false, Description: "Go toolchain (for Go projects)"},
-	{Name: "python", Binary: "python3", InstallCmd: platformInstallCmd("python"), Required: false, Description: "Python runtime (for Python projects)"},
+	{Name: "python", Binary: pythonBinary(), InstallCmd: platformInstallCmd("python"), Required: false, Description: "Python runtime (for Python projects)"},
+	// AI coding CLIs
+	{Name: "claude", Binary: "claude", InstallCmd: "npm i -g @anthropic-ai/claude-code", Required: true, Description: "Claude Code CLI", DependsOn: "node"},
+	{Name: "codex", Binary: "codex", InstallCmd: "npm i -g @openai/codex", Required: true, Description: "OpenAI Codex CLI", DependsOn: "node"},
+	{Name: "gemini", Binary: "gemini", InstallCmd: "npm i -g @anthropic-ai/gemini-cli", Required: true, Description: "Gemini CLI", DependsOn: "node"},
+	// Dev tools
 	{Name: "ast-grep", Binary: "sg", InstallCmd: "npm i -g @ast-grep/cli", Required: true, Description: "Structural code search", DependsOn: "node"},
 	{Name: "playwright", Binary: "playwright", InstallCmd: "npm i -g playwright", Required: false, Description: "E2E testing + screenshots", DependsOn: "node", PostInstallCmd: "npx playwright install chromium"},
 	{Name: "agent-browser", Binary: "agent-browser", InstallCmd: "npm i -g agent-browser", Required: true, Description: "Web browsing", DependsOn: "node"},
 	{Name: "gh", Binary: "gh", InstallCmd: platformInstallCmd("gh"), Required: false, Description: "GitHub CLI"},
+}
+
+// pythonBinary returns the python binary name for the current OS.
+func pythonBinary() string {
+	if runtime.GOOS == "windows" {
+		return "python"
+	}
+	return "python3"
 }
 
 // platformInstallCmd returns the install command appropriate for the current OS.
