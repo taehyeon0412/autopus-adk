@@ -124,11 +124,21 @@ Orchestra는 stdout에 JSON을 출력합니다. 파싱하여 각 프로바이더
 
 Ref: Multi-Agent Debate 연구 — one-shot revision이 대부분의 품질 향상을 가져오며, 적대적 반박은 방어적 태도와 아첨(sycophancy)을 유발할 수 있음.
 
+#### Round 2 입력 소스 우선순위
+
+Round 1 결과를 준비할 때, 아래 우선순위로 소스를 선택합니다:
+
+1. **1순위 — `--yield-rounds` JSON output**: orchestra가 수집한 cleaned output 사용. JSON의 `round_history[0].responses[].output` 필드에 이미 TUI 노이즈가 제거된 텍스트가 포함됨.
+2. **2순위 — `auto orchestra collect <session-id> --clean`**: JSON output이 빈 프로바이더가 있을 경우, collect 명령으로 pane scrollback을 읽고 Go 엔진의 sanitizer(`CleanScreenForCrossPollination`)를 적용. ICE 점수도 자동 제거됨.
+3. **3순위 — `cmux read-screen` 직접 읽기**: collect 명령도 실패할 경우에만 사용. 반드시 `SanitizeScreenOutput` 수준의 정제를 수동 적용해야 함.
+
+IMPORTANT: `grep` 패턴 매칭으로 핵심만 추출하는 것은 금지. 원문의 대부분이 누락됨. TUI 노이즈만 제거하고 나머지는 원문 그대로 전달해야 합니다.
+
 #### Round 2 입력 준비 가이드라인
 
 1. **익명화 필수**: 프로바이더 이름 대신 "토론자 A", "토론자 B"로 표기
-2. **ICE 점수 제거**: Round 1의 자체 ICE 점수를 제거하고 아이디어 내용만 전달 (자신감 전파/confidence cascade 방지)
-3. **원문에 가깝게**: 핵심 주장, 구체적 제안, 근거를 축약하지 않고 전달 (TUI 노이즈만 제거)
+2. **ICE 점수 제거**: Round 1의 자체 ICE 점수를 제거하고 아이디어 내용만 전달 (자신감 전파/confidence cascade 방지). `CleanScreenForCrossPollination`이 자동 처리.
+3. **원문에 가깝게**: 핵심 주장, 구체적 제안, 근거를 축약하지 않고 전달 (TUI 노이즈만 제거). grep/요약 금지.
 
 #### 구조화된 Round 2 프롬프트
 
