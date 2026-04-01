@@ -243,7 +243,12 @@ func CheckParentRuleConflicts(projectDir string) []ParentRuleConflict {
 	var conflicts []ParentRuleConflict
 	current := filepath.Dir(absDir) // 부모부터 시작
 
-	for current != "/" && current != "." {
+	for {
+		parent := filepath.Dir(current)
+		if parent == current {
+			// Reached filesystem root (Unix: /, Windows: C:\).
+			break
+		}
 		rulesDir := filepath.Join(current, ".claude", "rules")
 		entries, err := os.ReadDir(rulesDir)
 		if err == nil {
@@ -257,7 +262,7 @@ func CheckParentRuleConflicts(projectDir string) []ParentRuleConflict {
 				}
 			}
 		}
-		current = filepath.Dir(current)
+		current = parent
 	}
 
 	return conflicts
