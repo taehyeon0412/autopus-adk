@@ -14,7 +14,11 @@
 [![Skills](https://img.shields.io/badge/Skills-40-ff69b4)](#-all-commands)
 
 ```bash
+# macOS / Linux
 curl -sSfL https://raw.githubusercontent.com/Insajin/autopus-adk/main/install.sh | sh
+
+# Windows (CMD or PowerShell)
+powershell -c "irm https://raw.githubusercontent.com/Insajin/autopus-adk/main/install.ps1 | iex"
 ```
 
 [Why Autopus](#-the-problem) · [**Core Workflow**](#-the-workflow-three-commands-to-ship) · [Features](#-what-makes-autopus-different) · [Pipeline](#-the-pipeline) · [Security](#-security) · [Docs](#-all-commands)
@@ -351,13 +355,20 @@ Get from zero to your first AI-powered feature in under 5 minutes.
 ### Step 1 · Install Autopus
 
 ```bash
+# macOS / Linux
 curl -sSfL https://raw.githubusercontent.com/Insajin/autopus-adk/main/install.sh | sh
+
+# Windows (CMD or PowerShell)
+powershell -c "irm https://raw.githubusercontent.com/Insajin/autopus-adk/main/install.ps1 | iex"
 ```
 
 <details>
 <summary>Other install methods</summary>
 
 ```bash
+# Homebrew (macOS)
+brew install insajin/tap/autopus-adk
+
 # go install (requires Go 1.26+)
 go install github.com/Insajin/autopus-adk/cmd/auto@latest
 
