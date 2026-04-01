@@ -7,11 +7,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
-	"github.com/insajin/autopus-adk/internal/cli/tui"
 	"github.com/insajin/autopus-adk/pkg/config"
 	"github.com/insajin/autopus-adk/pkg/detect"
 )
@@ -130,23 +128,13 @@ func warnParentRuleConflicts(cmd *cobra.Command, dir string, cfg *config.Harness
 		return
 	}
 
-	var isolate bool
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewConfirm().
-				Title("Ignore parent rules?").
-				Description("Sets isolate_rules: true in autopus.yaml").
-				Affirmative("Yes").
-				Negative("No").
-				Value(&isolate),
-		),
-	).WithTheme(tui.AutopusTheme())
+	// Simple stdin prompt instead of huh TUI — avoids hang on Windows terminals.
+	fmt.Fprint(out, "  Ignore parent rules? (sets isolate_rules: true) [y/N]: ")
+	reader := bufio.NewReader(os.Stdin)
+	answer, _ := reader.ReadString('\n')
+	answer = strings.TrimSpace(strings.ToLower(answer))
 
-	if err := form.Run(); err != nil {
-		return
-	}
-
-	if isolate {
+	if answer == "y" || answer == "yes" {
 		cfg.IsolateRules = true
 		if err := config.Save(dir, cfg); err != nil {
 			fmt.Fprintf(out, "  [ERROR] autopus.yaml save failed: %v\n", err)
