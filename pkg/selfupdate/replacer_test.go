@@ -83,3 +83,51 @@ func TestReplace_PermissionError(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "permission")
 }
+
+// TestReplaceWindows_MoveAside verifies the Windows fallback path:
+// old binary is renamed to .old, new binary is placed at target.
+func TestReplaceWindows_MoveAside(t *testing.T) {
+	t.Parallel()
+
+	r := NewReplacer()
+
+	destDir := t.TempDir()
+	targetPath := filepath.Join(destDir, "auto.exe")
+	require.NoError(t, os.WriteFile(targetPath, []byte("old"), 0755))
+
+	newPath := filepath.Join(t.TempDir(), "auto-new.exe")
+	require.NoError(t, os.WriteFile(newPath, []byte("new"), 0755))
+
+	err := r.replaceWindows(newPath, targetPath)
+	require.NoError(t, err)
+
+	got, err := os.ReadFile(targetPath)
+	require.NoError(t, err)
+	assert.Equal(t, []byte("new"), got)
+
+	// .old should be cleaned up (or may still exist on real Windows).
+	_, err = os.Stat(targetPath + ".old")
+	assert.True(t, os.IsNotExist(err), ".old file should be removed")
+}
+
+// TestReplaceWindows_RestoreOnFailure verifies that if the new binary rename
+// fails, the old binary is restored from .old.
+func TestReplaceWindows_RestoreOnFailure(t *testing.T) {
+	t.Parallel()
+
+	r := NewReplacer()
+
+	destDir := t.TempDir()
+	targetPath := filepath.Join(destDir, "auto.exe")
+	require.NoError(t, os.WriteFile(targetPath, []byte("old"), 0755))
+
+	// Use a non-existent new binary path to trigger rename failure.
+	err := r.replaceWindows("/nonexistent/path/auto.exe", targetPath)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "rename new binary")
+
+	// Old binary should be restored.
+	got, err := os.ReadFile(targetPath)
+	require.NoError(t, err)
+	assert.Equal(t, []byte("old"), got)
+}
