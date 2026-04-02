@@ -60,22 +60,24 @@ func detectPermissionModeWith(checker func() (bool, int, error)) PermissionResul
 
 // checkParentProcessTree walks up the process tree looking for the
 // --dangerously-skip-permissions flag in command arguments.
+// Individual process lookup failures are skipped so that transient
+// errors (exited intermediary, permission denied) do not abort the
+// entire tree walk before reaching the ancestor that carries the flag.
 func checkParentProcessTree() (flagFound bool, parentPID int, err error) {
 	pid := os.Getppid()
 	parentPID = pid
 
 	for i := 0; i < maxTreeDepth && pid > 1; i++ {
 		args, argsErr := processArgs(pid)
-		if argsErr != nil {
-			return false, parentPID, argsErr
-		}
-		if strings.Contains(args, permissionFlag) {
+		if argsErr == nil && strings.Contains(args, permissionFlag) {
 			return true, parentPID, nil
 		}
+		// On processArgs error, skip this PID and continue to its parent.
 
 		nextPID, ppidErr := parentPIDOf(pid)
 		if ppidErr != nil {
-			return false, parentPID, ppidErr
+			// Cannot determine next ancestor — stop walking.
+			break
 		}
 		pid = nextPID
 	}

@@ -21,8 +21,8 @@ coverage.out
 .mcp.json
 
 # Build artifacts
-auto
-auto_prev
+/auto
+/auto_prev
 dist/
 coverage.html
 sigmap.test
