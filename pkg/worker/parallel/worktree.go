@@ -1,0 +1,85 @@
+package parallel
+
+import (
+	"fmt"
+	"os/exec"
+	"path/filepath"
+	"strings"
+)
+
+// WorktreeManager creates and removes git worktrees for task isolation.
+// All git commands use gc.auto=0 to suppress garbage collection during
+// parallel execution, preventing pack file contention.
+type WorktreeManager struct {
+	baseDir string
+}
+
+// NewWorktreeManager creates a manager rooted at the given repository directory.
+func NewWorktreeManager(baseDir string) *WorktreeManager {
+	return &WorktreeManager{baseDir: baseDir}
+}
+
+// Create creates a new worktree for the given task on a fresh branch.
+// Returns the worktree path.
+func (m *WorktreeManager) Create(taskID string) (string, error) {
+	wtPath := m.worktreePath(taskID)
+	branch := fmt.Sprintf("worker-%s", taskID)
+
+	cmd := exec.Command(
+		"git", "-c", "gc.auto=0",
+		"worktree", "add", wtPath, "-b", branch,
+	)
+	cmd.Dir = m.baseDir
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("worktree create %s: %s: %w", taskID, strings.TrimSpace(string(out)), err)
+	}
+	return wtPath, nil
+}
+
+// Remove removes a worktree. Use force=true for failed/aborted tasks.
+func (m *WorktreeManager) Remove(worktreePath string, force bool) error {
+	args := []string{"-c", "gc.auto=0", "worktree", "remove"}
+	if force {
+		args = append(args, "--force")
+	}
+	args = append(args, worktreePath)
+
+	cmd := exec.Command("git", args...)
+	cmd.Dir = m.baseDir
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("worktree remove %s: %s: %w", worktreePath, strings.TrimSpace(string(out)), err)
+	}
+	return nil
+}
+
+// List returns all active worktree paths (excluding the main worktree).
+func (m *WorktreeManager) List() ([]string, error) {
+	cmd := exec.Command("git", "-c", "gc.auto=0", "worktree", "list", "--porcelain")
+	cmd.Dir = m.baseDir
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("worktree list: %s: %w", strings.TrimSpace(string(out)), err)
+	}
+
+	var paths []string
+	for _, line := range strings.Split(string(out), "\n") {
+		if strings.HasPrefix(line, "worktree ") {
+			path := strings.TrimPrefix(line, "worktree ")
+			// Skip the main worktree (the base directory itself).
+			if path != m.baseDir {
+				paths = append(paths, path)
+			}
+		}
+	}
+	return paths, nil
+}
+
+// worktreePath returns the filesystem path for a task's worktree.
+func (m *WorktreeManager) worktreePath(taskID string) string {
+	return filepath.Join(m.baseDir, ".worktrees", fmt.Sprintf("worker-%s", taskID))
+}
