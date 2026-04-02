@@ -8,8 +8,10 @@ import (
 	"os"
 	"path/filepath"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/insajin/autopus-adk/pkg/worker/a2a"
 	"github.com/insajin/autopus-adk/pkg/worker/adapter"
+	"github.com/insajin/autopus-adk/pkg/worker/tui"
 )
 
 // LoopConfig holds configuration for the WorkerLoop.
@@ -26,9 +28,10 @@ type LoopConfig struct {
 // WorkerLoop integrates A2A Server, ProviderAdapter, ContextBuilder, and StreamParser.
 // It receives tasks via A2A, builds prompts, spawns CLI subprocesses, and reports results.
 type WorkerLoop struct {
-	config  LoopConfig
-	server  *a2a.Server
-	builder ContextBuilder
+	config     LoopConfig
+	server     *a2a.Server
+	builder    ContextBuilder
+	tuiProgram *tea.Program
 }
 
 // NewWorkerLoop creates a WorkerLoop with the given configuration.
@@ -38,11 +41,12 @@ func NewWorkerLoop(config LoopConfig) *WorkerLoop {
 	}
 
 	serverCfg := a2a.ServerConfig{
-		BackendURL: config.BackendURL,
-		WorkerName: config.WorkerName,
-		Skills:     config.Skills,
-		Handler:    wl.handleTask,
-		AuthToken:  config.AuthToken,
+		BackendURL:       config.BackendURL,
+		WorkerName:       config.WorkerName,
+		Skills:           config.Skills,
+		Handler:          wl.handleTask,
+		AuthToken:        config.AuthToken,
+		ApprovalCallback: wl.handleApproval,
 	}
 	wl.server = a2a.NewServer(serverCfg)
 
@@ -122,6 +126,34 @@ func cleanupPolicy(taskID string) {
 	path := filepath.Join(dir, fmt.Sprintf("autopus-policy-%s.json", taskID))
 	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 		log.Printf("[worker] cleanup policy file: %v", err)
+	}
+}
+
+// SetTUIProgram registers the bubbletea program for sending approval messages.
+func (wl *WorkerLoop) SetTUIProgram(p *tea.Program) {
+	wl.tuiProgram = p
+}
+
+// handleApproval forwards an approval request from A2A to the TUI.
+func (wl *WorkerLoop) handleApproval(params a2a.ApprovalRequestParams) {
+	if wl.tuiProgram == nil {
+		log.Printf("[worker] approval request but no TUI program registered")
+		return
+	}
+	wl.tuiProgram.Send(tui.ApprovalRequestMsg{
+		TaskID:    params.TaskID,
+		Action:    params.Action,
+		RiskLevel: params.RiskLevel,
+		Context:   params.Context,
+	})
+}
+
+// SetOnApprovalDecision returns a callback that sends approval decisions to the backend.
+func (wl *WorkerLoop) SetOnApprovalDecision() func(taskID, decision string) {
+	return func(taskID, decision string) {
+		if err := wl.server.SendApprovalResponse(taskID, decision); err != nil {
+			log.Printf("[worker] send approval response error: %v", err)
+		}
 	}
 }
 

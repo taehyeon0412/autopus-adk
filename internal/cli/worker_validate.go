@@ -1,0 +1,80 @@
+package cli
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+
+	"github.com/spf13/cobra"
+
+	"github.com/insajin/autopus-adk/pkg/worker/security"
+)
+
+// newWorkerCmd creates the `auto worker` parent command.
+func newWorkerCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "worker",
+		Short: "Worker management commands",
+	}
+
+	cmd.AddCommand(newWorkerValidateSubCmd())
+	addWorkerSubcommands(cmd)
+	return cmd
+}
+
+// newWorkerValidateSubCmd creates the `auto worker validate` subcommand.
+// It loads a SecurityPolicy from a JSON file and validates a command against it.
+func newWorkerValidateSubCmd() *cobra.Command {
+	var (
+		policyPath string
+		command    string
+		workDir    string
+	)
+
+	cmd := &cobra.Command{
+		Use:   "validate",
+		Short: "Validate a command against a security policy",
+		Long:  "Load a SecurityPolicy from a JSON file and check whether a command is permitted.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return runWorkerValidate(cmd, policyPath, command, workDir)
+		},
+	}
+
+	cmd.Flags().StringVar(&policyPath, "policy", "", "Path to security policy JSON file (required)")
+	cmd.Flags().StringVar(&command, "command", "", "Command to validate (required)")
+	cmd.Flags().StringVar(&workDir, "workdir", "", "Working directory for validation (optional)")
+	_ = cmd.MarkFlagRequired("policy")
+	_ = cmd.MarkFlagRequired("command")
+
+	return cmd
+}
+
+// runWorkerValidate loads the policy and validates the command.
+// Prints "PASS" or "DENY: <reason>" to stdout.
+// Exit code: 0 for PASS, 1 for DENY (fail-closed on missing policy, REQ-SEC-03).
+func runWorkerValidate(cmd *cobra.Command, policyPath, command, workDir string) error {
+	data, err := os.ReadFile(policyPath)
+	if err != nil {
+		// Fail-closed: missing policy file means DENY.
+		fmt.Fprintln(cmd.OutOrStdout(), "DENY: policy file not found")
+		os.Exit(1)
+		return nil
+	}
+
+	var policy security.SecurityPolicy
+	if err := json.Unmarshal(data, &policy); err != nil {
+		fmt.Fprintf(cmd.OutOrStdout(), "DENY: invalid policy file: %v\n", err)
+		os.Exit(1)
+		return nil
+	}
+
+	pass, reason := policy.ValidateCommand(command, workDir)
+	if pass {
+		fmt.Fprintln(cmd.OutOrStdout(), "PASS")
+		return nil
+	}
+
+	fmt.Fprintf(cmd.OutOrStdout(), "DENY: %s\n", reason)
+	os.Exit(1)
+	return nil
+}

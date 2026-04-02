@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"testing"
 
+	"github.com/insajin/autopus-adk/pkg/worker/a2a"
 	"github.com/insajin/autopus-adk/pkg/worker/adapter"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -217,6 +218,51 @@ func TestHandleTask_InvalidPayload(t *testing.T) {
 	_, err := wl.handleTask(context.Background(), "task-bad", []byte("not json"))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "parse task payload")
+}
+
+// --- Approval wiring tests ---
+
+func TestSetTUIProgram(t *testing.T) {
+	t.Parallel()
+	wl := &WorkerLoop{}
+	assert.Nil(t, wl.tuiProgram)
+
+	// SetTUIProgram with nil should not panic.
+	wl.SetTUIProgram(nil)
+	assert.Nil(t, wl.tuiProgram)
+}
+
+func TestHandleApproval_NoTUIProgram(t *testing.T) {
+	t.Parallel()
+	wl := &WorkerLoop{}
+	// Should log warning but not panic when tuiProgram is nil.
+	wl.handleApproval(a2a.ApprovalRequestParams{
+		TaskID:    "task-1",
+		Action:    "deploy",
+		RiskLevel: "high",
+		Context:   "prod",
+	})
+}
+
+func TestSetOnApprovalDecision_ReturnsCallback(t *testing.T) {
+	t.Parallel()
+	wl := &WorkerLoop{}
+	cb := wl.SetOnApprovalDecision()
+	assert.NotNil(t, cb)
+}
+
+func TestNewWorkerLoop_WiresApprovalCallback(t *testing.T) {
+	t.Parallel()
+	cfg := LoopConfig{
+		BackendURL: "http://localhost:8080",
+		WorkerName: "test-worker",
+		Skills:     []string{"code"},
+		Provider:   adapter.NewClaudeAdapter(),
+		WorkDir:    "/tmp",
+	}
+	wl := NewWorkerLoop(cfg)
+	// Verify the server was created with an ApprovalCallback wired.
+	require.NotNil(t, wl.server)
 }
 
 // --- cleanupPolicy test ---

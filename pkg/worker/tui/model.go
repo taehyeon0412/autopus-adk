@@ -66,15 +66,17 @@ type ApprovalRequestMsg ApprovalRequest
 
 // WorkerModel is the main bubbletea model for the worker dashboard.
 type WorkerModel struct {
-	connStatus  ConnStatus
-	providers   []ProviderInfo
-	taskQueue   []TaskInfo
-	currentTask *CurrentTask
-	costTracker CostTracker
-	showDetail  bool
-	approval    *ApprovalRequest
-	width       int
-	height      int
+	connStatus         ConnStatus
+	providers          []ProviderInfo
+	taskQueue          []TaskInfo
+	currentTask        *CurrentTask
+	costTracker        CostTracker
+	showDetail         bool
+	approval           *ApprovalRequest
+	width              int
+	height             int
+	OnApprovalDecision func(taskID, decision string)
+	OnViewDiff         func(taskID string)
 }
 
 // NewWorkerModel creates a fresh dashboard model with default state.
@@ -125,14 +127,26 @@ func (m WorkerModel) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if m.approval != nil {
 		switch key {
 		case "a":
+			if m.OnApprovalDecision != nil {
+				m.OnApprovalDecision(m.approval.TaskID, "approve")
+			}
 			m.approval = nil
 			return m, nil
 		case "d":
+			if m.OnApprovalDecision != nil {
+				m.OnApprovalDecision(m.approval.TaskID, "deny")
+			}
 			m.approval = nil
 			return m, nil
 		case "v":
+			if m.OnViewDiff != nil {
+				m.OnViewDiff(m.approval.TaskID)
+			}
 			return m, nil
 		case "s":
+			if m.OnApprovalDecision != nil {
+				m.OnApprovalDecision(m.approval.TaskID, "skip")
+			}
 			m.approval = nil
 			return m, nil
 		}

@@ -9,6 +9,7 @@ import (
 
 // ApprovalRequest describes an action that requires user approval.
 type ApprovalRequest struct {
+	TaskID    string
 	Action    string
 	RiskLevel string // "low", "medium", "high", "critical"
 	Context   string

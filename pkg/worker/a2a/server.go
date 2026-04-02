@@ -18,7 +18,8 @@ type ServerConfig struct {
 	WorkerName string
 	Skills     []string
 	Handler    TaskHandler
-	AuthToken  string // Bearer token for backend auth (SEC-005)
+	AuthToken        string // Bearer token for backend auth (SEC-005)
+	ApprovalCallback func(ApprovalRequestParams)
 }
 
 // Server manages the A2A JSON-RPC protocol over WebSocket transport.
@@ -28,6 +29,7 @@ type Server struct {
 	handler      TaskHandler
 	tasks        map[string]*Task
 	taskContexts map[string]context.CancelFunc // per-task cancellable contexts (REQ-A2A-H02)
+	approvalCB   func(ApprovalRequestParams)
 	mu           sync.Mutex
 	cancel       context.CancelFunc
 }
@@ -39,6 +41,7 @@ func NewServer(config ServerConfig) *Server {
 		handler:      config.Handler,
 		tasks:        make(map[string]*Task),
 		taskContexts: make(map[string]context.CancelFunc),
+		approvalCB:   config.ApprovalCallback,
 	}
 }
 
@@ -172,6 +175,8 @@ func (s *Server) handleMessage(ctx context.Context, msg []byte) {
 		s.handleSendMessage(ctx, req)
 	case MethodCancelTask:
 		s.handleCancelTask(req)
+	case MethodApproval:
+		s.handleApproval(req)
 	default:
 		log.Printf("[a2a] unknown method: %s", req.Method)
 	}

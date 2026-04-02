@@ -120,7 +120,7 @@ func TestUpdate_ApprovalRequestMsg(t *testing.T) {
 	t.Parallel()
 
 	m := NewWorkerModel()
-	msg := ApprovalRequestMsg{Action: "deploy", RiskLevel: "high", Context: "prod"}
+	msg := ApprovalRequestMsg{TaskID: "task-99", Action: "deploy", RiskLevel: "high", Context: "prod"}
 	updated, _ := m.Update(msg)
 	wm := updated.(WorkerModel)
 
@@ -178,21 +178,34 @@ func TestHandleKey_ApprovalMode(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name       string
-		key        rune
-		clearsAppr bool
+		name             string
+		key              rune
+		clearsAppr       bool
+		expectDecision   string
+		expectViewDiff   bool
 	}{
-		{"approve", 'a', true},
-		{"deny", 'd', true},
-		{"view", 'v', false},
-		{"skip", 's', true},
+		{"approve", 'a', true, "approve", false},
+		{"deny", 'd', true, "deny", false},
+		{"view", 'v', false, "", true},
+		{"skip", 's', true, "skip", false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			m := NewWorkerModel()
-			m.approval = &ApprovalRequest{Action: "test", RiskLevel: "low"}
+			m.approval = &ApprovalRequest{TaskID: "task-42", Action: "test", RiskLevel: "low"}
+
+			var gotTaskID, gotDecision string
+			var viewDiffCalled bool
+			m.OnApprovalDecision = func(taskID, decision string) {
+				gotTaskID = taskID
+				gotDecision = decision
+			}
+			m.OnViewDiff = func(taskID string) {
+				viewDiffCalled = true
+				gotTaskID = taskID
+			}
 
 			updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{tt.key}})
 			wm := updated.(WorkerModel)
@@ -201,6 +214,15 @@ func TestHandleKey_ApprovalMode(t *testing.T) {
 				assert.Nil(t, wm.approval)
 			} else {
 				assert.NotNil(t, wm.approval)
+			}
+
+			if tt.expectDecision != "" {
+				assert.Equal(t, "task-42", gotTaskID)
+				assert.Equal(t, tt.expectDecision, gotDecision)
+			}
+			if tt.expectViewDiff {
+				assert.True(t, viewDiffCalled)
+				assert.Equal(t, "task-42", gotTaskID)
 			}
 		})
 	}
