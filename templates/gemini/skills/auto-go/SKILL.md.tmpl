@@ -81,6 +81,16 @@ When a task modifies 3+ files, exceeds 200 lines, or spans multiple domains, del
 - Use parallel delegation for independent subtasks
 - Maximum 3 sequential agent chains
 
+## Multi-Provider 모드
+
+`--multi` 플래그로 멀티 프로바이더 오케스트레이션을 활성화합니다:
+
+```bash
+auto orchestra run "{review topic}" --strategy consensus --rounds fast
+```
+
+서브프로세스 모드가 자동 적용되며, 여러 AI 프로바이더의 합의 기반 리뷰를 수행합니다.
+
 ## Branding Formats
 
 ### Pipeline Progress (show at Phase transitions)
