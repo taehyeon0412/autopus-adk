@@ -58,12 +58,8 @@ func (e *EmergencyStop) Stop(reason string) error {
 	pgid := -pid // Negative PID targets the process group.
 
 	// Send SIGTERM to the process group.
-	if err := syscall.Kill(pgid, syscall.SIGTERM); err != nil {
-		// Process may have already exited.
-		if errors.Is(err, syscall.ESRCH) {
-			return nil
-		}
-		return fmt.Errorf("emergency stop SIGTERM (reason: %s): %w", reason, err)
+	if err := sendSignal(pgid, syscall.SIGTERM, reason); err != nil {
+		return err
 	}
 
 	// Wait for process exit or force kill after timeout.
@@ -78,11 +74,8 @@ func (e *EmergencyStop) Stop(reason string) error {
 		return nil
 	case <-time.After(5 * time.Second):
 		// Process did not exit in time — escalate to SIGKILL.
-		if err := syscall.Kill(pgid, syscall.SIGKILL); err != nil {
-			if errors.Is(err, syscall.ESRCH) {
-				return nil
-			}
-			return fmt.Errorf("emergency stop SIGKILL (reason: %s): %w", reason, err)
+		if err := sendSignal(pgid, syscall.SIGKILL, reason); err != nil {
+			return err
 		}
 
 		// Wait for the killed process to be reaped.
