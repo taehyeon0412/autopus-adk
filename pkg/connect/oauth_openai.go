@@ -22,7 +22,7 @@ const (
 	openAIAuthURL  = "https://auth.openai.com/oauth/authorize"
 	openAITokenURL = "https://auth.openai.com/oauth/token"
 	openAIClientID = "app_EMoamEEZ73f0CkXaXp7hrann"
-	openAIScopes   = "openai.organization.read openai.chat.completions.create openai.responses.create"
+	openAIScopes   = "openid profile email offline_access"
 	// @AX:NOTE [AUTO] @AX:REASON: 5-minute timeout for OAuth flow — user must complete browser auth within this window
 	oauthTimeout = 5 * time.Minute
 )
