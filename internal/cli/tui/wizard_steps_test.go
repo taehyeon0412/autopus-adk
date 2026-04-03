@@ -65,8 +65,13 @@ func TestRunInitWizard_CompletionSummary(t *testing.T) {
 }
 
 // TestRunInitWizard_NonTTYDefaults verifies exact default values in accessible mode.
+// Not parallel: uses t.Setenv to pin locale.
 func TestRunInitWizard_NonTTYDefaults(t *testing.T) {
-	t.Parallel()
+	// Pin locale to English so the test is deterministic.
+	t.Setenv("LANG", "en_US.UTF-8")
+	t.Setenv("LC_ALL", "")
+	t.Setenv("LC_MESSAGES", "")
+	t.Setenv("LANGUAGE", "")
 
 	result, err := tui.RunInitWizard(tui.InitWizardOpts{Accessible: true})
 	require.NoError(t, err)
@@ -78,6 +83,22 @@ func TestRunInitWizard_NonTTYDefaults(t *testing.T) {
 	assert.False(t, result.ReviewGate, "review gate defaults to false with zero providers")
 	assert.Equal(t, "tdd", result.Methodology)
 	assert.False(t, result.Cancelled)
+}
+
+// TestRunInitWizard_NonTTYDefaults_Korean verifies locale-aware defaults.
+// Not parallel: uses t.Setenv to pin locale.
+func TestRunInitWizard_NonTTYDefaults_Korean(t *testing.T) {
+	t.Setenv("LANG", "ko_KR.UTF-8")
+	t.Setenv("LC_ALL", "")
+	t.Setenv("LC_MESSAGES", "")
+	t.Setenv("LANGUAGE", "")
+
+	result, err := tui.RunInitWizard(tui.InitWizardOpts{Accessible: true})
+	require.NoError(t, err)
+
+	assert.Equal(t, "en", result.CommentsLang, "code comments always English")
+	assert.Equal(t, "ko", result.CommitsLang, "commits follow system locale")
+	assert.Equal(t, "ko", result.AILang, "AI responses follow system locale")
 }
 
 // TestRunInitWizard_FlagCombinations verifies R13: various flag combos skip steps correctly.

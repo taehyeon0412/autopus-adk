@@ -25,7 +25,14 @@ detect_os() {
     case "$(uname -s)" in
         Linux*)  echo "linux" ;;
         Darwin*) echo "darwin" ;;
-        *)       err "지원하지 않는 OS: $(uname -s)" ;;
+        MINGW*|MSYS*|CYGWIN*)
+            err "Windows 네이티브 환경은 지원하지 않습니다.
+  현재 지원 OS: macOS, Linux
+  Windows 사용자는 WSL2를 통해 설치할 수 있습니다:
+  https://learn.microsoft.com/windows/wsl/install" ;;
+        *)
+            err "지원하지 않는 OS입니다: $(uname -s)
+  현재 지원 OS: macOS, Linux" ;;
     esac
 }
 
@@ -34,7 +41,9 @@ detect_arch() {
     case "$(uname -m)" in
         x86_64|amd64)   echo "amd64" ;;
         arm64|aarch64)  echo "arm64" ;;
-        *)              err "지원하지 않는 아키텍처: $(uname -m)" ;;
+        *)
+            err "지원하지 않는 아키텍처입니다: $(uname -m)
+  현재 지원 아키텍처: x86_64 (amd64), arm64 (aarch64)" ;;
     esac
 }
 
@@ -70,7 +79,11 @@ verify_checksum() {
     elif command -v shasum > /dev/null 2>&1; then
         actual=$(shasum -a 256 "$archive" | awk '{print $1}')
     else
-        err "sha256sum 또는 shasum이 필요합니다 (체크섬 검증 불가)"
+        echo "  ⚠ 다운로드 파일 무결성 검증 도구를 찾을 수 없습니다."
+        echo "    macOS: 기본 포함(shasum)이므로 터미널을 재시작해보세요."
+        echo "    Linux: sudo apt install coreutils (또는 yum install coreutils)"
+        echo "  체크섬 검증을 건너뜁니다."
+        return 0
     fi
 
     if [ "$actual" != "$expected_checksum" ]; then
@@ -119,6 +132,8 @@ main() {
         cp "${TMPDIR}/${BINARY}" "${INSTALL_DIR}/${BINARY}"
         chmod +x "${INSTALL_DIR}/${BINARY}"
     else
+        echo ""
+        echo "  시스템 폴더(${INSTALL_DIR})에 설치하기 위해 관리자 비밀번호가 필요합니다."
         sudo cp "${TMPDIR}/${BINARY}" "${INSTALL_DIR}/${BINARY}"
         sudo chmod +x "${INSTALL_DIR}/${BINARY}"
     fi
@@ -192,8 +207,11 @@ main() {
 
     ok "🐙 Autopus-ADK 준비 완료!"
     echo ""
+    echo "  다음 단계:"
+    echo "    1. auto worker setup  # Autopus 서버 연결 및 Worker 설정"
+    echo "    2. /auto setup        # 프로젝트 컨텍스트 문서 생성"
+    echo ""
     echo "  Claude Code에서 바로 사용 가능:"
-    echo "    /auto setup    # 프로젝트 컨텍스트 문서 생성"
     echo "    /auto plan     # 기능 기획 + SPEC 작성"
     echo "    /auto fix      # 버그 수정"
     echo "    /auto review   # 코드 리뷰"

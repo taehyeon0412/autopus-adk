@@ -139,6 +139,14 @@ func newInitCmd() *cobra.Command {
 			} else {
 				// Non-interactive: apply flags or defaults.
 				cfg.UsageProfile = config.DefaultUsageProfile()
+
+				// Detect system locale: code comments stay English,
+				// commit messages and AI responses follow OS language.
+				sysLang := tui.DetectSystemLang()
+				cfg.Language.Comments = "en"
+				cfg.Language.Commits = sysLang
+				cfg.Language.AIResponses = sysLang
+
 				if quality != "" {
 					cfg.Quality.Default = quality
 				}
@@ -186,7 +194,17 @@ func newInitCmd() *cobra.Command {
 				{Key: "Platforms", Value: strings.Join(cfg.Platforms, ", ")},
 				{Key: "Language", Value: fmt.Sprintf("comments=%s, commits=%s, ai=%s", cfg.Language.Comments, cfg.Language.Commits, cfg.Language.AIResponses)},
 			})
-			tui.Info(out, "Next: run 'auto doctor' to verify installation")
+			// Context-aware next step guidance (R9)
+			if home, err := os.UserHomeDir(); err == nil {
+				workerConfigPath := filepath.Join(home, ".config", "autopus", "worker.yaml")
+				if _, err := os.Stat(workerConfigPath); os.IsNotExist(err) {
+					tui.Info(out, "Next: run 'auto worker setup' — Worker를 설정하여 Autopus 서버와 연결하세요")
+				} else {
+					tui.Info(out, "Next: /auto plan 으로 첫 기능을 기획해보세요")
+				}
+			} else {
+				tui.Info(out, "Next: run 'auto worker setup' to connect with Autopus server")
+			}
 			tui.Successf(out, "Autopus harness initialized (%s mode)", mode)
 			return nil
 		},

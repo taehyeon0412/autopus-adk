@@ -4,6 +4,8 @@
 
 ### A harness *of* the agents, *by* the agents, *for* the agents.
 
+Make your AI coding tools (Claude Code, Codex, Gemini CLI) work like a real engineering team — with planning, testing, code review, and security audits built in.
+
 **16 agents. 40 skills. One config. Every platform.**
 
 [![GitHub Stars](https://img.shields.io/github/stars/Insajin/autopus-adk?style=social)](https://github.com/Insajin/autopus-adk/stargazers)
@@ -13,7 +15,7 @@
 [![Agents](https://img.shields.io/badge/Agents-16-blueviolet)](#-16-specialized-agents)
 [![Skills](https://img.shields.io/badge/Skills-40-ff69b4)](#-all-commands)
 
-**Paste this into Claude Code, Codex, or any AI coding agent — it installs and sets up everything automatically.**
+**Paste this command into your AI coding agent's chat (Claude Code, Codex, etc.) — the agent will run it and set up everything automatically. Or run it directly in your terminal.**
 
 ```bash
 # macOS / Linux
@@ -494,11 +496,11 @@ Get from zero to your first AI-powered feature in under 5 minutes.
 
 ### Step 1 · Install & Initialize (one line)
 
-> **Just paste one line into your AI coding agent.** It downloads the binary, detects your platform, and runs `auto init` — no manual setup needed. Your agent handles everything.
+> **Paste this command into your AI coding agent's chat** (Claude Code, Codex, etc.) — the agent will run it for you. Or run it directly in your terminal.
 
 ```bash
 # macOS / Linux — installs binary + auto-initializes your project
-cd your-project
+cd your-project    # go to your project folder (e.g., cd ~/my-app)
 curl -sSfL https://raw.githubusercontent.com/Insajin/autopus-adk/main/install.sh | sh
 
 # Windows (CMD or PowerShell)
@@ -506,7 +508,7 @@ cd your-project
 powershell -c "irm https://raw.githubusercontent.com/Insajin/autopus-adk/main/install.ps1 | iex"
 ```
 
-**That's it — your AI agent does the rest.** The installer detects your platforms (Claude Code, Codex, Gemini CLI), installs the `auto` binary, and auto-initializes your project. Next time you open a session, `/auto` commands are ready to use.
+**That's it.** The installer detects your platforms (Claude Code, Codex, Gemini CLI), installs the `auto` binary, and auto-initializes your project. From now on, type `/auto` commands inside your AI coding tool to use Autopus.
 
 <details>
 <summary>Other install methods</summary>
@@ -556,8 +558,7 @@ The installer scans your machine for installed AI coding CLIs (Claude Code, Code
 This is the most important step. **AI agents lose all memory between sessions** — every conversation is their first day on the job. `/auto setup` creates the "onboarding documents" that let agents understand your project instantly.
 
 ```bash
-auto setup      # CLI
-/auto setup     # inside AI Coding CLI (e.g., Claude Code)
+/auto setup     # type this inside your AI coding tool (Claude Code, Codex, etc.)
 ```
 
 This analyzes your codebase and generates 5 context documents:

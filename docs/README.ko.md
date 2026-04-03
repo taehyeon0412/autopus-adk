@@ -4,6 +4,8 @@
 
 ### 에이전트*로 이루어진*, 에이전트*에 의해 운영되는*, 에이전트*를 위한* 하네스.
 
+AI 코딩 도구(Claude Code, Codex, Gemini CLI)가 진짜 개발팀처럼 일하게 만듭니다 — 기획, 테스트, 코드 리뷰, 보안 감사까지 자동으로.
+
 **16개 에이전트. 40개 스킬. 하나의 설정. 모든 플랫폼.**
 
 [![GitHub Stars](https://img.shields.io/github/stars/Insajin/autopus-adk?style=social)](https://github.com/Insajin/autopus-adk/stargazers)
@@ -13,7 +15,7 @@
 [![Agents](https://img.shields.io/badge/Agents-16-blueviolet)](#-16개-전문-에이전트)
 [![Skills](https://img.shields.io/badge/Skills-40-ff69b4)](#-전체-명령어)
 
-**Claude Code, Codex 등 AI 코딩 에이전트에 아래 한 줄만 붙여넣으세요. 설치부터 설정까지 에이전트가 알아서 합니다.**
+**AI 코딩 도구의 채팅창에 아래 명령을 붙여넣으세요 — 에이전트가 실행해서 설치부터 설정까지 알아서 합니다. 터미널에서 직접 실행해도 됩니다.**
 
 ```bash
 # macOS / Linux
@@ -420,11 +422,11 @@ auto init   # 설치된 모든 AI 코딩 CLI 자동 감지
 
 ### 1단계 · 설치 및 초기화 (한 줄)
 
-> **에이전트에게 한 줄만 복사해서 주면 됩니다.** 바이너리 다운로드, 플랫폼 감지, `auto init`까지 자동으로 처리합니다. 수동 설정 불필요 — 에이전트가 알아서 합니다.
+> **AI 코딩 도구(Claude Code, Codex 등)의 채팅창에 아래 명령을 붙여넣으세요** — 에이전트가 대신 실행해서 설치부터 초기화까지 알아서 처리합니다. 터미널에서 직접 실행해도 됩니다.
 
 ```bash
 # macOS / Linux — 바이너리 설치 + 프로젝트 자동 초기화
-cd your-project
+cd your-project    # 프로젝트 폴더로 이동 (예: cd ~/my-app)
 curl -sSfL https://raw.githubusercontent.com/Insajin/autopus-adk/main/install.sh | sh
 
 # Windows (CMD or PowerShell)
@@ -467,8 +469,7 @@ auto init
 **가장 중요한 단계입니다.** AI 에이전트는 세션 간 모든 기억을 잃습니다 — 매번 프로젝트를 처음 보는 것과 같습니다. `/auto setup`은 에이전트가 프로젝트를 즉시 이해할 수 있게 해주는 "온보딩 문서"를 생성합니다.
 
 ```bash
-auto setup      # CLI에서
-/auto setup     # AI 코딩 CLI 내부에서 (예: Claude Code)
+/auto setup     # AI 코딩 도구 안에서 입력 (Claude Code, Codex 등)
 ```
 
 코드베이스를 분석하여 5개의 컨텍스트 문서를 생성합니다:
