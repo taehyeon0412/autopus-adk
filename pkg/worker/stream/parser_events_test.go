@@ -48,6 +48,18 @@ func TestParseLine_AllEventTypes(t *testing.T) {
 			wantTyp: "error",
 			wantSub: "",
 		},
+		{
+			name:    "tool_call",
+			input:   `{"type":"tool_call","name":"read_file"}`,
+			wantTyp: "tool_call",
+			wantSub: "",
+		},
+		{
+			name:    "tool_use",
+			input:   `{"type":"tool_use","name":"write_file"}`,
+			wantTyp: "tool_use",
+			wantSub: "",
+		},
 	}
 
 	for _, tt := range tests {

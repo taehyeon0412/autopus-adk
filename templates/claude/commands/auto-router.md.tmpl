@@ -27,6 +27,13 @@ Before processing any subcommand, load project context by reading these files if
 4. `.autopus/project/tech.md` — tech stack, build, testing
 5. `.autopus/project/scenarios.md` — E2E test scenarios (if exists)
 6. `.autopus/context/signatures.md` — exported API signatures (if exists)
+7. `.autopus/learnings/pipeline.jsonl` — pipeline learning patterns (if exists)
+
+WHEN `.autopus/learnings/pipeline.jsonl` exists AND contains 5+ entries, display a non-intrusive notification after loading context:
+
+```
+💡 학습 패턴 {N}개 — 다음 파이프라인에 자동 반영됩니다
+```
 
 If none of these files exist, display:
 
@@ -198,6 +205,7 @@ When displaying the subcommand list (empty `/auto` invocation), use the categori
 | verify ⚡ | Frontend UX verification |
 | browse ⚡ | Browser automation (cmux/agent-browser auto-detect) |
 | test | Run E2E scenarios |
+| canary ⚡ | Post-deploy health check (build + E2E + browser) |
 
 **탐색 & 분석** ⚡ = 독립 실행 가능
 
@@ -947,6 +955,27 @@ If the command fails or is unavailable, default to `PERMISSION_MODE="safe"`.
 
 Display: `권한 모드: {bypass | safe}`
 
+**[REQUIRED] Phase 0.8 — Learning Injection (R6)**
+
+WHEN `.autopus/learnings/pipeline.jsonl` exists, THE SYSTEM SHALL query for entries matching the current SPEC's file paths, packages, or domain keywords:
+
+```bash
+auto learn query --spec {SPEC_ID} --limit 5 --format prompt
+```
+
+If the command fails or is unavailable, read `.autopus/learnings/pipeline.jsonl` directly, parse JSON entries, and match by:
+1. File paths referenced in plan.md tasks
+2. Package names from SPEC requirements
+3. Domain keywords from SPEC title
+
+Inject the top 5 matching entries (max 2000 tokens) into the planner prompt as a `## Previous Learnings` section. Display:
+
+```
+💡 관련 학습 패턴 {N}개 주입됨
+```
+
+Skip silently if no matching entries or file doesn't exist.
+
 **[REQUIRED] Phase 1 — Planning (MUST call Agent tool)**
 
 ```
@@ -1563,6 +1592,118 @@ Usage: `/auto test`, `/auto test -s init`, `/auto test --json`, `/auto test -v`
 
 ---
 
+## canary — Post-deploy Health Check
+
+Run post-deploy health checks: build verification, E2E scenario execution, and browser health inspection.
+
+### Pipeline
+
+#### [REQUIRED] Step 1: Build Verification (MUST call Bash tool)
+
+IMPORTANT: You MUST execute the project build command via the Bash tool.
+
+Detect the build command from `.autopus/project/tech.md` or `scenarios.md` Build field:
+- Go project: `go build ./...`
+- Node.js: `npm run build`
+- Other: as specified in tech.md
+
+If the build fails → report FAIL immediately and skip remaining steps.
+
+#### [REQUIRED] Step 2: E2E Scenario Execution
+
+WHEN the build succeeds, THE SYSTEM SHALL run E2E scenarios:
+
+```bash
+auto test run --json
+```
+
+If `.autopus/project/scenarios.md` does not exist:
+- Skip E2E execution
+- Display: "E2E 시나리오가 없습니다. `/auto setup`으로 생성하세요."
+- Proceed to Step 3
+
+Collect pass/fail results per scenario.
+
+#### [CONDITIONAL] Step 3: Browser Health Check
+
+WHEN `--url` flag is provided OR the project is detected as a frontend project (via `tech.md`):
+
+Step 3.1: Detect browser backend
+```bash
+auto terminal detect
+```
+
+Step 3.2: Open target URL and take accessibility snapshot
+
+Step 3.3: Collect console errors
+
+Step 3.4: Compare snapshot against previous run if `.autopus/canary/latest.json` exists
+
+WHEN the project has no frontend AND no `--url` is given → [INTENDED SKIP: Step 3]
+
+#### [REQUIRED] Step 4: Verdict
+
+Produce a summary verdict:
+
+```
+🐙 Canary ───────────────────────────
+  빌드: {PASS|FAIL}
+  E2E: {N}/{M} passed ({PASS|WARN|FAIL})
+  브라우저: {PASS|WARN|FAIL|SKIP}
+  ────────────────────────────────────
+  판정: {PASS|WARN|FAIL}
+```
+
+Verdict rules:
+- **PASS**: build OK + all E2E pass + no console errors
+- **WARN**: build OK + some E2E failures or non-critical console warnings
+- **FAIL**: build failure or critical E2E failures or critical console errors
+
+#### [REQUIRED] Step 5: Save Results
+
+Save results to `.autopus/canary/latest.json`:
+
+```json
+{
+  "timestamp": "ISO-8601",
+  "commit": "current HEAD SHA",
+  "build": {"status": "pass|fail", "command": "go build ./...", "duration_ms": 1234},
+  "e2e": {"total": 5, "passed": 4, "failed": 1, "scenarios": [...]},
+  "browser": {"status": "pass|warn|fail|skip", "console_errors": [], "snapshot_diff": null},
+  "verdict": "pass|warn|fail"
+}
+```
+
+If `--compare` flag is provided, also load `.autopus/canary/{commit}.json` and show diff.
+
+### [REQUIRED] Pre-Completion Verification
+
+- [ ] Step 1: Build verification — Bash tool called
+- [ ] Step 2: E2E scenarios — executed or skip noted
+- [ ] Step 3: Browser health — executed or intentionally skipped
+- [ ] Step 4: Verdict — displayed
+- [ ] Step 5: Results — saved to .autopus/canary/
+
+### Flags
+
+| Flag | Description |
+|------|-------------|
+| `--url <url>` | Target URL for browser health check |
+| `--watch <interval>` | Repeat at interval (default 5m, max 30m) until interrupted or FAIL |
+| `--compare <commit>` | Compare against stored results from specified commit |
+
+### Watch Mode
+
+WHEN `--watch <interval>` is set:
+1. Execute Steps 1-5
+2. If verdict is FAIL → stop and report
+3. If verdict is PASS or WARN → wait for interval, then repeat
+4. Display iteration counter: `[Iteration N] ...`
+
+Usage: `/auto canary`, `/auto canary --url https://example.com`, `/auto canary --watch 5m`, `/auto canary --compare abc123`
+
+---
+
 ## fix — Fix a Bug
 
 @.claude/skills/autopus/debugging.md
@@ -1570,6 +1711,23 @@ Usage: `/auto test`, `/auto test -s init`, `/auto test --json`, `/auto test -v`
 Reproduce the bug and fix it with minimal changes. Uses a Reproduction-First approach.
 
 ### Pipeline
+
+#### [OPTIONAL] Step 0: Learning Reference (R7)
+
+WHEN `.autopus/learnings/pipeline.jsonl` exists, THE SYSTEM SHALL query for entries matching the error context (file path, package, error pattern):
+
+```bash
+auto learn query --files {affected_files} --pattern "{error_description}" --limit 3 --format prompt
+```
+
+If matching entries found, display:
+```
+💡 관련 학습 {N}개 참조:
+  - {pattern_1}
+  - {pattern_2}
+```
+
+Inject matching entries into the debugging context. Skip silently if none found.
 
 #### [REQUIRED] Step 1: Reproduce — Write a Failing Test
 
@@ -1615,6 +1773,24 @@ Before reporting the fix as complete, verify ALL steps were executed:
 - [ ] Step 4: Bash tool called — `go test -race ./...` passed
 
 IF any item is unchecked → return to that step. Do NOT report completion.
+
+#### [OPTIONAL] Step 5: Learning Capture (R11)
+
+WHEN the fix is successfully verified (Step 4 passed), THE SYSTEM SHALL record the fix pattern:
+
+```bash
+auto learn record --type fix_pattern --files {changed_files} --pattern "{error → root cause → resolution}" --spec {SPEC_ID_if_available}
+```
+
+If the command fails, append directly to `.autopus/learnings/pipeline.jsonl`:
+```json
+{"id":"L-{next}","timestamp":"{now}","type":"fix_pattern","phase":"fix","files":[...],"packages":[...],"pattern":"{error description}","resolution":"{how it was fixed}","severity":"low","reuse_count":0}
+```
+
+Display:
+```
+💡 수정 패턴 학습됨: "{one-line pattern summary}"
+```
 
 Usage: `/auto fix "bug description"`, `/auto fix --file path/to/file.go`
 
@@ -1837,6 +2013,44 @@ Manage @AX tag lifecycle (CYCLE tracking, TODO escalation, ANCHOR verification) 
 
 Append the change summary to `CHANGELOG.md` (create if absent).
 
+### [REQUIRED] Sync Target 4.5: Learning Summary and Prune (R8, R9)
+
+WHEN `.autopus/learnings/pipeline.jsonl` exists, THE SYSTEM SHALL:
+
+**Step 1: Auto-Prune (R9)**
+
+```bash
+auto learn prune --max-age 90d
+```
+
+If the command fails, read the file directly and remove entries older than 90 days. Display only if entries were pruned:
+```
+정리: {N}개 학습 항목 만료 삭제 (90일 초과)
+```
+
+**Step 2: Learning Summary (R8)**
+
+Display a learning summary BEFORE the completion bar:
+
+```bash
+auto learn summary --since-last-sync
+```
+
+If the command fails, generate from the JSONL file directly:
+```
+🐙 학습 요약 ────────────────────────
+  신규 기록: {N}개 (gate_fail: {n}, review_issue: {n}, ...)
+  반복 패턴 Top 3:
+    1. "{pattern}" — {reuse_count}회 주입됨
+    2. "{pattern}" — {reuse_count}회
+    3. "{pattern}" — {reuse_count}회
+  개선 영역: {이전 sync 대비 줄어든 실패 유형}
+```
+
+WHERE no learning entries exist, display: `학습 요약: 신규 항목 없음 ✓`
+
+> **⏭ POST-TARGET**: Learning summary displayed. NEXT REQUIRED TARGET: Sync Target 5. Do NOT skip to Completion.
+
 ### [REQUIRED] Sync Target 5: 2-Phase Lore Commit (MUST call Bash tool)
 
 IMPORTANT: You MUST run git operations via the Bash tool. Do NOT skip the commit step.
@@ -1899,6 +2113,7 @@ Before displaying the completion bar, verify ALL sync targets were completed:
 - [ ] Sync Target 2: Project context docs updated
 - [ ] Sync Target 3: @AX lifecycle managed
 - [ ] Sync Target 4: CHANGELOG.md updated
+- [ ] Sync Target 4.5: Learning summary and prune — completed (or N/A — no pipeline.jsonl)
 - [ ] Sync Target 5: 2-Phase Lore Commit — Phase A (module) + Phase B (meta) ran (or skipped due to no changes)
 
 IF any item is unchecked → return to that target. Do NOT display Completion Guidance.
@@ -1981,6 +2196,7 @@ Then show state-aware next step guidance:
 
 ```
 다음 단계: 다음 기능을 시작하려면 /auto plan "기능 설명" 을 실행하세요.
+배포 후 검증: /auto canary
 ```
 
 ---

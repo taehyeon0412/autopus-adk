@@ -11,6 +11,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/insajin/autopus-adk/pkg/worker/a2a"
 	"github.com/insajin/autopus-adk/pkg/worker/adapter"
+	"github.com/insajin/autopus-adk/pkg/worker/routing"
 	"github.com/insajin/autopus-adk/pkg/worker/tui"
 )
 
@@ -22,7 +23,8 @@ type LoopConfig struct {
 	Provider   adapter.ProviderAdapter
 	MCPConfig  string // path to worker-mcp.json
 	WorkDir    string // working directory for subprocesses
-	AuthToken  string // bearer token for backend auth
+	AuthToken  string          // bearer token for backend auth
+	Router     *routing.Router // optional model router (nil = no routing)
 }
 
 // WorkerLoop integrates A2A Server, ProviderAdapter, ContextBuilder, and StreamParser.
@@ -96,6 +98,12 @@ func (wl *WorkerLoop) handleTask(ctx context.Context, taskID string, payload jso
 		SpecID:        msg.SpecID,
 	})
 
+	// Resolve model via router if configured (REQ-ROUTE-01).
+	var model string
+	if wl.config.Router != nil {
+		model = wl.config.Router.Route(wl.config.Provider.Name(), msg.Description)
+	}
+
 	// Configure the subprocess task.
 	taskCfg := adapter.TaskConfig{
 		TaskID:    taskID,
@@ -103,6 +111,7 @@ func (wl *WorkerLoop) handleTask(ctx context.Context, taskID string, payload jso
 		Prompt:    prompt,
 		MCPConfig: wl.config.MCPConfig,
 		WorkDir:   wl.config.WorkDir,
+		Model:     model,
 	}
 
 	// Execute subprocess and parse stream output.

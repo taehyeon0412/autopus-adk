@@ -1,0 +1,134 @@
+package learn
+
+import (
+	"bufio"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+)
+
+// Store manages learning entries in a JSONL file.
+type Store struct {
+	path string // path to pipeline.jsonl
+}
+
+// NewStore creates a store rooted at dir, ensuring .autopus/learnings/ exists.
+func NewStore(dir string) (*Store, error) {
+	learningsDir := filepath.Join(dir, ".autopus", "learnings")
+	if err := os.MkdirAll(learningsDir, 0o755); err != nil {
+		return nil, fmt.Errorf("create learnings dir: %w", err)
+	}
+	return &Store{
+		path: filepath.Join(learningsDir, "pipeline.jsonl"),
+	}, nil
+}
+
+// Append adds a new entry to the JSONL file.
+func (s *Store) Append(entry LearningEntry) error {
+	data, err := json.Marshal(entry)
+	if err != nil {
+		return fmt.Errorf("marshal entry: %w", err)
+	}
+
+	f, err := os.OpenFile(s.path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return fmt.Errorf("open file: %w", err)
+	}
+	defer f.Close()
+
+	if _, err := f.Write(append(data, '\n')); err != nil {
+		return fmt.Errorf("write entry: %w", err)
+	}
+	return nil
+}
+
+// Read reads all entries from the JSONL file.
+// Returns empty slice if the file does not exist.
+func (s *Store) Read() ([]LearningEntry, error) {
+	f, err := os.Open(s.path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []LearningEntry{}, nil
+		}
+		return nil, fmt.Errorf("open file: %w", err)
+	}
+	defer f.Close()
+
+	var entries []LearningEntry
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		var entry LearningEntry
+		if err := json.Unmarshal([]byte(line), &entry); err != nil {
+			return nil, fmt.Errorf("unmarshal entry: %w", err)
+		}
+		entries = append(entries, entry)
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("scan file: %w", err)
+	}
+	return entries, nil
+}
+
+// NextID generates the next L-{NNN} ID based on existing entries.
+func (s *Store) NextID() (string, error) {
+	entries, err := s.Read()
+	if err != nil {
+		return "", err
+	}
+
+	maxNum := 0
+	for _, e := range entries {
+		if strings.HasPrefix(e.ID, "L-") {
+			numStr := e.ID[2:]
+			if n, err := strconv.Atoi(numStr); err == nil && n > maxNum {
+				maxNum = n
+			}
+		}
+	}
+	return fmt.Sprintf("L-%03d", maxNum+1), nil
+}
+
+// UpdateReuseCount increments reuse_count for the entry with the given ID.
+func (s *Store) UpdateReuseCount(id string) error {
+	entries, err := s.Read()
+	if err != nil {
+		return err
+	}
+
+	found := false
+	for i := range entries {
+		if entries[i].ID == id {
+			entries[i].ReuseCount++
+			found = true
+			break
+		}
+	}
+	if !found {
+		return fmt.Errorf("entry not found: %s", id)
+	}
+
+	// Rewrite entire file
+	f, err := os.Create(s.path)
+	if err != nil {
+		return fmt.Errorf("create file: %w", err)
+	}
+	defer f.Close()
+
+	for _, e := range entries {
+		data, err := json.Marshal(e)
+		if err != nil {
+			return fmt.Errorf("marshal entry: %w", err)
+		}
+		if _, err := f.Write(append(data, '\n')); err != nil {
+			return fmt.Errorf("write entry: %w", err)
+		}
+	}
+	return nil
+}

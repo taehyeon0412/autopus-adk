@@ -10,6 +10,7 @@ const (
 	EventTaskNotification = "system.task_notification"
 	EventResult           = "result"
 	EventError            = "error"
+	EventToolCall         = "tool_call"
 )
 
 // Event represents a parsed stream-json event.

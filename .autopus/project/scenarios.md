@@ -175,3 +175,34 @@ Verification primitives available:
 - **Verify**: exit_code(0), !dir_exists(.codex/prompts), !dir_exists(.codex/skills), !file_contains(AGENTS.md, "AUTOPUS:BEGIN")
 - **Depends**: S2
 - **Status**: active
+
+---
+
+## Canary Scenarios
+
+### S-CANARY-1: canary-basic — Basic canary execution
+- **Command**: `auto canary`
+- **Precondition**: Go project with scenarios.md containing at least 1 active scenario
+- **Env**: N/A
+- **Expect**: Build verification + E2E execution + PASS/WARN/FAIL verdict
+- **Verify**: exit_code(0), stdout_contains("빌드"), stdout_contains("판정")
+- **Depends**: N/A
+- **Status**: active
+
+### S-CANARY-2: canary-build-fail — Build failure produces FAIL
+- **Command**: `auto canary`
+- **Precondition**: Project with intentional build error
+- **Env**: N/A
+- **Expect**: FAIL verdict, E2E and browser steps skipped
+- **Verify**: exit_code(1), stdout_contains("FAIL"), stdout_contains("빌드")
+- **Depends**: N/A
+- **Status**: active
+
+### S-CANARY-3: canary-url — URL-targeted browser check
+- **Command**: `auto canary --url http://localhost:3000`
+- **Precondition**: Running web application
+- **Env**: N/A
+- **Expect**: Browser health check on specified URL
+- **Verify**: exit_code(0), stdout_contains("브라우저")
+- **Depends**: N/A
+- **Status**: active
