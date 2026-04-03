@@ -192,26 +192,37 @@ Autopus doesn't give you one AI assistant — it gives you a **software engineer
 ... and 7 more
 ```
 
-### ⚔️ AI Models That Debate Each Other
+### ⚔️ AI Models That Debate Each Other (`--multi`)
 
-Not one model reviewing your code — **multiple models arguing about it.**
+One model has blind spots. **Three models catch each other's mistakes.**
+
+Every AI model has its own strengths and biases — Claude is thorough but verbose, Codex is fast but sometimes shallow, Gemini brings a different perspective entirely. When you use `--multi`, they don't just work in parallel — they **review, challenge, and build on each other's ideas.**
 
 ```bash
-auto orchestra review --strategy debate
+# Add --multi to any command for multi-model intelligence
+/auto idea "new feature" --multi          # 3 models brainstorm → cross-pollinate → ICE score
+/auto plan "new feature" --multi          # 3 models review your SPEC independently
+/auto go SPEC-ID --multi                  # 3 models debate your code review
 ```
-
-Claude, Codex, Gemini, and OpenCode independently review your code, then **debate each other's findings** in a structured 2-phase argument. A judge renders the final verdict.
 
 ```mermaid
 flowchart TB
-    C["🔍 Claude\nIndependent Review"] --> D["⚔️ Debate Phase\nRebuttals & Counter-arguments"]
-    X["🔍 Codex\nIndependent Review"] --> D
-    G["🔍 Gemini\nIndependent Review"] --> D
-    O["🔍 OpenCode\nIndependent Review"] --> D
-    D --> J["🏛️ Judge Verdict"]
+    C["🔍 Claude\nIndependent Analysis"] --> D["⚔️ Cross-Pollination\nEach model sees others' ideas"]
+    X["🔍 Codex\nIndependent Analysis"] --> D
+    G["🔍 Gemini\nIndependent Analysis"] --> D
+    D --> R["🔄 Round 2\nAcknowledge · Integrate · Risk"]
+    R --> J["🏛️ Blind Judge\nAnonymized scoring"]
 ```
 
-4 strategies: **Consensus** · **Debate** · **Pipeline** · **Fastest**
+**Why this matters:**
+- A bug that Claude misses, Codex catches. An edge case Codex ignores, Gemini flags.
+- Ideas that one model would never generate emerge from cross-pollination.
+- The blind judge scores anonymized results — no model favoritism.
+- Research shows multi-agent debate produces higher-quality outputs than any single model alone.
+
+> 💡 **`/auto dev` enables `--multi` by default.** Every plan gets multi-model review. Every code review gets cross-checked. You don't have to think about it.
+
+4 strategies: **Consensus** (merge agreements) · **Debate** (adversarial review + judge) · **Pipeline** (chain outputs) · **Fastest** (first wins)
 
 ### 🔁 Self-Healing Pipeline (RALF Loop)
 
