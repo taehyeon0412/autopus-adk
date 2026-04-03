@@ -43,6 +43,62 @@ If Stack Profile is injected in the prompt, use its specified tools instead.
 - 소스 파일 300줄 초과 여부
 - 200줄 초과 파일 목록
 
+### 6. Seam Verification (통합 검증)
+
+SPEC에서 정의한 CLI 커맨드, API 엔드포인트, 공개 함수가 **실제로 동작하는지** 검증합니다. 빌드/린트만으로는 스텁(stub) 구현을 탐지할 수 없기 때문입니다.
+
+#### 6a. Stub Detection (스택별)
+
+변경된 함수 중 "아무 동작도 안 하는" 스텁을 탐지합니다:
+
+| Stack | Stub Pattern | Detection |
+|-------|-------------|-----------|
+| Go | `func X() error { fmt.Println(...); return nil }` | 함수 body가 print/log + return만 포함 |
+| Python | `def x(): pass` or `def x(): print(...)` | body가 pass/print/raise NotImplementedError만 |
+| TypeScript | `function x() { console.log(...) }` | body가 console.log/throw만 |
+| Rust | `fn x() { todo!() }` or `unimplemented!()` | todo!/unimplemented! 매크로 사용 |
+
+**Detection method**: `grep -rn 'TODO\|FIXME\|stub\|placeholder\|NotImplemented\|todo!\|unimplemented!' {changed files}`
+
+변경된 파일에서 위 패턴이 발견되면 WARN으로 보고합니다.
+
+#### 6b. Smoke Test (스택별)
+
+CLI 프로젝트의 경우, 빌드된 바이너리가 실제로 실행 가능한지 확인합니다:
+
+| Stack | Smoke Test Command | Pass Criteria |
+|-------|-------------------|---------------|
+| Go CLI | `go run ./cmd/{entry} --help` | exit 0, stdout non-empty |
+| Go API | `go run ./cmd/{entry} &; curl localhost:{port}/health; kill %1` | HTTP 200 |
+| Python CLI | `python -m {module} --help` | exit 0 |
+| Node CLI | `node {entry} --help` | exit 0 |
+| Node API | `node {entry} &; curl localhost:{port}/health; kill %1` | HTTP 200 |
+
+Entry point는 `.autopus/project/scenarios.md`의 Binary/Build 필드 또는 `go.mod`/`package.json`의 main에서 추출합니다.
+
+**Skip condition**: 라이브러리 프로젝트(CLI/API entry point 없음)는 스킵합니다.
+
+#### 6c. Contract Parity
+
+WHEN 변경된 코드에 API 호출(클라이언트)과 라우트 등록(서버)이 모두 포함된 경우, 엔드포인트 경로와 요청 형식이 일치하는지 **반드시** 확인합니다.
+
+**Detection method** (스택별):
+
+| Stack | Client Pattern | Server Pattern |
+|-------|---------------|----------------|
+| Go | `http.Post(url, ...)`, `http.Get(url)`, `http.NewRequest(method, url, ...)` | `app.Post("/path", ...)`, `r.HandleFunc("/path", ...)`, `e.GET("/path", ...)` |
+| Python | `requests.post(url)`, `httpx.post(url)` | `@app.post("/path")`, `path("/path", ...)` |
+| TypeScript | `fetch(url)`, `axios.post(url)` | `app.post("/path", ...)`, `router.post("/path", ...)` |
+
+**Verification steps**:
+1. 클라이언트 코드에서 endpoint URL 상수/문자열 추출
+2. 서버 코드에서 route 등록 패턴 추출
+3. 경로, HTTP method, Content-Type이 일치하는지 대조
+
+불일치 발견 시 **FAIL**로 보고합니다. 이 검사를 스킵하면 런타임 404/405 에러로 이어집니다.
+
+**Skip condition**: 변경 범위에 클라이언트와 서버가 동시에 포함되지 않으면 스킵.
+
 ## 하네스 전용 모드
 
 변경 파일이 `.md` 파일만인 경우 하네스 전용 모드로 동작합니다.
@@ -76,6 +132,8 @@ git diff --name-only | grep '\.md$' | xargs wc -l
 | 린트 | PASS/FAIL | [경고 수] |
 | 커버리지 | XX% | [목표: 85%] |
 | 파일 크기 | PASS/FAIL | [초과 파일] |
+| 스텁 검사 | PASS/WARN | [스텁 함수 목록] |
+| Smoke test | PASS/FAIL/SKIP | [entry point 실행 결과] |
 
 ### 전체 결과: PASS / FAIL
 ```
@@ -101,6 +159,9 @@ git diff --name-only | grep '\.md$' | xargs wc -l
 | 린트 경고 | executor | 스타일 및 코드 품질 수정 |
 | 파일 크기 초과 | executor | 파일 분할 (by type/concern/layer) |
 | 커버리지 부족 | tester | 미커버 경로에 테스트 추가 |
+| 스텁 함수 발견 | executor | 실제 구현으로 교체 |
+| Smoke test 실패 | executor | CLI/API entry point 수정 |
+| 계약 불일치 | executor | 클라이언트-서버 엔드포인트 동기화 |
 
 복수 실패 시 가장 높은 우선순위 항목 기준으로 추천합니다.
 우선순위: 컴파일 에러 > 테스트 실패 > 린트 경고 > 파일 크기 초과 > 커버리지 부족

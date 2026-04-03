@@ -20,8 +20,10 @@ TRUST 5 기준으로 코드를 체계적으로 검토하는 스킬입니다.
 ### T — Tested (테스트됨)
 - [ ] 85% 이상 테스트 커버리지
 - [ ] 모든 엣지 케이스 테스트
-- [ ] 레이스 컨디션 테스트 (`go test -race`)
+- [ ] 레이스/동시성 테스트 (Go: `go test -race`, Python: `pytest-asyncio`, etc.)
 - [ ] 특성 테스트 존재 (기존 코드 변경 시)
+- [ ] 경계 통합 검증: 패키지/모듈 간 호출이 실제로 연결됨 (스텁 아님)
+- [ ] CLI/API entry point가 실제 실행 가능 (smoke test)
 
 ### R — Readable (가독성)
 - [ ] 함수/변수 명명이 명확한가?
@@ -31,8 +33,8 @@ TRUST 5 기준으로 코드를 체계적으로 검토하는 스킬입니다.
 
 ### U — Unified (일관성)
 - [ ] 프로젝트 코딩 스타일 준수
-- [ ] `gofmt`, `goimports` 적용됨
-- [ ] `golangci-lint` 경고 없음
+- [ ] 포매터 적용됨 (Go: `gofmt`, Python: `ruff format`, TS: `prettier`, Rust: `rustfmt`)
+- [ ] 린터 경고 없음 (Go: `golangci-lint`, Python: `ruff`, TS: `eslint`, Rust: `clippy`)
 - [ ] 에러 처리 패턴 일관성
 
 ### S — Secured (보안)
@@ -91,9 +93,12 @@ TRUST 5 기준으로 코드를 체계적으로 검토하는 스킬입니다.
 
 ## 자동화 게이트
 
-리뷰 전 반드시 통과해야 하는 자동화 검사:
-```bash
-go test -race ./...
-golangci-lint run
-go vet ./...
-```
+리뷰 전 반드시 통과해야 하는 자동화 검사 (스택별):
+
+| Check | Go | Python | TypeScript | Rust |
+|-------|-----|--------|------------|------|
+| 테스트 | `go test -race ./...` | `pytest` | `vitest run` | `cargo test` |
+| 린트 | `golangci-lint run && go vet ./...` | `ruff check .` | `eslint .` | `cargo clippy` |
+| 스텁 검사 | `grep -rn 'TODO\|stub\|placeholder' {changed}` | 동일 | 동일 | `grep -rn 'todo!\|unimplemented!' {changed}` |
+
+스택은 `.autopus/project/tech.md` 또는 프로젝트 루트의 매니페스트(`go.mod`, `package.json`, `pyproject.toml`, `Cargo.toml`)에서 자동 감지합니다.

@@ -285,7 +285,20 @@ See @.claude/skills/autopus/worktree-isolation.md for full merge strategy and sa
 Agent(
   subagent_type = "validator",
   prompt = """
-    Validate the implementation result. Return format:
+    Validate the implementation result.
+
+    Run ALL 6 verification checks:
+    1. Build — compile/transpile passes
+    2. Test — all tests pass
+    3. Lint — no lint warnings
+    4. Coverage — measure test coverage
+    5. Structure — no file exceeds 300 lines
+    6. Seam Verification:
+       a. Stub Detection — grep changed files for TODO/stub/placeholder/NotImplemented patterns
+       b. Smoke Test — run CLI/API entry point (--help or /health) if applicable
+       c. Contract Parity — if both client and server code changed, verify endpoint paths match
+
+    Return format:
     Verdict: PASS | FAIL
     Issues: <list of issues>
     Recommended Agent: executor | tester | planner
