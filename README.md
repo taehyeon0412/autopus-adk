@@ -297,6 +297,68 @@ Let AI iterate autonomously — measure, keep or discard, repeat.
 
 Built-in **circuit breaker** prevents runaway iterations. **Simplicity scoring** penalizes over-complex solutions. Each iteration is a git commit — easy to review or revert.
 
+> ⚠️ **Status: Experimental** — CLI commands (`auto experiment`) are available but skill-level integration is in progress. Core iteration loop works; full pipeline integration is coming.
+
+### 🧠 Pipeline That Learns From Failures
+
+Autopus pipelines don't just fail — they **remember why** and prevent the same mistake next time.
+
+```
+Gate 2 FAIL: golangci-lint — unused variable in pkg/auth/
+→ Auto-recorded to .autopus/learnings/pipeline.jsonl
+→ Next /auto go: learning injected into executor prompt
+→ Same mistake never repeated
+```
+
+Every pipeline failure is captured as a structured learning entry. On the next run, relevant learnings are automatically injected into agent prompts — giving your pipeline **institutional memory** across sessions.
+
+### 🏥 Post-Deploy Health Check
+
+Deploy first, verify immediately. `canary` runs build verification, E2E tests, and browser health checks against your live deployment.
+
+```bash
+/auto canary                          # Build + E2E + browser auto-verification
+/auto canary --url https://myapp.com  # Target a specific deployment URL
+/auto canary --watch 5m               # Repeat every 5 minutes
+/auto canary --compare                # Compare against previous canary report
+```
+
+Generates `canary.md` with full diagnostics — build status, test results, accessibility scores, and screenshot diffs.
+
+### 🔀 Smart Model Routing
+
+Not every task needs Opus. Autopus analyzes message complexity and routes to the right model automatically.
+
+```
+Simple query     → Haiku  (fast, cheap)
+Code review      → Sonnet (balanced)
+Architecture     → Opus   (deep reasoning)
+```
+
+No configuration needed — the router evaluates token count, code complexity, and domain signals to pick the optimal model. Override anytime with `--quality ultra`.
+
+### 🔌 Provider Connection Wizard
+
+Setting up AI providers shouldn't require reading docs. `auto connect` walks you through a 3-step guided setup.
+
+```bash
+auto connect    # Interactive wizard: detect → configure → verify
+```
+
+Detects installed CLI tools, validates API keys, tests connectivity, and writes provider config — all in one command.
+
+### 🤖 ADK Worker — Local Agent Execution
+
+Bridge between Autopus CLI and the Autopus platform. ADK Worker runs A2A + MCP hybrid tasks locally, enabling platform-grade orchestration without cloud dependency.
+
+### 💰 Iteration Budget Management
+
+Workers don't run forever. Each executor gets a tool-call budget — preventing runaway agents while ensuring enough room to complete complex tasks.
+
+### 📦 Context Compression
+
+As pipelines progress through phases, earlier context gets compressed automatically — keeping agent prompts focused and within token limits without losing critical information.
+
 ### 🔄 Pipeline That Never Dies
 
 Crash mid-pipeline? Resume exactly where you left off.
@@ -404,7 +466,7 @@ One `autopus.yaml` generates **native configuration** for every detected platfor
 | **Gemini CLI** | `.gemini/`, `GEMINI.md` |
 | **OpenCode** | `opencode.json`, plugins |
 
-Same 16 agents. Same 40 skills. Same rules. **Everywhere.**
+Same 16 agents. Same 40 skills. Same rules. **Every platform.**
 
 ---
 
@@ -530,6 +592,73 @@ That's it — production-ready code with tests, security audit, and full documen
 | Resume interrupted pipeline | `/auto go SPEC-ID --continue` |
 | Run E2E test scenarios | `/auto test` |
 | Update docs after changes | `/auto sync SPEC-ID` |
+| Post-deploy health check | `/auto canary` |
+
+### Common Scenarios
+
+<details>
+<summary><strong>"I want to fix a bug"</strong></summary>
+
+```bash
+/auto fix "500 error on login page"
+```
+
+The agent automatically:
+1. Writes a reproduction test (confirms failure)
+2. Analyzes root cause
+3. Applies minimal fix
+4. Verifies all tests pass
+
+No SPEC needed — runs immediately.
+</details>
+
+<details>
+<summary><strong>"I want to add a new feature"</strong></summary>
+
+```bash
+# Small feature — SPEC only, skip PRD
+/auto plan "Add GET /healthz health check endpoint" --skip-prd
+
+# Large feature — full PRD + SPEC
+/auto plan "OAuth2 Google + GitHub provider support"
+
+# Exploring an idea first — multi-provider brainstorm
+/auto idea "Should we migrate to microservices?" --multi
+```
+
+`/auto idea` runs multi-provider brainstorming with ICE scoring (Impact, Confidence, Ease), generates a BS file, and can chain directly into `/auto plan`.
+</details>
+
+<details>
+<summary><strong>"I want a code review"</strong></summary>
+
+```bash
+/auto review                    # TRUST 5 review of current changes
+/auto secure                    # OWASP Top 10 security scan
+/auto review --multi            # Multi-model cross-review (debate strategy)
+```
+</details>
+
+<details>
+<summary><strong>"I just want to describe what I need in plain language"</strong></summary>
+
+```bash
+/auto Add 2FA to the login page
+```
+
+Autopus Triage analyzes your request automatically:
+- Complexity assessment (LOW / MEDIUM / HIGH)
+- Impact scope scan
+- Recommended workflow (fix / plan / idea)
+
+```
+🐙 Triage ────────────────────────────
+  Request: "Add 2FA to the login page"
+  Complexity: HIGH → /auto idea --multi (recommended)
+```
+
+No slash subcommand needed — just describe what you want after `/auto`.
+</details>
 
 ---
 
@@ -763,6 +892,8 @@ Providers: **Claude** · **Codex** · **Gemini** · **OpenCode** — with gracef
 | `auto pipeline` | Pipeline state management and monitoring |
 | `auto permission` | Permission mode detection (bypass / safe) |
 | `auto browse` | Browser automation (cmux browser / agent-browser) |
+| `auto canary` | Post-deploy health check (build + E2E + browser) |
+| `auto connect` | Provider connection wizard (detect → configure → verify) |
 | `auto update --self` | CLI binary self-update (GitHub Releases + SHA256) |
 
 </details>
@@ -791,6 +922,7 @@ Providers: **Claude** · **Codex** · **Gemini** · **OpenCode** — with gracef
 | `/auto go SPEC-ID --continue` | Resume interrupted pipeline from checkpoint |
 | `/auto browse` | Browser automation — open, snapshot, click, verify |
 | `/auto idea "description"` | Multi-provider brainstorm with ICE scoring |
+| `/auto canary` | Post-deploy health check (build + E2E + browser) |
 
 </details>
 
