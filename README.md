@@ -412,15 +412,19 @@ Same 16 agents. Same 40 skills. Same rules. **Everywhere.**
 
 Get from zero to your first AI-powered feature in under 5 minutes.
 
-### Step 1 · Install Autopus
+### Step 1 · Install & Initialize (one line)
 
 ```bash
-# macOS / Linux
+# macOS / Linux — installs binary + auto-initializes your project
+cd your-project
 curl -sSfL https://raw.githubusercontent.com/Insajin/autopus-adk/main/install.sh | sh
 
 # Windows (CMD or PowerShell)
+cd your-project
 powershell -c "irm https://raw.githubusercontent.com/Insajin/autopus-adk/main/install.ps1 | iex"
 ```
+
+That's it. The installer automatically detects your platform (Claude Code, Codex, Gemini CLI), installs the `auto` binary, and runs `auto init` to generate native configuration for each detected platform.
 
 <details>
 <summary>Other install methods</summary>
@@ -435,18 +439,27 @@ go install github.com/Insajin/autopus-adk/cmd/auto@latest
 # Build from source
 git clone https://github.com/Insajin/autopus-adk.git
 cd autopus-adk && make build && make install
+
+# After manual install, initialize:
+cd your-project && auto init
 ```
 
 </details>
 
-### Step 2 · Initialize Your Project
+<details>
+<summary>Installer options (environment variables)</summary>
 
-```bash
-cd your-project
-auto init
-```
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `INSTALL_DIR` | `/usr/local/bin` | Binary install path |
+| `VERSION` | latest | Specific version to install |
+| `SKIP_INIT` | `0` | Set to `1` to skip auto-init |
+| `PROJECT_NAME` | directory name | Project name for `auto init` |
+| `PLATFORMS` | auto-detect | Platform list (e.g., `claude-code,codex`) |
 
-`auto init` scans your machine for installed AI coding CLIs (Claude Code, Codex, Gemini CLI, OpenCode) and generates **native configuration** for each one — rules, skills, agents, and platform-specific settings — all from a single `autopus.yaml`.
+</details>
+
+The installer scans your machine for installed AI coding CLIs (Claude Code, Codex, Gemini CLI, OpenCode) and generates **native configuration** for each one — rules, skills, agents, and platform-specific settings — all from a single `autopus.yaml`.
 
 ```
 ✓ Detected: claude-code, gemini-cli, opencode
@@ -456,7 +469,7 @@ auto init
 ✓ Created: autopus.yaml
 ```
 
-### Step 3 · Set Up Project Context (`/auto setup`)
+### Step 2 · Set Up Project Context (`/auto setup`)
 
 This is the most important step. **AI agents lose all memory between sessions** — every conversation is their first day on the job. `/auto setup` creates the "onboarding documents" that let agents understand your project instantly.
 
@@ -477,7 +490,7 @@ ARCHITECTURE.md                    # Domains, layers, dependency map
 
 > 💡 **Why this matters:** Without these documents, an AI agent looking at your project is like a new hire with no onboarding — they'll guess at architecture, miss conventions, and reinvent patterns that already exist. With `/auto setup`, every agent session starts informed.
 
-### Step 4 · Build Your First Feature
+### Step 3 · Build Your First Feature
 
 Now you're ready. Describe what you want in plain language:
 
