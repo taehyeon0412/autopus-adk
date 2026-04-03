@@ -13,6 +13,8 @@
 [![Agents](https://img.shields.io/badge/Agents-16-blueviolet)](#-16-specialized-agents)
 [![Skills](https://img.shields.io/badge/Skills-40-ff69b4)](#-all-commands)
 
+**Paste this into Claude Code, Codex, or any AI coding agent — it installs and sets up everything automatically.**
+
 ```bash
 # macOS / Linux
 curl -sSfL https://raw.githubusercontent.com/Insajin/autopus-adk/main/install.sh | sh
@@ -492,6 +494,8 @@ Get from zero to your first AI-powered feature in under 5 minutes.
 
 ### Step 1 · Install & Initialize (one line)
 
+> **Just paste one line into your AI coding agent.** It downloads the binary, detects your platform, and runs `auto init` — no manual setup needed. Your agent handles everything.
+
 ```bash
 # macOS / Linux — installs binary + auto-initializes your project
 cd your-project
@@ -502,7 +506,7 @@ cd your-project
 powershell -c "irm https://raw.githubusercontent.com/Insajin/autopus-adk/main/install.ps1 | iex"
 ```
 
-That's it. The installer automatically detects your platform (Claude Code, Codex, Gemini CLI), installs the `auto` binary, and runs `auto init` to generate native configuration for each detected platform.
+**That's it — your AI agent does the rest.** The installer detects your platforms (Claude Code, Codex, Gemini CLI), installs the `auto` binary, and auto-initializes your project. Next time you open a session, `/auto` commands are ready to use.
 
 <details>
 <summary>Other install methods</summary>
@@ -609,7 +613,34 @@ That's it — production-ready code with tests, security audit, and full documen
 | Security audit | `/auto secure` |
 | Resume interrupted pipeline | `/auto go SPEC-ID --continue` |
 | Update docs after changes | `/auto sync SPEC-ID` |
-| Post-deploy health check | `/auto canary` |
+
+### Keeping Autopus Up to Date
+
+Autopus has two types of updates:
+
+**1. Binary update** — update the `auto` CLI itself:
+
+```bash
+auto update --self
+```
+
+Downloads the latest release from GitHub, verifies SHA256 checksum, and atomically replaces the binary. Check your current version with `auto version`.
+
+**2. Harness update** — update rules, skills, and agents in your project:
+
+```bash
+auto update
+```
+
+Regenerates `.claude/rules/`, `.claude/skills/`, `.claude/agents/`, and platform-specific files from the latest templates. Your custom edits outside `AUTOPUS:BEGIN`~`AUTOPUS:END` markers are preserved. Newly installed platforms are auto-detected.
+
+**Both at once:**
+
+```bash
+auto update --self && auto update
+```
+
+> **When to update:** Run `auto update --self` when a new version is released. Then `auto update` to get new rules, skills, and agents into your project.
 
 ### Common Scenarios
 
