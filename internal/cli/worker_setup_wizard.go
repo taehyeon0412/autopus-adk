@@ -88,7 +88,7 @@ func stepDeviceAuth(cmd *cobra.Command, backendURL string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(dc.ExpiresIn)*time.Second)
 	defer cancel()
 
-	tokenResp, err := setup.PollForToken(ctx, backendURL, dc.DeviceCode, dc.Interval)
+	tokenResp, err := setup.PollForToken(ctx, backendURL, dc.DeviceCode, verifier, dc.Interval)
 	if err != nil {
 		return "", fmt.Errorf("token polling: %w", err)
 	}
