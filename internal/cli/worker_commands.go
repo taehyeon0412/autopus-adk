@@ -11,7 +11,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/insajin/autopus-adk/pkg/worker/daemon"
-	"github.com/insajin/autopus-adk/pkg/worker/setup"
 )
 
 // addWorkerSubcommands registers all worker subcommands on the parent command.
@@ -173,16 +172,17 @@ func newWorkerCostCmd() *cobra.Command {
 }
 
 func newWorkerSetupCmd() *cobra.Command {
-	return &cobra.Command{
+	var backendURL string
+	cmd := &cobra.Command{
 		Use:   "setup",
 		Short: "Run worker setup wizard",
+		Long:  "3-step setup: Autopus server auth → workspace selection → provider check",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Fprintln(cmd.OutOrStdout(), "Running worker setup...")
-			configPath := setup.DefaultMCPConfigPath()
-			fmt.Fprintf(cmd.OutOrStdout(), "MCP config path: %s\n", configPath)
-			return nil
+			return runWorkerSetup(cmd, backendURL)
 		},
 	}
+	cmd.Flags().StringVar(&backendURL, "backend", "https://api.autopus.co", "Backend API URL")
+	return cmd
 }
 
 // installDaemon installs the worker as a system daemon based on OS.
