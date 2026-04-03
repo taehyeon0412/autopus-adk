@@ -34,13 +34,18 @@ powershell -c "irm https://raw.githubusercontent.com/Insajin/autopus-adk/main/in
 <p align="center"><img src="demo/hero.gif" width="720" alt="Autopus-ADK demo — version, doctor, platform, status, skills" /></p>
 
 ```bash
-# You describe what you want.
-/auto plan "Add OAuth2 with Google and GitHub providers"
+# Brainstorm with 3 AI models debating each other
+/auto idea "Add OAuth2 with Google and GitHub providers" --multi --ultrathink
 
-# 16 agents handle the rest — planning, testing, implementing, reviewing.
-/auto go SPEC-AUTH-001 --auto --loop
+# One command does the rest — plan, build with 16 agents, ship with docs
+/auto dev "Add OAuth2 with Google and GitHub providers"
+```
 
-# Docs, changelog, and SPEC status — all synced in one command.
+Or if you prefer step-by-step control:
+
+```bash
+/auto plan "Add OAuth2 with Google and GitHub providers" --auto --multi --ultrathink
+/auto go SPEC-AUTH-001 --auto --loop --team
 /auto sync SPEC-AUTH-001
 ```
 
@@ -576,21 +581,22 @@ Now you're ready. Describe what you want in plain language:
 ╰────────────────────────────────────╯
 ```
 
-That's it — production-ready code with tests, security audit, and full documentation, driven by three commands.
+That's it — production-ready code with tests, security audit, and full documentation.
 
 ### Quick Reference
 
 | What you want | Command |
 |--------------|---------|
-| Initialize in a new project | `auto init` |
-| Generate project context | `/auto setup` |
+| **Brainstorm an idea** | `/auto idea "description" --multi --ultrathink` |
+| **Full cycle (recommended)** | `/auto dev "description"` |
 | Plan a new feature | `/auto plan "description"` |
-| Implement a SPEC | `/auto go SPEC-ID --auto` |
-| Full autonomy + self-healing | `/auto go SPEC-ID --auto --loop` |
-| Fix a bug | `/auto fix "description"` |
-| One-shot plan→build→ship | `/auto dev "description"` |
+| Implement a SPEC | `/auto go SPEC-ID --auto --loop --team` |
+| Fix a bug (no SPEC needed) | `/auto fix "description"` |
+| Just describe in plain language | `/auto Add 2FA to login page` |
+| Post-deploy health check | `/auto canary` |
+| Code review | `/auto review` |
+| Security audit | `/auto secure` |
 | Resume interrupted pipeline | `/auto go SPEC-ID --continue` |
-| Run E2E test scenarios | `/auto test` |
 | Update docs after changes | `/auto sync SPEC-ID` |
 | Post-deploy health check | `/auto canary` |
 
@@ -757,9 +763,35 @@ flowchart LR
 
 ---
 
-## 📐 The Workflow: Three Commands to Ship
+## 📐 The Workflow
 
-Every feature in Autopus follows the same **plan → go → sync** lifecycle. No exceptions.
+### ⚡ The Fast Path — Two Commands
+
+For most features, you only need two commands:
+
+```bash
+# 1. Brainstorm — multi-provider debate + deep analysis
+/auto idea "Add webhook delivery with retry" --multi --ultrathink
+
+# 2. Build & Ship — full autonomous pipeline
+/auto dev "Add webhook delivery with retry"
+```
+
+`/auto idea` runs multi-provider brainstorming (Claude × Codex × Gemini debate) with deep sequential thinking, scores ideas with ICE, and saves the result.
+
+`/auto dev` does the rest — **plan → go → sync** in one shot with all the power flags on by default:
+
+| Stage | What Happens | Flags (auto-applied) |
+|-------|-------------|---------------------|
+| **plan** | PRD + SPEC + multi-provider review | `--auto --multi --ultrathink` |
+| **go** | 16 agents in Agent Teams + self-healing | `--auto --loop --team` |
+| **sync** | Docs + changelog + Lore commit | — |
+
+> 💡 **Don't want the full power?** Use `--solo` for single-session mode, `--no-multi` to skip multi-provider review, or call `plan` / `go` / `sync` individually for fine-grained control.
+
+### 📋 The Manual Path — Three Commands
+
+For more control, run each stage separately:
 
 ```mermaid
 flowchart LR
@@ -913,7 +945,7 @@ Providers: **Claude** · **Codex** · **Gemini** · **OpenCode** — with gracef
 | `/auto secure` | OWASP Top 10 security audit |
 | `/auto map` | Codebase structure analysis |
 | `/auto sync SPEC-ID` | Sync docs after implementation |
-| `/auto dev "description"` | One-shot: plan → go → sync |
+| `/auto dev "description"` | Full power: plan(--multi --ultrathink) → go(--team --loop) → sync |
 | `/auto setup` | Generate/update project context docs |
 | `/auto stale` | Detect stale decisions and patterns |
 | `/auto why "question"` | Query decision rationale |

@@ -2314,13 +2314,25 @@ Usage: `/auto status`
 {{if not .IsFullMode}}
 > dev is Full mode only. Upgrade with `auto init --full`.
 {{else}}
-Execute the complete plan → go → sync cycle in one command.
+Execute the complete plan → go → sync cycle in one command. The power-user workflow in a single invocation.
+
+### Flag Inheritance
+
+`/auto dev` automatically applies optimal flags to each stage:
+
+| Stage | Inherited Flags |
+|-------|----------------|
+| plan | `--auto --multi --ultrathink` (deep analysis + multi-provider review) |
+| go | `--auto --loop --team` (Agent Teams + RALF self-healing) |
+| sync | (no special flags) |
+
+User-provided flags **override** these defaults. For example, `--solo` overrides `--team` in the go stage.
 
 ### Pipeline
 
 #### [REQUIRED] Stage 1: Plan (MUST call plan subcommand)
 
-Run the `plan` pipeline with the feature description. Extract the SPEC-ID from the output.
+Run the `plan` pipeline with `--auto --multi --ultrathink` flags and the feature description. Extract the SPEC-ID from the output.
 
 Display after completion:
 ```
@@ -2332,7 +2344,7 @@ Display after completion:
 
 #### [REQUIRED] Stage 2: Go (MUST call go subcommand)
 
-Run the `go` pipeline with `--auto --loop` flags using the SPEC-ID from Stage 1.
+Run the `go` pipeline with `--auto --loop --team` flags using the SPEC-ID from Stage 1.
 
 Display after completion:
 ```
@@ -2366,12 +2378,18 @@ IF any item is unchecked → return to that stage. Do NOT display the milestone 
 
 | Flag | Description |
 |------|-------------|
-| `--team` | Run `go` with Agent Teams (experimental) |
-| `--solo` | Run `go` in single session mode (no subagents) |
+| `--team` | Run `go` with Agent Teams — **default ON** in dev |
+| `--solo` | Run `go` in single session mode (overrides --team) |
 | `--quality` | Quality mode: ultra or balanced |
-| `--multi` | Enable multi-provider review in all stages |
+| `--multi` | Enable multi-provider review — **default ON** in dev |
+| `--ultrathink` | Deep analysis in plan stage — **default ON** in dev |
+| `--no-team` | Disable Agent Teams (use subagent pipeline instead) |
+| `--no-multi` | Disable multi-provider review |
+| `--no-ultrathink` | Disable deep analysis |
 
-Usage: `/auto dev "feature description"`, `/auto dev "feature description" --team`, `/auto dev "feature description" --quality ultra`
+Usage: `/auto dev "feature description"`, `/auto dev "feature description" --solo`, `/auto dev "feature description" --no-multi`
+
+**Default behavior**: `/auto dev "feature"` = `/auto plan --auto --multi --ultrathink` → `/auto go --auto --loop --team` → `/auto sync`
 {{end}}
 
 ---
