@@ -47,6 +47,18 @@ func TestGeminiAdapterBuildCommandWithSession(t *testing.T) {
 	assert.Contains(t, cmd.Args, "gem-sess")
 }
 
+func TestGeminiAdapterBuildCommandWithModel(t *testing.T) {
+	a := NewGeminiAdapter()
+	task := TaskConfig{
+		TaskID: "task-gm1",
+		Model:  "gemini-2.0-flash",
+	}
+
+	cmd := a.BuildCommand(context.Background(), task)
+	assert.Contains(t, cmd.Args, "--model")
+	assert.Contains(t, cmd.Args, "gemini-2.0-flash")
+}
+
 func TestGeminiAdapterParseEvent(t *testing.T) {
 	a := NewGeminiAdapter()
 
@@ -54,6 +66,16 @@ func TestGeminiAdapterParseEvent(t *testing.T) {
 	evt, err := a.ParseEvent(line)
 	require.NoError(t, err)
 	assert.Equal(t, "result", evt.Type)
+}
+
+// REQ-BUDGET-02: Gemini maps tool_call -> EventToolCall (already canonical).
+func TestGeminiAdapterParseEventToolCall(t *testing.T) {
+	a := NewGeminiAdapter()
+
+	line := []byte(`{"type":"tool_call","name":"search"}`)
+	evt, err := a.ParseEvent(line)
+	require.NoError(t, err)
+	assert.Equal(t, "tool_call", evt.Type)
 }
 
 func TestGeminiAdapterParseEventInvalid(t *testing.T) {

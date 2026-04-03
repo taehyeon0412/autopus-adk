@@ -38,6 +38,10 @@ func (a *ClaudeAdapter) BuildCommand(ctx context.Context, task TaskConfig) *exec
 		args = append(args, "--mcp-config", task.MCPConfig)
 	}
 
+	if task.Model != "" {
+		args = append(args, "--model", task.Model)
+	}
+
 	cmd := exec.CommandContext(ctx, "claude", args...)
 	cmd.Dir = task.WorkDir
 
@@ -56,13 +60,18 @@ func (a *ClaudeAdapter) BuildCommand(ctx context.Context, task TaskConfig) *exec
 }
 
 // ParseEvent parses a single line of stream-json output into a StreamEvent.
+// Maps Claude's "tool_use" type to the canonical EventToolCall type.
 func (a *ClaudeAdapter) ParseEvent(line []byte) (StreamEvent, error) {
 	evt, err := stream.ParseLine(line)
 	if err != nil {
 		return StreamEvent{}, err
 	}
+	typ := evt.Type
+	if typ == "tool_use" {
+		typ = stream.EventToolCall
+	}
 	return StreamEvent{
-		Type:    evt.Type,
+		Type:    typ,
 		Subtype: evt.Subtype,
 		Data:    evt.Raw,
 	}, nil

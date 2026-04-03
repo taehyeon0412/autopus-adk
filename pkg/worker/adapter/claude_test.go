@@ -61,6 +61,29 @@ func TestClaudeAdapterBuildCommandNoMCPConfig(t *testing.T) {
 	assert.False(t, slices.Contains(cmd.Args, "--mcp-config"))
 }
 
+func TestClaudeAdapterBuildCommandWithModel(t *testing.T) {
+	a := NewClaudeAdapter()
+	task := TaskConfig{
+		TaskID: "task-model-1",
+		Model:  "claude-3-5-haiku-20241022",
+	}
+
+	cmd := a.BuildCommand(context.Background(), task)
+	assert.Contains(t, cmd.Args, "--model")
+	assert.Contains(t, cmd.Args, "claude-3-5-haiku-20241022")
+}
+
+func TestClaudeAdapterBuildCommandEmptyModel(t *testing.T) {
+	a := NewClaudeAdapter()
+	task := TaskConfig{
+		TaskID: "task-model-2",
+		Model:  "",
+	}
+
+	cmd := a.BuildCommand(context.Background(), task)
+	assert.False(t, slices.Contains(cmd.Args, "--model"))
+}
+
 func TestClaudeAdapterParseEvent(t *testing.T) {
 	a := NewClaudeAdapter()
 
@@ -70,6 +93,16 @@ func TestClaudeAdapterParseEvent(t *testing.T) {
 	assert.Equal(t, "system", evt.Type)
 	assert.Equal(t, "init", evt.Subtype)
 	assert.NotEmpty(t, evt.Data)
+}
+
+// REQ-BUDGET-02: Claude maps tool_use -> EventToolCall.
+func TestClaudeAdapterParseEventToolUse(t *testing.T) {
+	a := NewClaudeAdapter()
+
+	line := []byte(`{"type":"tool_use","name":"read_file","input":{"path":"foo.go"}}`)
+	evt, err := a.ParseEvent(line)
+	require.NoError(t, err)
+	assert.Equal(t, "tool_call", evt.Type, "tool_use should be mapped to tool_call")
 }
 
 func TestClaudeAdapterParseEventInvalid(t *testing.T) {

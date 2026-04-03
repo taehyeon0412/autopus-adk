@@ -46,6 +46,18 @@ func TestCodexAdapterBuildCommandWithSession(t *testing.T) {
 	assert.Contains(t, cmd.Args, "my-session")
 }
 
+func TestCodexAdapterBuildCommandWithModel(t *testing.T) {
+	a := NewCodexAdapter()
+	task := TaskConfig{
+		TaskID: "task-cm1",
+		Model:  "o3",
+	}
+
+	cmd := a.BuildCommand(context.Background(), task)
+	assert.Contains(t, cmd.Args, "-m")
+	assert.Contains(t, cmd.Args, "o3")
+}
+
 func TestCodexAdapterParseEvent(t *testing.T) {
 	a := NewCodexAdapter()
 
@@ -54,6 +66,16 @@ func TestCodexAdapterParseEvent(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "result", evt.Type)
 	assert.NotEmpty(t, evt.Data)
+}
+
+// REQ-BUDGET-02: Codex maps tool_call -> EventToolCall (already canonical).
+func TestCodexAdapterParseEventToolCall(t *testing.T) {
+	a := NewCodexAdapter()
+
+	line := []byte(`{"type":"tool_call","name":"exec_cmd"}`)
+	evt, err := a.ParseEvent(line)
+	require.NoError(t, err)
+	assert.Equal(t, "tool_call", evt.Type)
 }
 
 func TestCodexAdapterParseEventInvalid(t *testing.T) {

@@ -31,6 +31,10 @@ func (a *CodexAdapter) BuildCommand(ctx context.Context, task TaskConfig) *exec.
 	}
 	args = append(args, "--json", "resume", sessionID)
 
+	if task.Model != "" {
+		args = append(args, "-m", task.Model)
+	}
+
 	cmd := exec.CommandContext(ctx, "codex", args...)
 	cmd.Dir = task.WorkDir
 
@@ -54,6 +58,7 @@ type codexResultEvent struct {
 }
 
 // ParseEvent parses a single line of Codex JSON output into a StreamEvent.
+// Maps Codex's "tool_call" type to the canonical EventToolCall type.
 func (a *CodexAdapter) ParseEvent(line []byte) (StreamEvent, error) {
 	var raw struct {
 		Type string `json:"type"`
@@ -65,8 +70,13 @@ func (a *CodexAdapter) ParseEvent(line []byte) (StreamEvent, error) {
 		return StreamEvent{}, fmt.Errorf("codex: missing type field")
 	}
 
+	typ := raw.Type
+	if typ == "tool_call" {
+		typ = "tool_call" // already canonical
+	}
+
 	return StreamEvent{
-		Type: raw.Type,
+		Type: typ,
 		Data: json.RawMessage(append([]byte(nil), line...)),
 	}, nil
 }

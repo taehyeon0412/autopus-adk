@@ -34,6 +34,10 @@ func (a *GeminiAdapter) BuildCommand(ctx context.Context, task TaskConfig) *exec
 		args = append(args, "-p", task.Prompt)
 	}
 
+	if task.Model != "" {
+		args = append(args, "--model", task.Model)
+	}
+
 	cmd := exec.CommandContext(ctx, "gemini", args...)
 	cmd.Dir = task.WorkDir
 
@@ -58,6 +62,7 @@ type geminiResultEvent struct {
 }
 
 // ParseEvent parses a single line of Gemini JSON output into a StreamEvent.
+// Maps Gemini's "tool_call" type to the canonical EventToolCall type.
 func (a *GeminiAdapter) ParseEvent(line []byte) (StreamEvent, error) {
 	var raw struct {
 		Type string `json:"type"`
@@ -69,8 +74,13 @@ func (a *GeminiAdapter) ParseEvent(line []byte) (StreamEvent, error) {
 		return StreamEvent{}, fmt.Errorf("gemini: missing type field")
 	}
 
+	typ := raw.Type
+	if typ == "tool_call" {
+		typ = "tool_call" // already canonical
+	}
+
 	return StreamEvent{
-		Type: raw.Type,
+		Type: typ,
 		Data: json.RawMessage(append([]byte(nil), line...)),
 	}, nil
 }

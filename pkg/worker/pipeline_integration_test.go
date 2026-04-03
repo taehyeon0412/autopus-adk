@@ -97,7 +97,7 @@ func TestPipelineRunPhase_NoResultEvent(t *testing.T) {
 	mock := &pipelineMockAdapter{script: script}
 
 	pe := &PipelineExecutor{provider: mock, workDir: t.TempDir()}
-	_, err := pe.runPhase(context.Background(), "task-x", PhasePlanner, "prompt")
+	_, err := pe.runPhase(context.Background(), "task-x", PhasePlanner, "prompt", "")
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no result event")
@@ -109,7 +109,7 @@ func TestPipelineRunPhase_FailWithOutput(t *testing.T) {
 	mock := &pipelineMockAdapter{script: script}
 
 	pe := &PipelineExecutor{provider: mock, workDir: t.TempDir()}
-	result, err := pe.runPhase(context.Background(), "task-y", PhaseExecutor, "prompt")
+	result, err := pe.runPhase(context.Background(), "task-y", PhaseExecutor, "prompt", "")
 
 	require.NoError(t, err)
 	assert.Equal(t, "partial", result.Output)

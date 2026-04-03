@@ -10,6 +10,7 @@ import (
 	"github.com/insajin/autopus-adk/pkg/worker/adapter"
 	"github.com/insajin/autopus-adk/pkg/worker/budget"
 	"github.com/insajin/autopus-adk/pkg/worker/compress"
+	"github.com/insajin/autopus-adk/pkg/worker/routing"
 	"github.com/insajin/autopus-adk/pkg/worker/stream"
 )
 
@@ -42,6 +43,7 @@ type PipelineExecutor struct {
 	workDir    string
 	allocator  *budget.PhaseAllocator    // nil if budget not configured
 	compressor compress.ContextCompressor // nil if compression not configured
+	router     *routing.Router            // nil if routing not configured
 }
 
 // NewPipelineExecutor creates a new PipelineExecutor.
@@ -63,11 +65,22 @@ func (pe *PipelineExecutor) SetCompressor(c compress.ContextCompressor) {
 	pe.compressor = c
 }
 
+// SetRouter configures model routing for the pipeline (REQ-ROUTE-01).
+func (pe *PipelineExecutor) SetRouter(r *routing.Router) {
+	pe.router = r
+}
+
 // Execute runs the full pipeline: planner → executor(s) → tester → reviewer.
 // Each phase uses an independent --resume session ID.
 // Returns an aggregated TaskResult combining all phase outputs.
 func (pe *PipelineExecutor) Execute(ctx context.Context, taskID, prompt string) (adapter.TaskResult, error) {
 	log.Printf("[pipeline] starting phase-split for task %s", taskID)
+
+	// Resolve model once from the original prompt (REQ-ROUTE-01).
+	var routedModel string
+	if pe.router != nil {
+		routedModel = pe.router.Route(pe.provider.Name(), prompt)
+	}
 
 	phases := []struct {
 		phase      Phase
@@ -98,7 +111,7 @@ func (pe *PipelineExecutor) Execute(ctx context.Context, taskID, prompt string) 
 		}
 
 		phasePrompt := p.promptFunc(prevOutput)
-		pr, err := pe.runPhase(ctx, taskID, p.phase, phasePrompt)
+		pr, err := pe.runPhase(ctx, taskID, p.phase, phasePrompt, routedModel)
 		if err != nil {
 			log.Printf("[pipeline] phase %s failed for task %s: %v", p.phase, taskID, err)
 			return adapter.TaskResult{}, fmt.Errorf("phase %s: %w", p.phase, err)
@@ -129,7 +142,7 @@ func (pe *PipelineExecutor) Execute(ctx context.Context, taskID, prompt string) 
 }
 
 // runPhase spawns a single subprocess for the given phase.
-func (pe *PipelineExecutor) runPhase(ctx context.Context, taskID string, phase Phase, prompt string) (PhaseResult, error) {
+func (pe *PipelineExecutor) runPhase(ctx context.Context, taskID string, phase Phase, prompt, model string) (PhaseResult, error) {
 	sessionID := fmt.Sprintf("pipeline-%s-%s", taskID, phase)
 	taskCfg := adapter.TaskConfig{
 		TaskID:    fmt.Sprintf("%s-%s", taskID, phase),
@@ -137,6 +150,7 @@ func (pe *PipelineExecutor) runPhase(ctx context.Context, taskID string, phase P
 		Prompt:    prompt,
 		MCPConfig: pe.mcpConfig,
 		WorkDir:   pe.workDir,
+		Model:     model,
 	}
 
 	cmd := pe.provider.BuildCommand(ctx, taskCfg)
