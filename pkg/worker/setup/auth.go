@@ -18,13 +18,20 @@ import (
 	"time"
 )
 
+// apiResponse is the standard backend response wrapper: { success, data, error }.
+type apiResponse struct {
+	Success bool            `json:"success"`
+	Data    json.RawMessage `json:"data"`
+}
+
 // DeviceCode holds the response from the device authorization endpoint.
 type DeviceCode struct {
-	DeviceCode      string `json:"device_code"`
-	UserCode        string `json:"user_code"`
-	VerificationURI string `json:"verification_uri"`
-	ExpiresIn       int    `json:"expires_in"`
-	Interval        int    `json:"interval"`
+	DeviceCode              string `json:"device_code"`
+	UserCode                string `json:"user_code"`
+	VerificationURI         string `json:"verification_uri"`
+	VerificationURIComplete string `json:"verification_uri_complete"`
+	ExpiresIn               int    `json:"expires_in"`
+	Interval                int    `json:"interval"`
 }
 
 // TokenResponse holds the OAuth token returned after successful authorization.
@@ -74,16 +81,35 @@ func RequestDeviceCode(backendURL, codeVerifier string) (*DeviceCode, error) {
 	}
 	defer resp.Body.Close()
 
+	respBody, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("device code request failed (%d): %s", resp.StatusCode, respBody)
 	}
 
-	var dc DeviceCode
-	if err := json.NewDecoder(resp.Body).Decode(&dc); err != nil {
+	dc, err := unwrap[DeviceCode](respBody)
+	if err != nil {
 		return nil, fmt.Errorf("decode device code response: %w", err)
 	}
-	return &dc, nil
+	return dc, nil
+}
+
+// unwrap extracts the data field from the standard backend response wrapper.
+// If the response is not wrapped (no "success" field), it decodes directly.
+func unwrap[T any](body []byte) (*T, error) {
+	var wrapper apiResponse
+	if err := json.Unmarshal(body, &wrapper); err == nil && wrapper.Data != nil {
+		var result T
+		if err := json.Unmarshal(wrapper.Data, &result); err != nil {
+			return nil, fmt.Errorf("decode data field: %w", err)
+		}
+		return &result, nil
+	}
+	// Fallback: try direct decode (non-wrapped response).
+	var result T
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("decode response: %w", err)
+	}
+	return &result, nil
 }
 
 // deriveChallengeFromVerifier recomputes the S256 challenge from an existing verifier.
@@ -140,10 +166,20 @@ func tryTokenExchange(endpoint, deviceCode, codeVerifier string) (*TokenResponse
 	respBody, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode == http.StatusBadRequest {
+		// Check both wrapped and unwrapped error formats.
 		var errResp struct {
 			Error string `json:"error"`
 		}
 		if json.Unmarshal(respBody, &errResp) == nil && errResp.Error == "authorization_pending" {
+			return nil, true, nil
+		}
+		// Check wrapped error: { success: false, error: { code: "authorization_pending" } }
+		var wrappedErr struct {
+			Error struct {
+				Code string `json:"code"`
+			} `json:"error"`
+		}
+		if json.Unmarshal(respBody, &wrappedErr) == nil && wrappedErr.Error.Code == "authorization_pending" {
 			return nil, true, nil
 		}
 	}
@@ -152,11 +188,11 @@ func tryTokenExchange(endpoint, deviceCode, codeVerifier string) (*TokenResponse
 		return nil, false, fmt.Errorf("token request failed (%d): %s", resp.StatusCode, respBody)
 	}
 
-	var token TokenResponse
-	if err := json.Unmarshal(respBody, &token); err != nil {
+	token, err := unwrap[TokenResponse](respBody)
+	if err != nil {
 		return nil, false, fmt.Errorf("decode token response: %w", err)
 	}
-	return &token, false, nil
+	return token, false, nil
 }
 
 // RefreshToken exchanges a refresh token for a new access token via the backend.

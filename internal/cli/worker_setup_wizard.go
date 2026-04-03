@@ -70,17 +70,27 @@ func stepDeviceAuth(cmd *cobra.Command, backendURL string) (string, error) {
 		return "", fmt.Errorf("request device code: %w", err)
 	}
 
+	// Use the complete URI (includes code) if available, otherwise the base URI.
+	verifyURL := dc.VerificationURIComplete
+	if verifyURL == "" {
+		verifyURL = dc.VerificationURI
+	}
+
 	fmt.Fprintln(out)
 	fmt.Fprintf(out, "  브라우저에서 아래 URL을 열고 코드를 입력하세요:\n")
-	fmt.Fprintf(out, "  URL:  %s\n", dc.VerificationURI)
+	fmt.Fprintf(out, "  URL:  %s\n", verifyURL)
 	fmt.Fprintf(out, "  Code: %s\n", dc.UserCode)
 	fmt.Fprintln(out)
 
 	// Try to open browser automatically.
-	if err := setup.OpenBrowser(dc.VerificationURI); err != nil {
-		fmt.Fprintf(out, "  (브라우저를 수동으로 열어주세요)\n")
+	if verifyURL == "" {
+		fmt.Fprintf(out, "  ⚠ 인증 URL이 비어있습니다. 백엔드 연결을 확인하세요.\n")
+		return "", fmt.Errorf("empty verification URI from backend")
+	}
+	if err := setup.OpenBrowser(verifyURL); err != nil {
+		fmt.Fprintf(out, "  브라우저를 수동으로 열어주세요.\n")
 	} else {
-		fmt.Fprintf(out, "  (브라우저가 자동으로 열렸습니다)\n")
+		fmt.Fprintf(out, "  브라우저가 열렸습니다. 인증을 완료해주세요.\n")
 	}
 
 	fmt.Fprintln(out, "  인증 대기 중...")
