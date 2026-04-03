@@ -2,7 +2,14 @@
 set -e
 
 # autopus-adk 설치 스크립트
-# 사용법: curl -sSL https://raw.githubusercontent.com/Insajin/autopus-adk/main/install.sh | sh
+# 사용법: curl -fsSL https://get.autopus.co | sh
+#
+# 옵션 (환경변수):
+#   INSTALL_DIR   — 설치 경로 (기본: /usr/local/bin)
+#   VERSION       — 특정 버전 지정 (기본: 최신)
+#   SKIP_INIT     — "1" 설정 시 auto init 건너뜀
+#   PROJECT_NAME  — auto init에 사용할 프로젝트 이름 (기본: 디렉토리 이름)
+#   PLATFORMS     — 플랫폼 목록 (기본: 자동 감지)
 
 REPO="Insajin/autopus-adk"
 BINARY="auto"
@@ -133,9 +140,66 @@ main() {
         echo "  수동 확인: ${BINARY} doctor"
     fi
     echo ""
-    echo "  다음 단계:"
-    echo "    ${BINARY} version     # 설치 확인"
-    echo "    ${BINARY} init        # 프로젝트 초기화"
+
+    # Auto-init: detect platform and initialize harness
+    if [ "${SKIP_INIT}" = "1" ]; then
+        echo "  SKIP_INIT=1 — 초기화를 건너뜁니다."
+        echo ""
+        echo "  다음 단계:"
+        echo "    ${BINARY} init        # 프로젝트 초기화"
+        echo ""
+        return
+    fi
+
+    # Skip init if already initialized (CLAUDE.md or autopus.yaml exists)
+    if [ -f "CLAUDE.md" ] || [ -f "autopus.yaml" ]; then
+        ok "이미 초기화된 프로젝트입니다. 업데이트 실행 중..."
+        "${INSTALL_DIR}/${BINARY}" update --yes 2>/dev/null || true
+        echo ""
+        echo "  바로 사용 가능:"
+        echo "    /auto setup    # 프로젝트 컨텍스트 생성"
+        echo "    /auto status   # SPEC 현황"
+        echo ""
+        return
+    fi
+
+    info "프로젝트 초기화 중..."
+
+    # Detect project name from directory
+    PROJ="${PROJECT_NAME:-$(basename "$(pwd)")}"
+
+    # Detect platform from running environment
+    if [ -z "$PLATFORMS" ]; then
+        PLATFORMS="claude-code"
+        # Check for other AI coding tools
+        if command -v codex > /dev/null 2>&1; then
+            PLATFORMS="${PLATFORMS},codex"
+        fi
+        if command -v gemini > /dev/null 2>&1; then
+            PLATFORMS="${PLATFORMS},gemini"
+        fi
+    fi
+
+    info "  프로젝트: ${PROJ}"
+    info "  플랫폼: ${PLATFORMS}"
+
+    if "${INSTALL_DIR}/${BINARY}" init --project "$PROJ" --platforms "$PLATFORMS" --yes 2>&1; then
+        ok "프로젝트 초기화 완료!"
+    else
+        echo "  초기화 실패. 수동 실행: ${BINARY} init"
+    fi
+    echo ""
+
+    ok "🐙 Autopus-ADK 준비 완료!"
+    echo ""
+    echo "  Claude Code에서 바로 사용 가능:"
+    echo "    /auto setup    # 프로젝트 컨텍스트 문서 생성"
+    echo "    /auto plan     # 기능 기획 + SPEC 작성"
+    echo "    /auto fix      # 버그 수정"
+    echo "    /auto review   # 코드 리뷰"
+    echo ""
+    echo "  또는 자연어로:"
+    echo "    /auto 로그인 기능에 2FA 추가해줘"
     echo ""
 }
 

@@ -113,11 +113,47 @@ function Main {
             Write-Host "  Run manually: auto doctor" -ForegroundColor Yellow
         }
 
-        Ok ""
-        Ok "  Restart your terminal, then run:"
-        Ok "    auto version     # verify install"
-        Ok "    auto init        # initialize project"
-        Ok ""
+        # Auto-init: detect platform and initialize harness
+        if ($env:SKIP_INIT -eq "1") {
+            Ok ""
+            Ok "  SKIP_INIT=1 — skipping initialization."
+            Ok "  Next: auto init"
+            Ok ""
+        }
+        elseif ((Test-Path "CLAUDE.md") -or (Test-Path "autopus.yaml")) {
+            Ok "Already initialized. Running update..."
+            try { & "$InstallDir\$Binary" update --yes 2>$null } catch {}
+            Ok ""
+            Ok "  Ready to use:"
+            Ok "    /auto setup    # generate project context"
+            Ok "    /auto status   # SPEC dashboard"
+            Ok ""
+        }
+        else {
+            Info "Initializing project..."
+            $Proj = if ($env:PROJECT_NAME) { $env:PROJECT_NAME } else { Split-Path -Leaf (Get-Location) }
+            $Plat = if ($env:PLATFORMS) { $env:PLATFORMS } else { "claude-code" }
+            # Detect additional platforms
+            if (-not $env:PLATFORMS) {
+                if (Get-Command codex -ErrorAction SilentlyContinue) { $Plat += ",codex" }
+                if (Get-Command gemini -ErrorAction SilentlyContinue) { $Plat += ",gemini" }
+            }
+            Info "  Project: $Proj"
+            Info "  Platforms: $Plat"
+            try {
+                & "$InstallDir\$Binary" init --project $Proj --platforms $Plat --yes 2>&1
+                Ok "Project initialized!"
+            } catch {
+                Write-Host "  Init failed. Run manually: auto init" -ForegroundColor Yellow
+            }
+            Ok ""
+            Ok "  Ready to use in Claude Code:"
+            Ok "    /auto setup    # generate project context"
+            Ok "    /auto plan     # write a SPEC"
+            Ok "    /auto fix      # fix a bug"
+            Ok "    /auto review   # code review"
+            Ok ""
+        }
     }
     finally {
         Remove-Item -Path $TmpDir -Recurse -Force -ErrorAction SilentlyContinue
