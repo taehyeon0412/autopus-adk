@@ -145,6 +145,7 @@ func stepOAuth(ctx context.Context) (*connect.OAuthResult, error) {
 func stepSubmitToken(ctx context.Context, client *connect.Client, wsID string, oauth *connect.OAuthResult) error {
 	req := connect.SubmitTokenRequest{
 		ProviderToken: oauth.AccessToken,
+		RefreshToken:  oauth.RefreshToken,
 		WorkspaceID:   wsID,
 		Provider:      "openai",
 	}

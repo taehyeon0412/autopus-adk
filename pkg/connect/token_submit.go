@@ -12,6 +12,7 @@ import (
 // SubmitTokenRequest holds the data needed to submit a provider token to the server.
 type SubmitTokenRequest struct {
 	ProviderToken string `json:"provider_token"`
+	RefreshToken  string `json:"refresh_token,omitempty"`
 	WorkspaceID   string `json:"workspace_id"`
 	Provider      string `json:"provider"`
 }
@@ -22,8 +23,9 @@ func (c *Client) SubmitToken(ctx context.Context, req SubmitTokenRequest) error 
 		c.serverURL, req.WorkspaceID)
 
 	payload := map[string]string{
-		"provider":       req.Provider,
-		"provider_token": req.ProviderToken,
+		"provider":      req.Provider,
+		"access_token":  req.ProviderToken,
+		"refresh_token": req.RefreshToken,
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
