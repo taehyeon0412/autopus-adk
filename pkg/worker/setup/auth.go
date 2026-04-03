@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -53,27 +52,31 @@ func GeneratePKCE() (verifier, challenge string, err error) {
 
 // RequestDeviceCode initiates the device authorization flow.
 func RequestDeviceCode(backendURL, codeVerifier string) (*DeviceCode, error) {
-	endpoint := strings.TrimRight(backendURL, "/") + "/api/v1/auth/device"
+	endpoint := strings.TrimRight(backendURL, "/") + "/api/v1/auth/device/code"
 
 	_, challenge, err := deriveChallengeFromVerifier(codeVerifier)
 	if err != nil {
 		return nil, err
 	}
 
-	form := url.Values{
-		"code_challenge":        {challenge},
-		"code_challenge_method": {"S256"},
+	payload := map[string]string{
+		"code_challenge":        challenge,
+		"code_challenge_method": "S256",
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("marshal request: %w", err)
 	}
 
-	resp, err := http.PostForm(endpoint, form)
+	resp, err := http.Post(endpoint, "application/json", bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("request device code: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("device code request failed (%d): %s", resp.StatusCode, body)
+		respBody, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("device code request failed (%d): %s", resp.StatusCode, respBody)
 	}
 
 	var dc DeviceCode
@@ -91,8 +94,9 @@ func deriveChallengeFromVerifier(verifier string) (string, string, error) {
 }
 
 // PollForToken polls the token endpoint until the user authorizes or the context is cancelled.
-func PollForToken(ctx context.Context, backendURL, deviceCode string, interval int) (*TokenResponse, error) {
-	endpoint := strings.TrimRight(backendURL, "/") + "/api/v1/auth/token"
+// codeVerifier is required when PKCE was used in the device code request.
+func PollForToken(ctx context.Context, backendURL, deviceCode, codeVerifier string, interval int) (*TokenResponse, error) {
+	endpoint := strings.TrimRight(backendURL, "/") + "/api/v1/auth/device/token"
 	if interval <= 0 {
 		interval = 5
 	}
@@ -104,7 +108,7 @@ func PollForToken(ctx context.Context, backendURL, deviceCode string, interval i
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case <-ticker.C:
-			token, pending, err := tryTokenExchange(endpoint, deviceCode)
+			token, pending, err := tryTokenExchange(endpoint, deviceCode, codeVerifier)
 			if err != nil {
 				return nil, err
 			}
@@ -117,35 +121,39 @@ func PollForToken(ctx context.Context, backendURL, deviceCode string, interval i
 }
 
 // tryTokenExchange attempts a single token exchange request.
-func tryTokenExchange(endpoint, deviceCode string) (*TokenResponse, bool, error) {
-	form := url.Values{
-		"grant_type":  {"urn:ietf:params:oauth:grant-type:device_code"},
-		"device_code": {deviceCode},
+func tryTokenExchange(endpoint, deviceCode, codeVerifier string) (*TokenResponse, bool, error) {
+	payload := map[string]string{
+		"device_code":   deviceCode,
+		"code_verifier": codeVerifier,
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return nil, false, fmt.Errorf("marshal token request: %w", err)
 	}
 
-	resp, err := http.PostForm(endpoint, form)
+	resp, err := http.Post(endpoint, "application/json", bytes.NewReader(body))
 	if err != nil {
 		return nil, false, fmt.Errorf("poll token: %w", err)
 	}
 	defer resp.Body.Close()
 
-	body, _ := io.ReadAll(resp.Body)
+	respBody, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode == http.StatusBadRequest {
 		var errResp struct {
 			Error string `json:"error"`
 		}
-		if json.Unmarshal(body, &errResp) == nil && errResp.Error == "authorization_pending" {
+		if json.Unmarshal(respBody, &errResp) == nil && errResp.Error == "authorization_pending" {
 			return nil, true, nil
 		}
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, false, fmt.Errorf("token request failed (%d): %s", resp.StatusCode, body)
+		return nil, false, fmt.Errorf("token request failed (%d): %s", resp.StatusCode, respBody)
 	}
 
 	var token TokenResponse
-	if err := json.Unmarshal(body, &token); err != nil {
+	if err := json.Unmarshal(respBody, &token); err != nil {
 		return nil, false, fmt.Errorf("decode token response: %w", err)
 	}
 	return &token, false, nil

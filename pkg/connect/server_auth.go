@@ -55,7 +55,7 @@ func (c *Client) WithServerURL(serverURL string) *Client {
 type AuthDeps interface {
 	GeneratePKCE() (verifier, challenge string, err error)
 	RequestDeviceCode(backendURL, codeVerifier string) (*setup.DeviceCode, error)
-	PollForToken(ctx context.Context, backendURL, deviceCode string, interval int) (*setup.TokenResponse, error)
+	PollForToken(ctx context.Context, backendURL, deviceCode, codeVerifier string, interval int) (*setup.TokenResponse, error)
 	OpenBrowser(url string) error
 	SaveCredentials(creds map[string]any) error
 }
@@ -71,8 +71,8 @@ func (d defaultAuthDeps) RequestDeviceCode(backendURL, codeVerifier string) (*se
 	return setup.RequestDeviceCode(backendURL, codeVerifier)
 }
 
-func (d defaultAuthDeps) PollForToken(ctx context.Context, backendURL, deviceCode string, interval int) (*setup.TokenResponse, error) {
-	return setup.PollForToken(ctx, backendURL, deviceCode, interval)
+func (d defaultAuthDeps) PollForToken(ctx context.Context, backendURL, deviceCode, codeVerifier string, interval int) (*setup.TokenResponse, error) {
+	return setup.PollForToken(ctx, backendURL, deviceCode, codeVerifier, interval)
 }
 
 func (d defaultAuthDeps) OpenBrowser(url string) error {
@@ -103,7 +103,7 @@ func AuthenticateServer(ctx context.Context, cfg ServerAuthConfig, deps AuthDeps
 	fmt.Printf("Visit %s and enter code: %s\n", dc.VerificationURI, dc.UserCode)
 	_ = deps.OpenBrowser(dc.VerificationURI)
 
-	tokenResp, err := deps.PollForToken(ctx, cfg.ServerURL, dc.DeviceCode, dc.Interval)
+	tokenResp, err := deps.PollForToken(ctx, cfg.ServerURL, dc.DeviceCode, verifier, dc.Interval)
 	if err != nil {
 		return nil, fmt.Errorf("poll for token: %w", err)
 	}

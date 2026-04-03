@@ -15,7 +15,7 @@ import (
 type mockAuthDeps struct {
 	generatePKCE      func() (string, string, error)
 	requestDeviceCode func(string, string) (*setup.DeviceCode, error)
-	pollForToken      func(context.Context, string, string, int) (*setup.TokenResponse, error)
+	pollForToken      func(context.Context, string, string, string, int) (*setup.TokenResponse, error)
 	openBrowser       func(string) error
 	saveCredentials   func(map[string]any) error
 }
@@ -28,8 +28,8 @@ func (m *mockAuthDeps) RequestDeviceCode(backendURL, codeVerifier string) (*setu
 	return m.requestDeviceCode(backendURL, codeVerifier)
 }
 
-func (m *mockAuthDeps) PollForToken(ctx context.Context, backendURL, deviceCode string, interval int) (*setup.TokenResponse, error) {
-	return m.pollForToken(ctx, backendURL, deviceCode, interval)
+func (m *mockAuthDeps) PollForToken(ctx context.Context, backendURL, deviceCode, codeVerifier string, interval int) (*setup.TokenResponse, error) {
+	return m.pollForToken(ctx, backendURL, deviceCode, codeVerifier, interval)
 }
 
 func (m *mockAuthDeps) OpenBrowser(url string) error {
@@ -54,7 +54,7 @@ func newSuccessDeps() *mockAuthDeps {
 				Interval:        5,
 			}, nil
 		},
-		pollForToken: func(ctx context.Context, url, code string, interval int) (*setup.TokenResponse, error) {
+		pollForToken: func(ctx context.Context, url, code, verifier string, interval int) (*setup.TokenResponse, error) {
 			return &setup.TokenResponse{
 				AccessToken:  "at-server-test",
 				RefreshToken: "rt-server-test",
@@ -127,7 +127,7 @@ func TestAuthenticateServer_PollTimeout(t *testing.T) {
 
 	// Given: token polling fails (timeout or user denied)
 	deps := newSuccessDeps()
-	deps.pollForToken = func(ctx context.Context, url, code string, interval int) (*setup.TokenResponse, error) {
+	deps.pollForToken = func(ctx context.Context, url, code, verifier string, interval int) (*setup.TokenResponse, error) {
 		return nil, fmt.Errorf("polling timed out")
 	}
 	cfg := connect.ServerAuthConfig{ServerURL: "https://api.example.com"}
