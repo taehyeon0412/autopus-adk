@@ -47,20 +47,39 @@ If Stack Profile is injected in the prompt, use its specified tools instead.
 
 SPEC에서 정의한 CLI 커맨드, API 엔드포인트, 공개 함수가 **실제로 동작하는지** 검증합니다. 빌드/린트만으로는 스텁(stub) 구현을 탐지할 수 없기 때문입니다.
 
-#### 6a. Stub Detection (스택별)
+#### 6a. Stub Detection (2-Layer)
 
-변경된 함수 중 "아무 동작도 안 하는" 스텁을 탐지합니다:
+**Layer 1: Keyword Scan** (빠른 탐지)
 
-| Stack | Stub Pattern | Detection |
-|-------|-------------|-----------|
-| Go | `func X() error { fmt.Println(...); return nil }` | 함수 body가 print/log + return만 포함 |
-| Python | `def x(): pass` or `def x(): print(...)` | body가 pass/print/raise NotImplementedError만 |
-| TypeScript | `function x() { console.log(...) }` | body가 console.log/throw만 |
-| Rust | `fn x() { todo!() }` or `unimplemented!()` | todo!/unimplemented! 매크로 사용 |
+```bash
+grep -rn 'TODO\|FIXME\|stub\|placeholder\|NotImplemented\|todo!\|unimplemented!' {changed files}
+```
 
-**Detection method**: `grep -rn 'TODO\|FIXME\|stub\|placeholder\|NotImplemented\|todo!\|unimplemented!' {changed files}`
+키워드 발견 시 **FAIL** (WARN 아님 — RALF 루프가 잡을 수 있도록).
 
-변경된 파일에서 위 패턴이 발견되면 WARN으로 보고합니다.
+**Layer 2: Behavioral Stub Analysis** (키워드 없는 스텁 탐지)
+
+키워드가 없어도 실질적으로 아무 일도 하지 않는 함수를 탐지합니다.
+
+변경된 각 파일에서 새로 추가되거나 수정된 **exported 함수**를 식별하고, 함수 body를 읽어서 아래 패턴에 해당하는지 검사합니다:
+
+| Stack | Behavioral Stub Pattern | 판정 |
+|-------|------------------------|------|
+| Go | `return nil` / `return err` / `return ""` / `return 0` 만 있고 다른 로직 없음 | FAIL |
+| Go | body가 `log.*` / `fmt.Print*` + `return` 만으로 구성 | FAIL |
+| Go | 함수 body 5줄 이하이면서 조건문/루프/외부 호출 없음 | WARN |
+| Python | `pass` / `return None` / `raise NotImplementedError` 만 | FAIL |
+| TypeScript | `console.log` + `return` 만 / 빈 함수 body | FAIL |
+| Rust | `todo!()` / `unimplemented!()` / `panic!("not implemented")` | FAIL |
+
+**Detection method**:
+1. `git diff --name-only`로 변경 파일 목록 확인
+2. 각 파일의 변경 함수를 `git diff -U0`로 식별
+3. 해당 함수의 전체 body를 `Read`로 읽어서 패턴 분석
+4. 의미 있는 로직 (if/switch/for/외부 함수 호출/DB 쿼리/HTTP 요청)이 있으면 통과
+
+**FAIL 기준**: exported 함수 중 1개라도 behavioral stub이면 FAIL.
+**Recommended Agent**: executor — "스텁 함수를 실제 비즈니스 로직으로 교체. 해당 함수: {stub 함수 목록}"
 
 #### 6b. Smoke Test (스택별)
 
@@ -99,6 +118,33 @@ WHEN 변경된 코드에 API 호출(클라이언트)과 라우트 등록(서버)
 
 **Skip condition**: 변경 범위에 클라이언트와 서버가 동시에 포함되지 않으면 스킵.
 
+### 7. Acceptance Coverage Verification (Self-Loading)
+
+SPEC 디렉토리에서 `acceptance.md`를 **직접 읽어서** 구현 커버리지를 검증합니다. 프롬프트 주입에 의존하지 않습니다.
+
+**Procedure**:
+1. SPEC 디렉토리 경로를 프롬프트에서 추출 (예: `.autopus/specs/SPEC-XXX-001/`)
+2. `{SPEC_DIR}/acceptance.md`를 Read 도구로 직접 로드
+3. Given/When/Then 시나리오를 파싱하여 acceptance criteria 목록 생성
+4. 변경된 코드와 테스트 파일을 교차 검증:
+   - **테스트 매핑**: 각 시나리오에 대응하는 테스트 함수가 존재하는가?
+   - **구현 매핑**: 시나리오의 When 절에 해당하는 코드 경로가 실제 로직을 포함하는가? (6a behavioral stub analysis 결과 활용)
+5. 커버리지 보고: `N/M acceptance criteria addressed`
+
+**Verdict impact**:
+- P0 (Must) 기준 미충족 → **FAIL** — Recommended Agent: executor
+- P1 (Should) 기준 미충족 → **WARN** — 로그만 기록
+- acceptance.md 파일 없음 → **SKIP** — 경고 없이 스킵
+
+**FAIL 시 Fix Hint 형식**:
+```
+미충족 인수 기준:
+- AC-001 (P0): "{scenario title}" — 대응 테스트/구현 없음
+- AC-003 (P0): "{scenario title}" — 테스트 존재하나 구현이 stub
+```
+
+이 검증은 RALF 루프에서 executor를 재스폰하여 누락된 acceptance criteria를 구현하도록 유도합니다.
+
 ## 하네스 전용 모드
 
 변경 파일이 `.md` 파일만인 경우 하네스 전용 모드로 동작합니다.
@@ -132,8 +178,9 @@ git diff --name-only | grep '\.md$' | xargs wc -l
 | 린트 | PASS/FAIL | [경고 수] |
 | 커버리지 | XX% | [목표: 85%] |
 | 파일 크기 | PASS/FAIL | [초과 파일] |
-| 스텁 검사 | PASS/WARN | [스텁 함수 목록] |
+| 스텁 검사 | PASS/FAIL | [스텁 함수 목록] |
 | Smoke test | PASS/FAIL/SKIP | [entry point 실행 결과] |
+| 인수 기준 | N/M PASS/FAIL/SKIP | [미충족 기준 목록] |
 
 ### 전체 결과: PASS / FAIL
 ```
@@ -159,15 +206,30 @@ git diff --name-only | grep '\.md$' | xargs wc -l
 | 린트 경고 | executor | 스타일 및 코드 품질 수정 |
 | 파일 크기 초과 | executor | 파일 분할 (by type/concern/layer) |
 | 커버리지 부족 | tester | 미커버 경로에 테스트 추가 |
-| 스텁 함수 발견 | executor | 실제 구현으로 교체 |
+| 스텁 함수 발견 | executor | 실제 비즈니스 로직으로 교체 |
+| 인수 기준 미충족 | executor | 미충족 acceptance criteria 구현 |
 | Smoke test 실패 | executor | CLI/API entry point 수정 |
 | 계약 불일치 | executor | 클라이언트-서버 엔드포인트 동기화 |
 
 복수 실패 시 가장 높은 우선순위 항목 기준으로 추천합니다.
 우선순위: 컴파일 에러 > 테스트 실패 > 린트 경고 > 파일 크기 초과 > 커버리지 부족
 
+## Model Escalation
+
+WHEN checks 6a Layer 2 (behavioral stub) or 7 (acceptance coverage) are active, THE SYSTEM SHOULD spawn the validator with `model: "sonnet"` instead of the default haiku. These checks require reading and understanding function bodies and SPEC scenarios — judgment tasks that benefit from a stronger model.
+
+The pipeline orchestrator controls this escalation in the Agent() call:
+- Checks 1-5, 6a Layer 1, 6b, 6c → haiku is sufficient
+- Check 6a Layer 2, Check 7 → recommend sonnet
+
+## Multi-Model Validation (--multi)
+
+WHEN `--multi` flag is active, Gate 2 spawns **two validators in parallel** with different models (sonnet + haiku). Verdicts are merged with **strict-union** strategy: any FAIL from either validator → FAIL. This prevents a single model's blind spot from letting stubs through.
+
+Each validator independently runs all 7 checks. The pipeline merges issue lists, deduplicates by function name / acceptance criteria ID, and uses the stricter verdict.
+
 ## 제약
 
 - 읽기 전용 (코드 수정 불가)
 - 검증 실패 시 수정은 Gate Verdict의 Recommended Agent에게 위임
-- 빠른 실행 우선 (최대 15턴)
+- 빠른 실행 우선 (최대 15턴, acceptance 검증 포함 시 20턴)

@@ -38,10 +38,23 @@ SPEC과 요구사항을 받아 테스트와 구현 코드를 작성합니다.
 **executor는 GREEN/REFACTOR 단계만 담당한다. RED 단계(테스트 작성)는 Phase 1.5 tester 소유다.**
 
 ```
-1. Phase 1.5에서 tester가 생성한 실패 테스트 확인 (run the project's test command | grep FAIL)
-2. 테스트를 통과하는 최소 구현 작성
-3. 리팩토링 후 재확인 (run the project's test command with race/thread-safety flags)
+1. SPEC 요구사항과 acceptance criteria 확인 (Step 0)
+2. Phase 1.5에서 tester가 생성한 실패 테스트 확인 (run the project's test command | grep FAIL)
+3. 테스트를 통과하는 구현 작성 — SPEC 요구사항을 충족하는 실제 비즈니스 로직 구현
+4. 리팩토링 후 재확인 (run the project's test command with race/thread-safety flags)
 ```
+
+### Step 0: SPEC Context Self-Loading (REQUIRED)
+
+IMPORTANT: 구현 시작 전에 SPEC 요구사항을 직접 읽어야 합니다. 태스크 설명만으로 구현하지 마세요.
+
+1. 프롬프트에서 SPEC ID를 추출
+2. `{SPEC_DIR}/spec.md`를 Read 도구로 직접 로드 — P0/P1 요구사항 확인
+3. `{SPEC_DIR}/acceptance.md`가 있으면 Read — Given/When/Then 시나리오 확인
+4. 할당된 태스크(Task ID)에 관련된 요구사항과 시나리오를 식별
+5. 구현이 이 요구사항들을 실제로 충족하는지 자가 검증 후 완료 보고
+
+**"테스트만 통과시키면 된다"는 사고 금지.** validator가 behavioral stub analysis와 acceptance coverage verification을 수행하므로, `return nil`이나 log+return 같은 최소 구현은 FAIL 판정을 받고 재작업을 해야 합니다.
 
 Refer to Stack Profile for specific test and build commands.
 

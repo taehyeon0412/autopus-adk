@@ -41,9 +41,46 @@ Phase 1.5 — after SPEC is finalized, before executor starts implementation.
 ### Procedure
 
 1. Read SPEC requirements (P0 and P1 priority items)
-2. For each requirement, create a test function skeleton that asserts the expected behavior
-3. Tests MUST fail (RED state) — any test that passes indicates already-implemented functionality or an incorrect test
-4. Use table-driven test pattern where applicable
+2. Read `{SPEC_DIR}/acceptance.md` if it exists — use Given/When/Then scenarios as primary test source
+3. For each requirement, create a test function skeleton that asserts the expected behavior
+4. Tests MUST fail (RED state) — any test that passes indicates already-implemented functionality or an incorrect test
+5. Use table-driven test pattern where applicable
+
+### Behavioral Assertion Rule (CRITICAL)
+
+IMPORTANT: Every test MUST assert on **observable behavior**, not just error absence.
+
+**Prohibited test patterns** (existence-only tests):
+```go
+// BAD — only checks "no error", executor can satisfy with `return nil`
+func TestCreateUser(t *testing.T) {
+    err := CreateUser("test")
+    assert.NoError(t, err)
+}
+```
+
+**Required test patterns** (behavior-asserting tests):
+```go
+// GOOD — asserts on state change, return value content, or side effect
+func TestCreateUser(t *testing.T) {
+    user, err := CreateUser("test")
+    require.NoError(t, err)
+    assert.Equal(t, "test", user.Name)       // assert return value
+    assert.NotEmpty(t, user.ID)              // assert generated field
+    
+    // Verify side effect
+    found, _ := GetUser(user.ID)
+    assert.Equal(t, user.Name, found.Name)   // assert persistence
+}
+```
+
+**Assertion checklist per test** — at least ONE of:
+- [ ] Return value content assertion (not just `NoError`)
+- [ ] State mutation verification (DB record created, file written, config changed)
+- [ ] Output content assertion (stdout contains expected text, HTTP response body matches)
+- [ ] Side effect verification (event emitted, dependency called with correct args)
+
+A test that ONLY asserts `NoError` or `NotNil` without checking content is **invalid** and will be rejected by the validator's acceptance coverage check.
 
 ### Completion Verification
 
