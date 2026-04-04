@@ -222,8 +222,8 @@ func runOrchestraCommand(
 		return fmt.Errorf("--rounds 값은 1-10 범위여야 합니다 (입력: %d)", rounds)
 	}
 
-	// @AX:WARN: [AUTO] positional variadic extraction — flags[0..4]=bool(noDetach,keepRelay,noJudge,yieldRounds,contextAware); order must match all callers
-	nd, keepRelay, noJudge, yieldRounds, contextAware := extractOrchestraFlags(flags)
+	// @AX:WARN: [AUTO] positional variadic extraction — flags[0..5]=bool(noDetach,keepRelay,noJudge,yieldRounds,contextAware,subprocessMode); order must match all callers
+	nd, keepRelay, noJudge, yieldRounds, contextAware, subprocessMode := extractOrchestraFlags(flags)
 	term := terminal.DetectTerminal()
 	// Auto-enable interactive pane mode for cmux/tmux terminals (SPEC-ORCH-006)
 	interactive := term != nil && term.Name() != "plain"
@@ -255,6 +255,7 @@ func runOrchestraCommand(
 		NoJudge:            noJudge,
 		YieldRounds:        yieldRounds,
 		ContextAware:       contextAware,
+		SubprocessMode:     subprocessMode,
 	}
 
 	providerNames := make([]string, len(providers))

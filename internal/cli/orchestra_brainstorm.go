@@ -11,15 +11,16 @@ import (
 // newOrchestraBrainstormCmd creates the brainstorm subcommand.
 func newOrchestraBrainstormCmd() *cobra.Command {
 	var (
-		strategy    string
-		providers   []string
-		timeout     int
-		judge       string
-		rounds      int
-		noDetach    bool
+		strategy     string
+		providers    []string
+		timeout      int
+		judge        string
+		rounds       int
+		noDetach     bool
 		noJudge      bool
 		yieldRounds  bool
 		contextAware bool
+		subprocess   bool
 	)
 
 	cmd := &cobra.Command{
@@ -39,7 +40,7 @@ judge 모델이 ICE 점수로 아이디어를 통합하고 증폭합니다.`,
 				prompt = prependProjectContext(prompt)
 			}
 			resolvedRounds := resolveRounds(flagStrategy, rounds)
-			return runOrchestraCommand(cmd.Context(), "brainstorm", flagStrategy, flagProviders, timeout, judge, prompt, resolvedRounds, thresholdFlag, noDetach, keepRelay, noJudge, yieldRounds, contextAware)
+			return runOrchestraCommand(cmd.Context(), "brainstorm", flagStrategy, flagProviders, timeout, judge, prompt, resolvedRounds, thresholdFlag, noDetach, keepRelay, noJudge, yieldRounds, contextAware, subprocess)
 		},
 	}
 
@@ -55,6 +56,7 @@ judge 모델이 ICE 점수로 아이디어를 통합하고 증폭합니다.`,
 	cmd.Flags().BoolVar(&noJudge, "no-judge", false, "Skip judge verdict phase in debate strategy")
 	cmd.Flags().BoolVar(&yieldRounds, "yield-rounds", false, "Round 1 후 JSON 출력 및 pane 유지")
 	cmd.Flags().BoolVar(&contextAware, "context", false, "Allow providers to read project files (skip topic isolation)")
+	cmd.Flags().BoolVar(&subprocess, "subprocess", true, "Use subprocess backend (default: true; use --subprocess=false for pane mode)")
 
 	return cmd
 }

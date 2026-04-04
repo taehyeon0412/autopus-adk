@@ -23,7 +23,8 @@ func RunOrchestra(ctx context.Context, cfg OrchestraConfig) (*OrchestraResult, e
 	}
 
 	// Delegate to pane runner when a non-plain terminal is configured
-	if cfg.Terminal != nil && cfg.Terminal.Name() != "plain" {
+	// and subprocess mode is not explicitly requested
+	if !cfg.SubprocessMode && cfg.Terminal != nil && cfg.Terminal.Name() != "plain" {
 		return RunPaneOrchestra(ctx, cfg)
 	}
 
