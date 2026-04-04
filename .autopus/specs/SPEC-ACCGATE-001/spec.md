@@ -1,6 +1,6 @@
 # SPEC-ACCGATE-001: Acceptance Gate 및 테스트 품질 강화
 
-**Status**: implemented
+**Status**: completed
 **Created**: 2026-04-04
 **Domain**: ACCGATE
 
