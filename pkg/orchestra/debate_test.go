@@ -15,10 +15,12 @@ func TestBuildRebuttalPrompt(t *testing.T) {
 	}
 	prompt := buildRebuttalPrompt("original topic", others, 2)
 	assert.Contains(t, prompt, "original topic")
-	assert.Contains(t, prompt, "alice")
+	assert.Contains(t, prompt, "Participant A")
 	assert.Contains(t, prompt, "I think X")
-	assert.Contains(t, prompt, "bob")
-	assert.Contains(t, prompt, "rebuttal")
+	assert.Contains(t, prompt, "Participant B")
+	assert.Contains(t, prompt, "Cross-Pollination")
+	assert.NotContains(t, prompt, "alice", "provider names must be anonymized")
+	assert.NotContains(t, prompt, "bob", "provider names must be anonymized")
 }
 
 // TestBuildRebuttalPrompt_TopicIsolation verifies buildRebuttalPrompt does NOT add isolation prefix.
@@ -62,9 +64,12 @@ func TestBuildJudgmentPrompt(t *testing.T) {
 	}
 	prompt := buildJudgmentPrompt("test topic", args)
 	assert.Contains(t, prompt, "test topic")
-	assert.Contains(t, prompt, "alice")
+	assert.Contains(t, prompt, "Participant A")
 	assert.Contains(t, prompt, "Argument A")
-	assert.Contains(t, prompt, "judge")
+	assert.Contains(t, prompt, "Judge")
+	assert.Contains(t, prompt, "ICE Score")
+	assert.NotContains(t, prompt, "alice", "provider names must be anonymized")
+	assert.NotContains(t, prompt, "bob", "provider names must be anonymized")
 }
 
 func TestFindOrBuildJudgeConfig_Found(t *testing.T) {

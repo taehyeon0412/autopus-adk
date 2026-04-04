@@ -97,35 +97,82 @@ const topicIsolationInstruction = "IMPORTANT: Discuss ONLY the topic below. Do N
 // contextAwareInstruction replaces topicIsolationInstruction when --context is set.
 const contextAwareInstruction = "Use the project context below to ground your ideas in the actual codebase. Focus on the given topic.\n\n"
 
-// buildRebuttalPrompt creates a rebuttal prompt including other debaters' arguments.
+// buildRebuttalPrompt creates a cross-pollination prompt with anonymized participant outputs.
+// Uses the Acknowledge/Integrate/Risk 3-step structure for structured revision.
+// ICE scores from Round 1 are stripped to prevent confidence cascade.
 // For round >= 3, each provider's output is truncated to 500 chars to keep prompt size manageable.
-// Works with both ReadScreen and hook-based results as both populate Output field.
 // @AX:NOTE [AUTO] REQ-4 magic constant 500 — truncation limit for round >= 3; increase requires prompt budget review
 func buildRebuttalPrompt(original string, otherResponses []ProviderResponse, round int) string {
 	var sb strings.Builder
 	sb.WriteString(original)
-	sb.WriteString("\n\n## Other debaters' arguments:\n")
-	for _, r := range otherResponses {
-		output := r.Output
-		// REQ-4: Truncate long outputs for later rounds to keep prompt size manageable
+	fmt.Fprintf(&sb, "\n\n---\n\n# Round %d: Cross-Pollination\n\n", round)
+	sb.WriteString("Other participants' ideas are shown below (anonymized, ICE scores removed).\n\n")
+
+	for i, r := range otherResponses {
+		output := stripICEScores(r.Output)
 		if round >= 3 && len(output) > 500 {
 			output = output[:500] + "[...truncated]"
 		}
-		sb.WriteString(fmt.Sprintf("\n### %s:\n%s\n", r.Provider, output))
+		alias := fmt.Sprintf("Participant %c", 'A'+rune(i))
+		fmt.Fprintf(&sb, "## %s:\n%s\n\n", alias, output)
 	}
-	sb.WriteString("\nPlease provide your rebuttal:")
+
+	sb.WriteString(`Respond in exactly 3 steps:
+
+### Step 1: Acknowledge
+Identify the 2-3 strongest points from other participants.
+For each, explain **why** it is strong with specific evidence.
+Do NOT blindly praise — only acknowledge points with real merit.
+
+### Step 2: Integrate
+Your Round 1 core ideas MUST be preserved. Do not abandon them.
+Enhance your ideas by incorporating the strongest elements from others.
+Describe the integrated proposal with concrete details.
+
+### Step 3: Risk Assessment
+Identify 2-3 remaining weaknesses, risks, or implementation barriers
+in the integrated proposal. Be specific about assumptions and dependencies.
+`)
 	return sb.String()
 }
 
-// buildJudgmentPrompt creates the judge's prompt with all arguments.
-// Works with both ReadScreen and hook-based results as both populate Output field.
+// buildJudgmentPrompt creates the judge's synthesis prompt with anonymized debate results.
+// Includes structured ICE scoring instructions for consensus-based evaluation.
 func buildJudgmentPrompt(topic string, arguments []ProviderResponse) string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("Topic: %s\n\n## Arguments:\n", topic))
-	for _, r := range arguments {
-		sb.WriteString(fmt.Sprintf("\n### %s:\n%s\n", r.Provider, r.Output))
+	fmt.Fprintf(&sb, "# Role: Final Judge\n\nYou are the final judge for a multi-analyst debate on the topic below.\nParticipant identities are anonymized. Judge purely on content quality.\n\n## Topic\n\n%s\n\n## Debate Results (Anonymized)\n\n", topic)
+
+	for i, r := range arguments {
+		alias := fmt.Sprintf("Participant %c", 'A'+rune(i))
+		output := stripICEScores(r.Output)
+		fmt.Fprintf(&sb, "### %s:\n%s\n\n", alias, output)
 	}
-	sb.WriteString("\nAs the judge, render a final verdict:")
+
+	sb.WriteString(`## Judging Instructions
+
+### 1. Consensus Areas
+Extract ideas that 2+ participants converged on. Convergence = high confidence signal.
+For each: what is the shared idea, which participants agreed, why it matters.
+
+### 2. Unique Insights
+Identify ideas proposed by only 1 participant that others did NOT integrate.
+These are potentially innovative but also potentially flawed.
+
+### 3. Cross-Risks
+Compile risks that 2+ participants independently flagged.
+Shared risk identification = likely a real threat.
+For each: describe the risk, severity (high/medium/low).
+
+### 4. Top Ideas Ranking (ICE Score)
+Select the top 5 ideas and score each:
+- **Impact** (1-10): real-world value to the project
+- **Confidence** (1-10): consensus level — more participants agreeing = higher
+- **Ease** (1-10): implementation feasibility
+- **Score** = Impact × Confidence × Ease / 100
+
+### 5. Recommendation
+Write a 2-3 sentence actionable recommendation.
+`)
 	return sb.String()
 }
 
