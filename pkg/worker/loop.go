@@ -69,12 +69,13 @@ func NewWorkerLoop(config LoopConfig) *WorkerLoop {
 	}
 
 	serverCfg := a2a.ServerConfig{
-		BackendURL:       config.BackendURL,
-		WorkerName:       config.WorkerName,
-		Skills:           config.Skills,
-		Handler:          wl.handleTask,
-		AuthToken:        config.AuthToken,
-		ApprovalCallback: wl.handleApproval,
+		BackendURL:            config.BackendURL,
+		WorkerName:            config.WorkerName,
+		Skills:                config.Skills,
+		Handler:               wl.handleTask,
+		AuthToken:             config.AuthToken,
+		ApprovalCallback:      wl.handleApproval,
+		OnConnectionExhausted: wl.activateFallbackPoller,
 	}
 	wl.server = a2a.NewServer(serverCfg)
 
@@ -128,13 +129,19 @@ func (wl *WorkerLoop) handleTask(ctx context.Context, taskID string, payload jso
 		return nil, fmt.Errorf("parse task payload: %w", err)
 	}
 
+	// Populate knowledge context from local Hub when backend did not provide one.
+	knowledgeCtx := msg.KnowledgeCtx
+	if knowledgeCtx == "" && wl.knowledgeSearcher != nil {
+		knowledgeCtx = populateKnowledge(ctx, wl.knowledgeSearcher, msg.Description)
+	}
+
 	// Build Layer 4 prompt via ContextBuilder.
 	prompt := wl.builder.Build(TaskPayload{
 		TaskID:        taskID,
 		Description:   msg.Description,
 		PMNotes:       msg.PMNotes,
 		PolicySummary: msg.PolicySummary,
-		KnowledgeCtx:  msg.KnowledgeCtx,
+		KnowledgeCtx:  knowledgeCtx,
 		SpecID:        msg.SpecID,
 	})
 

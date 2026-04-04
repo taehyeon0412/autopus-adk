@@ -16,9 +16,10 @@ type WorkspaceConfig struct {
 	AuthToken   string
 }
 
-// startWorkspaceGoroutines spawns per-workspace A2A server goroutines.
+// StartWorkspaceGoroutines spawns per-workspace A2A server goroutines.
 // Returns the MultiWorkspace manager for task routing.
-func startWorkspaceGoroutines(ctx context.Context, workspaces []WorkspaceConfig, handler a2a.TaskHandler) *workspace.MultiWorkspace {
+// Called by the CLI when multi-workspace mode is activated.
+func StartWorkspaceGoroutines(ctx context.Context, workspaces []WorkspaceConfig, handler a2a.TaskHandler) *workspace.MultiWorkspace {
 	mw := workspace.NewMultiWorkspace()
 	for _, ws := range workspaces {
 		conn := workspace.WorkspaceConn{
@@ -51,9 +52,9 @@ func startWorkspaceGoroutines(ctx context.Context, workspaces []WorkspaceConfig,
 	return mw
 }
 
-// routeWorkDir returns the project directory for a workspace-targeted task.
+// RouteWorkDir returns the project directory for a workspace-targeted task.
 // Falls back to defaultDir when the multi-workspace manager is nil or not found.
-func routeWorkDir(mw *workspace.MultiWorkspace, workspaceID, defaultDir string) string {
+func RouteWorkDir(mw *workspace.MultiWorkspace, workspaceID, defaultDir string) string {
 	if mw == nil || workspaceID == "" {
 		return defaultDir
 	}

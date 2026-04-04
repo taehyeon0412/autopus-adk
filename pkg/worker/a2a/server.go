@@ -18,8 +18,9 @@ type ServerConfig struct {
 	WorkerName string
 	Skills     []string
 	Handler    TaskHandler
-	AuthToken        string // Bearer token for backend auth (SEC-005)
-	ApprovalCallback func(ApprovalRequestParams)
+	AuthToken            string // Bearer token for backend auth (SEC-005)
+	ApprovalCallback     func(ApprovalRequestParams)
+	OnConnectionExhausted func() // called once when reconnect backoff reaches maxBackoff
 }
 
 // Server manages the A2A JSON-RPC protocol over WebSocket transport.
@@ -141,9 +142,11 @@ func (s *Server) Close() error {
 
 // messageLoop reads incoming messages and dispatches them.
 // Applies backoff on consecutive receive errors to avoid tight CPU loops (SEC-006).
+// When backoff reaches maxBackoff, OnConnectionExhausted is fired once to activate REST polling fallback.
 func (s *Server) messageLoop(ctx context.Context) {
 	const maxBackoff = 30 * time.Second
 	backoff := time.Duration(0)
+	exhaustedFired := false
 
 	for {
 		select {
@@ -165,6 +168,15 @@ func (s *Server) messageLoop(ctx context.Context) {
 			} else if backoff < maxBackoff {
 				backoff *= 2
 			}
+
+			// Fire exhausted callback once when backoff ceiling is reached.
+			if backoff >= maxBackoff && !exhaustedFired {
+				exhaustedFired = true
+				if s.config.OnConnectionExhausted != nil {
+					s.config.OnConnectionExhausted()
+				}
+			}
+
 			select {
 			case <-ctx.Done():
 				return
@@ -172,7 +184,12 @@ func (s *Server) messageLoop(ctx context.Context) {
 			}
 			continue
 		}
-		backoff = 0
+
+		// Successful receive: reset backoff and allow exhausted to fire again on future failures.
+		if backoff > 0 {
+			backoff = 0
+			exhaustedFired = false
+		}
 		s.handleMessage(ctx, data)
 	}
 }
