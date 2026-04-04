@@ -89,7 +89,8 @@ func (m *mockAdapter) ExtractResult(event adapter.StreamEvent) adapter.TaskResul
 // --- Integration: executeSubprocess tests ---
 
 func TestExecuteSubprocess_HappyPath(t *testing.T) {
-	script := `cat /dev/stdin > /dev/null; echo '{"type":"system.init"}'; echo '{"type":"result","output":"task done","cost_usd":0.03,"duration_ms":500,"session_id":"s1"}'`
+	// Use head -c0 instead of cat /dev/stdin to avoid stdin EOF deadlock.
+	script := `head -c0; echo '{"type":"system.init"}'; echo '{"type":"result","output":"task done","cost_usd":0.03,"duration_ms":500,"session_id":"s1"}'`
 	mock := &mockAdapter{name: "mock", script: script}
 
 	wl := &WorkerLoop{
@@ -110,7 +111,7 @@ func TestExecuteSubprocess_HappyPath(t *testing.T) {
 }
 
 func TestExecuteSubprocess_SubprocessFailure(t *testing.T) {
-	script := `cat /dev/stdin > /dev/null; exit 1`
+	script := `head -c0; exit 1`
 	mock := &mockAdapter{name: "mock", script: script}
 
 	wl := &WorkerLoop{
@@ -129,7 +130,7 @@ func TestExecuteSubprocess_SubprocessFailure(t *testing.T) {
 
 func TestExecuteSubprocess_ContextCancellation(t *testing.T) {
 	// Long-running script that gets cancelled.
-	script := `cat /dev/stdin > /dev/null; sleep 30`
+	script := `head -c0; sleep 30`
 	mock := &mockAdapter{name: "mock", script: script}
 
 	wl := &WorkerLoop{
@@ -152,7 +153,7 @@ func TestExecuteSubprocess_ContextCancellation(t *testing.T) {
 
 func TestExecuteSubprocess_FailWithOutput(t *testing.T) {
 	// Subprocess exits non-zero but still emits a result event.
-	script := `cat /dev/stdin > /dev/null; echo '{"type":"result","output":"partial result","cost_usd":0.01}'; exit 1`
+	script := `head -c0; echo '{"type":"result","output":"partial result","cost_usd":0.01}'; exit 1`
 	mock := &mockAdapter{name: "mock", script: script}
 
 	wl := &WorkerLoop{
@@ -171,7 +172,7 @@ func TestExecuteSubprocess_FailWithOutput(t *testing.T) {
 
 func TestExecuteSubprocess_NoResultEvent(t *testing.T) {
 	// Subprocess produces events but no result.
-	script := `cat /dev/stdin > /dev/null; echo '{"type":"system.init"}'; echo '{"type":"system.task_started"}'`
+	script := `head -c0; echo '{"type":"system.init"}'; echo '{"type":"system.task_started"}'`
 	mock := &mockAdapter{name: "mock", script: script}
 
 	wl := &WorkerLoop{
@@ -191,7 +192,7 @@ func TestExecuteSubprocess_NoResultEvent(t *testing.T) {
 // --- Integration: handleTask tests ---
 
 func TestHandleTask_HappyPath(t *testing.T) {
-	script := `cat /dev/stdin > /dev/null; echo '{"type":"result","output":"done","cost_usd":0.02,"duration_ms":300}'`
+	script := `head -c0; echo '{"type":"result","output":"done","cost_usd":0.02,"duration_ms":300}'`
 	mock := &mockAdapter{name: "mock", script: script}
 
 	wl := &WorkerLoop{
