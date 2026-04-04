@@ -1,6 +1,8 @@
 // Package config provides autopus.yaml schema and migration utilities.
 package config
 
+import "slices"
+
 // defaultProviderEntries holds the canonical default settings for known orchestra providers.
 // @AX:NOTE: [AUTO] hardcoded provider defaults — update when adding new providers or changing CLI flags
 var defaultProviderEntries = map[string]ProviderEntry{
@@ -183,10 +185,5 @@ func replaceInSlice(slice []string, old, new string) []string {
 
 // containsString reports whether slice contains s.
 func containsString(slice []string, s string) bool {
-	for _, v := range slice {
-		if v == s {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(slice, s)
 }
