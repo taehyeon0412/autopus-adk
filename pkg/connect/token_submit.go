@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+
+	"github.com/google/uuid"
 )
 
 // SubmitTokenRequest holds the data needed to submit a provider token to the server.
@@ -26,6 +28,7 @@ func (c *Client) SubmitToken(ctx context.Context, req SubmitTokenRequest) error 
 		"provider":      req.Provider,
 		"access_token":  req.ProviderToken,
 		"refresh_token": req.RefreshToken,
+		"nonce":         uuid.New().String(),
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {

@@ -247,8 +247,20 @@ func (s *Server) handleSendMessage(ctx context.Context, req JSONRPCRequest) {
 
 // dispatchTask runs the task handler and reports the result.
 // Uses a per-task cancellable context so individual tasks can be canceled (REQ-A2A-H02).
+// Applies SecurityPolicy.TimeoutSec as a hard deadline when configured.
 func (s *Server) dispatchTask(ctx context.Context, reqID json.RawMessage, params SendMessageParams) {
-	taskCtx, cancel := context.WithCancel(ctx)
+	// Apply SecurityPolicy timeout as a hard deadline for task execution.
+	// When TimeoutSec > 0, the subprocess is killed after the deadline via
+	// exec.CommandContext propagation. When 0, fall back to cancel-only (no deadline).
+	var taskCtx context.Context
+	var cancel context.CancelFunc
+	if params.SecurityPolicy.TimeoutSec > 0 {
+		timeout := time.Duration(params.SecurityPolicy.TimeoutSec) * time.Second
+		taskCtx, cancel = context.WithTimeout(ctx, timeout)
+		log.Printf("[a2a] task %s: applying timeout %ds from SecurityPolicy", params.TaskID, params.SecurityPolicy.TimeoutSec)
+	} else {
+		taskCtx, cancel = context.WithCancel(ctx)
+	}
 	s.mu.Lock()
 	s.taskContexts[params.TaskID] = cancel
 	s.mu.Unlock()
