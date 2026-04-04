@@ -120,7 +120,8 @@ func TestCheck_InaccessibleSubdir(t *testing.T) {
 	}
 }
 
-// TestCheck_UnreadableFile verifies that a file that becomes unreadable during walk is skipped.
+// TestCheck_UnreadableFile verifies that an unreadable file is skipped but reported via error.
+// Violations from readable files are still returned alongside the scan error.
 func TestCheck_UnreadableFile(t *testing.T) {
 	t.Parallel()
 	if os.Getuid() == 0 {
@@ -137,12 +138,16 @@ func TestCheck_UnreadableFile(t *testing.T) {
 	t.Cleanup(func() { _ = os.Chmod(unreadable, 0o644) })
 
 	violations, err := constraint.Check(dir, sampleConstraints(), constraint.CheckOptions{})
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	// Scan errors are now returned so the caller can decide how to handle them.
+	if err == nil {
+		t.Fatal("expected a scan error for the unreadable file, got nil")
 	}
-	// readable.go contributes 1 violation; unreadable.go is silently skipped.
+	if !strings.Contains(err.Error(), "scan errors in 1 file(s)") {
+		t.Errorf("unexpected error format: %v", err)
+	}
+	// readable.go still contributes 1 violation — scanning continues after errors.
 	if len(violations) != 1 {
-		t.Errorf("expected 1 violation, got %d", len(violations))
+		t.Errorf("expected 1 violation from readable.go, got %d", len(violations))
 	}
 }
 

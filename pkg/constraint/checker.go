@@ -33,6 +33,7 @@ func Check(dir string, constraints []Constraint, opts CheckOptions) ([]Violation
 	}
 
 	var violations []Violation
+	var scanErrors []string
 	err := filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil // skip inaccessible entries
@@ -51,14 +52,21 @@ func Check(dir string, constraints []Constraint, opts CheckOptions) ([]Violation
 
 		fileViolations, scanErr := checkFile(path, filtered)
 		if scanErr != nil {
-			// @AX:WARN [AUTO]: Propagate or log scan errors — SPEC-ANTI-001 @AX:CYCLE:3 @AX:REASON: escalated from TODO after 3 cycles
-			return nil // skip unreadable files
+			// @AX:NOTE [AUTO]: Scan errors collected and returned — files that fail to read are skipped but reported
+			scanErrors = append(scanErrors, fmt.Sprintf("%s: %v", path, scanErr))
+			return nil // continue scanning other files
 		}
 		violations = append(violations, fileViolations...)
 		return nil
 	})
 
-	return violations, err
+	var resultErr error
+	if err != nil {
+		resultErr = err
+	} else if len(scanErrors) > 0 {
+		resultErr = fmt.Errorf("scan errors in %d file(s): %s", len(scanErrors), strings.Join(scanErrors, "; "))
+	}
+	return violations, resultErr
 }
 
 // checkFile scans a single file for constraint violations line by line.

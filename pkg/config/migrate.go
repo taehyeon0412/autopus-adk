@@ -130,8 +130,7 @@ func PlatformToProvider(platform string) string {
 // MigrateOpencodeToCodex replaces opencode provider entries with codex.
 // Removes opencode from providers and commands, adds codex if not already present.
 // Returns (changed bool, err error).
-// @AX:WARN [AUTO] @AX:CYCLE:2 destructive migration — deletes opencode entry permanently; no rollback path
-// @AX:REASON: SPEC-ORCHCFG-002 one-way migration; monitor impact in subsequent releases
+// @AX:NOTE [AUTO]: One-way migration per SPEC-ORCHCFG-002 — opencode entries are permanently replaced with codex
 func MigrateOpencodeToCodex(cfg *HarnessConfig) (bool, error) {
 	if !cfg.Orchestra.Enabled {
 		return false, nil
