@@ -175,7 +175,7 @@ func WaitForCallback(ctx context.Context, cfg OAuthConfig) (*OAuthResult, error)
 	}
 }
 
-// @AX:ANCHOR [AUTO] @AX:REASON: public API — called by CLI connect wizard and potentially external consumers
+// @AX:NOTE [AUTO] @AX:REASON: public API — fan_in < 3, downgraded from ANCHOR during sync
 // ExchangeAuthCode exchanges an authorization code for tokens.
 func ExchangeAuthCode(ctx context.Context, req CallbackRequest) (*OAuthResult, error) {
 	if req.Code == "" {
@@ -205,8 +205,8 @@ func ExchangeAuthCode(ctx context.Context, req CallbackRequest) (*OAuthResult, e
 	}
 	httpReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	// @AX:WARN [AUTO] @AX:REASON: http.DefaultClient has no timeout — long-running requests possible
-	resp, err := http.DefaultClient.Do(httpReq)
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("token exchange: %w", err)
 	}
