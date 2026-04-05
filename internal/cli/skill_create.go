@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// @AX:NOTE [AUTO] @AX:REASON: skill template format must match .claude/skills/ conventions
+// @AX:NOTE [AUTO] @AX:EXCLUDE @AX:REASON: skill template format must match .claude/skills/ conventions; TODO strings inside skillTemplate are user-facing placeholders, not code defects
 const skillTemplate = `---
 name: {{.Name}}
 description: {{.Description}}

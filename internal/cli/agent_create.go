@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// @AX:NOTE [AUTO] @AX:REASON: agent template format must match .claude/agents/ conventions
+// @AX:NOTE [AUTO] @AX:EXCLUDE @AX:REASON: agent template format must match .claude/agents/ conventions; TODO strings inside agentTemplate are user-facing placeholders, not code defects
 const agentTemplate = `---
 name: {{.Name}}
 description: {{.Description}}

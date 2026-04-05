@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -113,4 +115,83 @@ func TestPipelineRunCmd_DryRunFlag(t *testing.T) {
 	// Then: the dry-run flag is set to true
 	require.NoError(t, err)
 	assert.True(t, cfg.DryRun)
+}
+
+// makeDummyBinary creates a zero-byte executable file at tmpDir/name.
+// exec.LookPath only checks file existence and execute permission.
+func makeDummyBinary(t *testing.T, tmpDir, name string) {
+	t.Helper()
+	path := filepath.Join(tmpDir, name)
+	require.NoError(t, os.WriteFile(path, []byte{}, 0o755))
+}
+
+// TestResolvePlatform verifies the platform resolution logic across all
+// combinations of explicit input and PATH state (REQ-1 through REQ-5).
+// Note: t.Parallel() is omitted at both levels — subtests use t.Setenv which
+// mutates a global resource (PATH) and cannot run concurrently.
+func TestResolvePlatform(t *testing.T) {
+	tests := []struct {
+		name     string
+		platform string
+		// binaries lists executables to create in the isolated tmpDir
+		binaries []string
+		want     string
+	}{
+		{
+			name:     "explicit platform returned as-is",
+			platform: "myplatform",
+			binaries: nil,
+			want:     "myplatform",
+		},
+		{
+			name:     "claude in PATH",
+			platform: "",
+			binaries: []string{"claude"},
+			want:     "claude",
+		},
+		{
+			name:     "codex only in PATH",
+			platform: "",
+			binaries: []string{"codex"},
+			want:     "codex",
+		},
+		{
+			name:     "gemini only in PATH",
+			platform: "",
+			binaries: []string{"gemini"},
+			want:     "gemini",
+		},
+		{
+			name:     "multiple binaries — claude wins by priority",
+			platform: "",
+			binaries: []string{"claude", "codex", "gemini"},
+			want:     "claude",
+		},
+		{
+			name:     "empty PATH fallback to claude default",
+			platform: "",
+			binaries: nil,
+			want:     "claude",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Note: t.Parallel() is intentionally omitted — t.Setenv modifies a
+			// global resource (PATH) and is incompatible with parallel subtests.
+
+			// Given: an isolated temporary directory used as the entire PATH
+			tmpDir := t.TempDir()
+			for _, bin := range tt.binaries {
+				makeDummyBinary(t, tmpDir, bin)
+			}
+			t.Setenv("PATH", tmpDir)
+
+			// When: resolvePlatform is called with the given platform string
+			got := resolvePlatform(tt.platform)
+
+			// Then: the result matches the expected platform
+			assert.Equal(t, tt.want, got)
+		})
+	}
 }

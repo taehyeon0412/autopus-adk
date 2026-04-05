@@ -46,6 +46,7 @@ func newPipelineRunCmdWithConfig(cfg *pipelineRunConfig) *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&cfg.Platform, "platform", "", "AI platform to use (claude, codex, gemini). Auto-detected when omitted.")
+	// @AX:NOTE: [AUTO] magic constant — default strategy "sequential" encodes execution policy; change with care
 	cmd.Flags().Var(newStrategyValue("sequential", &cfg.Strategy), "strategy", "Execution strategy: sequential or parallel.")
 	cmd.Flags().BoolVar(&cfg.Continue, "continue", false, "Resume from the last saved checkpoint.")
 	cmd.Flags().BoolVar(&cfg.DryRun, "dry-run", false, "Build prompts without invoking the backend.")
@@ -98,7 +99,6 @@ func resolvePlatform(platform string) string {
 }
 
 // @AX:ANCHOR: [AUTO] CLI integration boundary — wires cobra command args into pipeline engine (fan-in: CLI + tests)
-// @AX:TODO: [AUTO] resolvePlatform has no unit test — PATH-dependent behavior is untested @AX:CYCLE:1
 // runPipeline executes the pipeline for the given SPEC ID.
 func runPipeline(cmd *cobra.Command, specID string, cfg *pipelineRunConfig) error {
 	platform := resolvePlatform(cfg.Platform)
