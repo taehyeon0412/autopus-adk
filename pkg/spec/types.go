@@ -66,11 +66,55 @@ const (
 	VerdictReject ReviewVerdict = "REJECT"
 )
 
+// FindingStatus represents the lifecycle state of a review finding.
+type FindingStatus string
+
+const (
+	FindingStatusOpen       FindingStatus = "open"
+	FindingStatusResolved   FindingStatus = "resolved"
+	FindingStatusRegressed  FindingStatus = "regressed"
+	FindingStatusDeferred   FindingStatus = "deferred"
+	FindingStatusOutOfScope FindingStatus = "out_of_scope"
+)
+
+// FindingCategory classifies the domain of a review finding.
+type FindingCategory string
+
+const (
+	FindingCategoryCorrectness  FindingCategory = "correctness"
+	FindingCategoryCompleteness FindingCategory = "completeness"
+	FindingCategoryFeasibility  FindingCategory = "feasibility"
+	FindingCategoryStyle        FindingCategory = "style"
+	FindingCategorySecurity     FindingCategory = "security"
+)
+
+// ReviewMode determines the review phase behavior.
+type ReviewMode string
+
+const (
+	ReviewModeDiscover ReviewMode = "discover"
+	ReviewModeVerify   ReviewMode = "verify"
+)
+
+// ReviewPromptOptions configures mode-aware review prompt generation.
+type ReviewPromptOptions struct {
+	Mode           ReviewMode      // discover or verify
+	PriorFindings  []ReviewFinding // unresolved findings from previous round (verify mode)
+	StaticFindings []ReviewFinding // pre-seeded findings from static analysis (discover mode)
+}
+
 // ReviewFinding is a single issue found during review.
 type ReviewFinding struct {
-	Provider    string // provider that found the issue
-	Severity    string // critical, major, minor, suggestion
-	Description string // finding description
+	Provider     string          // provider that found the issue
+	Severity     string          // critical, major, minor, suggestion
+	Description  string          // finding description
+	ID           string          // revision-agnostic ID: F-001, F-002, ...
+	Status       FindingStatus   // open, resolved, regressed, deferred, out_of_scope
+	Category     FindingCategory // correctness, completeness, feasibility, style, security
+	ScopeRef     string          // requirement ID or normalized file path
+	FirstSeenRev int             // revision when first discovered
+	LastSeenRev  int             // most recent revision evaluated
+	EscapeHatch  bool            // true if added via critical/security escape hatch in verify mode
 }
 
 // ReviewResult is the aggregated result of a multi-provider review.

@@ -21,7 +21,7 @@ func TestBuildReviewPrompt_WithSpec(t *testing.T) {
 		},
 	}
 
-	prompt := BuildReviewPrompt(doc, "// existing auth code\nfunc Login() {}")
+	prompt := BuildReviewPrompt(doc, "// existing auth code\nfunc Login() {}", ReviewPromptOptions{})
 	assert.Contains(t, prompt, "SPEC-AUTH-001")
 	assert.Contains(t, prompt, "REQ-001")
 	assert.Contains(t, prompt, "existing auth code")
@@ -35,7 +35,7 @@ func TestBuildReviewPrompt_EmptyContext(t *testing.T) {
 		Title: "Test Feature",
 	}
 
-	prompt := BuildReviewPrompt(doc, "")
+	prompt := BuildReviewPrompt(doc, "", ReviewPromptOptions{})
 	assert.Contains(t, prompt, "SPEC-TEST-001")
 	assert.NotContains(t, prompt, "Existing Code Context")
 }
@@ -47,7 +47,7 @@ func TestParseVerdict_Pass(t *testing.T) {
 VERDICT: PASS
 The SPEC is well-defined and complete.`
 
-	result := ParseVerdict("SPEC-TEST-001", output, "claude", 0)
+	result := ParseVerdict("SPEC-TEST-001", output, "claude", 0, nil)
 	assert.Equal(t, VerdictPass, result.Verdict)
 	assert.Equal(t, "SPEC-TEST-001", result.SpecID)
 }
@@ -60,7 +60,7 @@ VERDICT: REVISE
 FINDING: [major] Missing error handling for edge case
 FINDING: [minor] Naming could be clearer`
 
-	result := ParseVerdict("SPEC-AUTH-001", output, "claude", 1)
+	result := ParseVerdict("SPEC-AUTH-001", output, "claude", 1, nil)
 	assert.Equal(t, VerdictRevise, result.Verdict)
 	assert.Equal(t, 1, result.Revision)
 	assert.Len(t, result.Findings, 2)
@@ -74,7 +74,7 @@ func TestParseVerdict_Reject(t *testing.T) {
 	output := `VERDICT: REJECT
 FINDING: [critical] Fundamental design flaw`
 
-	result := ParseVerdict("SPEC-X-001", output, "gemini", 0)
+	result := ParseVerdict("SPEC-X-001", output, "gemini", 0, nil)
 	assert.Equal(t, VerdictReject, result.Verdict)
 	assert.Len(t, result.Findings, 1)
 	assert.Equal(t, "critical", result.Findings[0].Severity)
@@ -84,7 +84,7 @@ func TestParseVerdict_NoExplicitVerdict(t *testing.T) {
 	t.Parallel()
 
 	output := "The spec looks good overall. No major issues found."
-	result := ParseVerdict("SPEC-TEST-001", output, "claude", 0)
+	result := ParseVerdict("SPEC-TEST-001", output, "claude", 0, nil)
 	// Default to PASS when no explicit verdict
 	assert.Equal(t, VerdictPass, result.Verdict)
 }
@@ -95,7 +95,7 @@ func TestParseVerdict_FindingWithoutVerdict(t *testing.T) {
 	output := `Some analysis here.
 FINDING: [suggestion] Consider adding more tests`
 
-	result := ParseVerdict("SPEC-TEST-001", output, "claude", 0)
+	result := ParseVerdict("SPEC-TEST-001", output, "claude", 0, nil)
 	// Has findings but no REVISE/REJECT verdict → PASS with findings
 	assert.Equal(t, VerdictPass, result.Verdict)
 	assert.Len(t, result.Findings, 1)
