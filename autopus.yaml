@@ -71,8 +71,8 @@ orchestra:
             args: [--print, --model, opus, --effort, high]
         gemini:
             binary: gemini
-            args: [-m, gemini-3.1-pro-preview]
-            prompt_via_args: true
+            args: [-m, gemini-3.1-pro-preview, -p, ""]
+            pane_args: [-m, gemini-3.1-pro-preview]
         codex:
             binary: codex
             args: [exec, --full-auto, -m, gpt-5.4]

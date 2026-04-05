@@ -228,21 +228,21 @@ func TestProviderEntry_PromptViaArgs(t *testing.T) {
 		assert.False(t, p.PromptViaArgs)
 	})
 
-	t.Run("can be set to true", func(t *testing.T) {
+	t.Run("can be set to false", func(t *testing.T) {
 		t.Parallel()
-		p := ProviderEntry{Binary: "gemini", Args: []string{}, PromptViaArgs: true}
-		assert.True(t, p.PromptViaArgs)
+		p := ProviderEntry{Binary: "gemini", Args: []string{"-m", "gemini-3.1-pro-preview", "-p", ""}, PromptViaArgs: false}
+		assert.False(t, p.PromptViaArgs)
 	})
 
-	t.Run("yaml deserialization preserves PromptViaArgs true", func(t *testing.T) {
+	t.Run("yaml deserialization preserves PromptViaArgs false", func(t *testing.T) {
 		t.Parallel()
 		conf := OrchestraConf{
 			Providers: map[string]ProviderEntry{
-				"gemini": {Binary: "gemini", Args: []string{}, PromptViaArgs: true},
+				"gemini": {Binary: "gemini", Args: []string{"-m", "gemini-3.1-pro-preview", "-p", ""}, PromptViaArgs: false},
 				"claude": {Binary: "claude", Args: []string{"--print"}},
 			},
 		}
-		assert.True(t, conf.Providers["gemini"].PromptViaArgs)
+		assert.False(t, conf.Providers["gemini"].PromptViaArgs)
 		assert.False(t, conf.Providers["claude"].PromptViaArgs)
 	})
 }

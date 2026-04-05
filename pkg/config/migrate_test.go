@@ -84,7 +84,7 @@ func TestMigrateOrchestraConfig_CodexMissingFromCommands(t *testing.T) {
 			Providers: map[string]ProviderEntry{
 				"claude": {Binary: "claude", Args: []string{"--print"}},
 				"codex":  {Binary: "codex", Args: []string{"--quiet"}, PromptViaArgs: true},
-				"gemini": {Binary: "gemini", Args: []string{}, PromptViaArgs: true},
+				"gemini": {Binary: "gemini", Args: []string{"-m", "gemini-3.1-pro-preview", "-p", ""}, PromptViaArgs: false},
 			},
 			Commands: map[string]CommandEntry{
 				"review": {Strategy: "debate", Providers: []string{"claude", "codex", "gemini"}},
@@ -210,7 +210,7 @@ func TestMigrateOrchestraConfig_GeminiCliMapsToGeminiProvider(t *testing.T) {
 	gemini, ok := cfg.Orchestra.Providers["gemini"]
 	require.True(t, ok, "gemini provider must exist after migrating gemini-cli platform")
 	assert.Equal(t, "gemini", gemini.Binary, "gemini provider Binary must be 'gemini'")
-	assert.True(t, gemini.PromptViaArgs, "gemini provider must have PromptViaArgs=true")
+	assert.False(t, gemini.PromptViaArgs, "gemini provider must have PromptViaArgs=false")
 }
 
 // TestMigrateOrchestraConfig_MixedKnownUnknownPlatforms verifies that known

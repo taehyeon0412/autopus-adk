@@ -15,7 +15,7 @@ func TestDefaultFullConfig_GeminiPromptViaArgs(t *testing.T) {
 
 	gemini, ok := cfg.Orchestra.Providers["gemini"]
 	require.True(t, ok, "gemini provider must exist in default full config")
-	assert.True(t, gemini.PromptViaArgs, "gemini provider must have PromptViaArgs=true")
+	assert.False(t, gemini.PromptViaArgs, "gemini provider must have PromptViaArgs=false")
 }
 
 func TestDefaultFullConfig_OtherProvidersPromptViaArgsFalse(t *testing.T) {

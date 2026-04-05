@@ -80,8 +80,8 @@ orchestra:
       prompt_via_args: true
     gemini:
       binary: gemini
-      args: ["-m", "gemini-3.1-pro-preview"]
-      prompt_via_args: true
+      args: ["-m", "gemini-3.1-pro-preview", "-p", ""]
+      pane_args: ["-m", "gemini-3.1-pro-preview"]
   commands:
     plan:
       strategy: consensus

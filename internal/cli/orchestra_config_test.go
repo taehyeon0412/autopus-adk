@@ -15,7 +15,7 @@ func TestResolveProviders_FlagOverride(t *testing.T) {
 	conf := &config.OrchestraConf{
 		Providers: map[string]config.ProviderEntry{
 			"claude": {Binary: "claude", Args: []string{"--print"}},
-			"gemini": {Binary: "gemini", Args: []string{}, PromptViaArgs: true},
+			"gemini": {Binary: "gemini", Args: []string{"-m", "gemini-3.1-pro-preview", "-p", ""}, PromptViaArgs: false},
 		},
 		Commands: map[string]config.CommandEntry{
 			"review": {Strategy: "debate", Providers: []string{"claude", "gemini"}},
@@ -34,7 +34,7 @@ func TestResolveProviders_CommandConfig(t *testing.T) {
 	conf := &config.OrchestraConf{
 		Providers: map[string]config.ProviderEntry{
 			"claude": {Binary: "claude", Args: []string{"--print"}},
-			"gemini": {Binary: "gemini", Args: []string{}, PromptViaArgs: true},
+			"gemini": {Binary: "gemini", Args: []string{"-m", "gemini-3.1-pro-preview", "-p", ""}, PromptViaArgs: false},
 			"codex":  {Binary: "codex", Args: []string{"--quiet"}},
 		},
 		Commands: map[string]config.CommandEntry{
@@ -60,7 +60,7 @@ func TestResolveProviders_AllConfigProviders(t *testing.T) {
 	conf := &config.OrchestraConf{
 		Providers: map[string]config.ProviderEntry{
 			"claude": {Binary: "claude", Args: []string{"--print"}},
-			"gemini": {Binary: "gemini", Args: []string{}, PromptViaArgs: true},
+			"gemini": {Binary: "gemini", Args: []string{"-m", "gemini-3.1-pro-preview", "-p", ""}, PromptViaArgs: false},
 		},
 		Commands: map[string]config.CommandEntry{},
 	}
@@ -75,7 +75,7 @@ func TestResolveProviders_PromptViaArgsPropagated(t *testing.T) {
 
 	conf := &config.OrchestraConf{
 		Providers: map[string]config.ProviderEntry{
-			"gemini": {Binary: "gemini", Args: []string{}, PromptViaArgs: true},
+			"gemini": {Binary: "gemini", Args: []string{"-m", "gemini-3.1-pro-preview", "-p", ""}, PromptViaArgs: false},
 			"claude": {Binary: "claude", Args: []string{"--print"}, PromptViaArgs: false},
 		},
 		Commands: map[string]config.CommandEntry{},
@@ -86,7 +86,7 @@ func TestResolveProviders_PromptViaArgsPropagated(t *testing.T) {
 
 	for _, p := range providers {
 		if p.Name == "gemini" {
-			assert.True(t, p.PromptViaArgs, "gemini must have PromptViaArgs=true")
+			assert.False(t, p.PromptViaArgs, "gemini must have PromptViaArgs=false")
 		}
 		if p.Name == "claude" {
 			assert.False(t, p.PromptViaArgs, "claude must have PromptViaArgs=false")

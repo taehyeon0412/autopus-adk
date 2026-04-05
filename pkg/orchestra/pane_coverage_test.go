@@ -82,15 +82,15 @@ func TestHasSentinel_FileNotExists(t *testing.T) {
 	assert.False(t, hasSentinel("/tmp/nonexistent-autopus-test-file.out"))
 }
 
-// TestBuildPaneCommand_PromptViaArgs covers the PromptViaArgs=true branch.
+// TestBuildPaneCommand_PromptViaArgs covers the PromptViaArgs=false (stdin) branch for gemini.
 func TestBuildPaneCommand_PromptViaArgs(t *testing.T) {
 	t.Parallel()
-	p := ProviderConfig{Name: "gemini", Binary: "gemini", Args: []string{"-p", "--json"}, PromptViaArgs: true}
+	p := ProviderConfig{Name: "gemini", Binary: "gemini", Args: []string{"-m", "gemini-3.1-pro-preview", "-p", ""}, PromptViaArgs: false}
 	cmd := buildPaneCommand(p, "hello world", "/tmp/test.out")
-	// SEC-001: prompt is now single-quoted for shell safety
-	assert.Contains(t, cmd, "'hello world'")
+	// gemini now uses stdin heredoc mode (PromptViaArgs=false)
+	assert.Contains(t, cmd, "hello world")
 	assert.Contains(t, cmd, "tee '/tmp/test.out'")
-	assert.NotContains(t, cmd, "PROMPT_EOF")
+	assert.Contains(t, cmd, "PROMPT_EOF")
 }
 
 // TestBuildPaneCommand_StdinMode covers the PromptViaArgs=false branch.
