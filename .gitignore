@@ -24,6 +24,7 @@ coverage.out
 # Build artifacts
 /auto
 /auto_prev
+/generate-templates
 dist/
 coverage.html
 sigmap.test
