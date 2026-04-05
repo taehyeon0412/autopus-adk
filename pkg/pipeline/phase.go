@@ -36,8 +36,8 @@ func DefaultPhases() []Phase {
 		{ID: PhasePlan, DependsOn: nil},
 		{ID: PhaseTestScaffold, DependsOn: []PhaseID{PhasePlan}},
 		{ID: PhaseImplement, DependsOn: []PhaseID{PhaseTestScaffold}},
-		{ID: PhaseValidate, DependsOn: []PhaseID{PhaseImplement}},
-		{ID: PhaseReview, DependsOn: []PhaseID{PhaseValidate}},
+		{ID: PhaseValidate, DependsOn: []PhaseID{PhaseImplement}, Gate: GateValidation, MaxRetries: 3},
+		{ID: PhaseReview, DependsOn: []PhaseID{PhaseValidate}, Gate: GateReview, MaxRetries: 2},
 	}
 }
 

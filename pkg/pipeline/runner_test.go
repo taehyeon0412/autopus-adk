@@ -19,7 +19,7 @@ func TestSequentialRunner_RunPhases_ExecutesInOrder(t *testing.T) {
 
 	// Given: a SequentialRunner with 5 phases and a recording backend
 	recorder := &FakeBackend{
-		Responses: []string{"out1", "out2", "out3", "out4", "out5"},
+		Responses: []string{"out1", "out2", "out3", "Verdict: PASS", "Verdict: APPROVE"},
 	}
 	phases := pipeline.DefaultPhases()
 	runner := pipeline.NewSequentialRunner(recorder)
@@ -50,7 +50,7 @@ func TestSequentialRunner_RunPhases_SavesCheckpoint(t *testing.T) {
 	// Given: a SequentialRunner with a checkpoint directory
 	dir := t.TempDir()
 	recorder := &FakeBackend{
-		Responses: []string{"out1", "out2", "out3", "out4", "out5"},
+		Responses: []string{"out1", "out2", "out3", "Verdict: PASS", "Verdict: APPROVE"},
 	}
 	phases := pipeline.DefaultPhases()
 	runner := pipeline.NewSequentialRunner(recorder)

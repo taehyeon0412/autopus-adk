@@ -2,7 +2,6 @@ package learn
 
 import (
 	"fmt"
-	"time"
 )
 
 func recordEntry(store *Store, entryType EntryType, opts RecordOpts) error {
@@ -12,25 +11,7 @@ func recordEntry(store *Store, entryType EntryType, opts RecordOpts) error {
 	if opts.Pattern == "" {
 		return fmt.Errorf("pattern is required")
 	}
-
-	id, err := store.NextID()
-	if err != nil {
-		return err
-	}
-
-	entry := LearningEntry{
-		ID:         id,
-		Timestamp:  time.Now(),
-		Type:       entryType,
-		Phase:      opts.Phase,
-		SpecID:     opts.SpecID,
-		Files:      opts.Files,
-		Packages:   opts.Packages,
-		Pattern:    opts.Pattern,
-		Resolution: opts.Resolution,
-		Severity:   opts.Severity,
-	}
-	return store.Append(entry)
+	return store.AppendAtomic(entryType, opts)
 }
 
 // RecordGateFail records a gate failure learning entry.

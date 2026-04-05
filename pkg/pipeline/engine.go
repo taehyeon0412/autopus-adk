@@ -46,6 +46,8 @@ type EngineConfig struct {
 	Backend    PhaseBackend
 	Checkpoint *Checkpoint
 	DryRun     bool
+	// RunConfig holds runner-level configuration including the learn store.
+	RunConfig RunConfig
 }
 
 // PipelineResult holds the outcome of a pipeline run.

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/insajin/autopus-adk/pkg/learn"
 	"gopkg.in/yaml.v3"
 )
 
@@ -18,6 +19,12 @@ type RunConfig struct {
 	// CheckpointDir is the directory where checkpoint files are written.
 	// If empty, no checkpoint is saved.
 	CheckpointDir string
+	// LearnStore is the optional learning store for recording gate failures.
+	// When nil, learning hooks are silently skipped.
+	LearnStore *learn.Store
+	// CoverageThreshold is the minimum coverage percentage for the coverage gap hook.
+	// Defaults to 85.0 when zero.
+	CoverageThreshold float64
 }
 
 // SequentialRunner executes pipeline phases one at a time in order.
@@ -38,7 +45,7 @@ func (r *SequentialRunner) RunPhases(ctx context.Context, phases []Phase, cfg Ru
 	var previousOutput string
 
 	for _, phase := range phases {
-		result, err := r.runPhaseWithRetry(ctx, phase, previousOutput)
+		result, err := r.runPhaseWithRetry(ctx, phase, previousOutput, cfg)
 		if err != nil {
 			return nil, err
 		}
@@ -61,7 +68,7 @@ const defaultMaxRetries = 10
 
 // runPhaseWithRetry executes a single phase, retrying on gate failure.
 // When MaxRetries is 0, a safety cap of defaultMaxRetries is applied.
-func (r *SequentialRunner) runPhaseWithRetry(ctx context.Context, phase Phase, previousOutput string) (PhaseResult, error) {
+func (r *SequentialRunner) runPhaseWithRetry(ctx context.Context, phase Phase, previousOutput string, cfg RunConfig) (PhaseResult, error) {
 	prompt := buildRunnerPrompt(phase.ID, previousOutput)
 
 	maxRetries := phase.MaxRetries
@@ -72,6 +79,7 @@ func (r *SequentialRunner) runPhaseWithRetry(ctx context.Context, phase Phase, p
 	for attempt := 0; ; attempt++ {
 		resp, err := r.backend.Execute(ctx, PhaseRequest{Prompt: prompt, PhaseID: phase.ID})
 		if err != nil {
+			learnHookExecutorError(cfg.LearnStore, phase.ID, err)
 			return PhaseResult{}, fmt.Errorf("phase %s: %w", phase.ID, err)
 		}
 
@@ -80,7 +88,20 @@ func (r *SequentialRunner) runPhaseWithRetry(ctx context.Context, phase Phase, p
 			return PhaseResult{PhaseID: phase.ID, Output: resp.Output, Verdict: verdict}, nil
 		}
 
+		learnHookGateFail(cfg.LearnStore, phase.ID, phase.Gate, resp.Output, attempt)
+
+		threshold := cfg.CoverageThreshold
+		if threshold <= 0 {
+			threshold = 85.0
+		}
+		learnHookCoverageGap(cfg.LearnStore, resp.Output, threshold)
+
+		if phase.Gate == GateReview {
+			learnHookReviewIssue(cfg.LearnStore, resp.Output, cfg.SpecID)
+		}
+
 		if attempt >= maxRetries {
+			learnHookGateFail(cfg.LearnStore, phase.ID, phase.Gate, resp.Output, attempt)
 			return PhaseResult{}, fmt.Errorf("phase %s: max retries (%d) exceeded", phase.ID, maxRetries)
 		}
 	}
@@ -99,7 +120,7 @@ func NewParallelRunner(backend PhaseBackend) *ParallelRunner {
 // @AX:WARN: [AUTO] goroutines without context cancellation check in worker body — ctx is passed to Execute but goroutine does not short-circuit on ctx.Done() before calling Execute
 // RunPhases executes all given phases in parallel and returns their results.
 // Results are returned in the same order as the input phases.
-func (r *ParallelRunner) RunPhases(ctx context.Context, phases []Phase, _ RunConfig) ([]PhaseResult, error) {
+func (r *ParallelRunner) RunPhases(ctx context.Context, phases []Phase, cfg RunConfig) ([]PhaseResult, error) {
 	n := len(phases)
 	results := make([]PhaseResult, n)
 	errs := make([]error, n)
@@ -114,13 +135,17 @@ func (r *ParallelRunner) RunPhases(ctx context.Context, phases []Phase, _ RunCon
 		wg.Add(1)
 		go func(idx int, ph Phase) {
 			defer wg.Done()
-			<-gate // wait for all goroutines to be launched before executing
+			<-gate
 			resp, err := r.backend.Execute(ctx, PhaseRequest{PhaseID: ph.ID})
 			if err != nil {
+				learnHookExecutorError(cfg.LearnStore, ph.ID, err)
 				errs[idx] = fmt.Errorf("phase %s: %w", ph.ID, err)
 				return
 			}
 			verdict := EvaluateGate(ph.Gate, resp.Output)
+			if verdict != VerdictPass && ph.Gate != GateNone {
+				learnHookGateFail(cfg.LearnStore, ph.ID, ph.Gate, resp.Output, 0)
+			}
 			results[idx] = PhaseResult{PhaseID: ph.ID, Output: resp.Output, Verdict: verdict}
 		}(i, phase)
 	}

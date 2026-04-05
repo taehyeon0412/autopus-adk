@@ -3,10 +3,13 @@ package cli
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 
+	"github.com/insajin/autopus-adk/pkg/learn"
 	"github.com/insajin/autopus-adk/pkg/pipeline"
 )
 
@@ -108,12 +111,23 @@ func runPipeline(cmd *cobra.Command, specID string, cfg *pipelineRunConfig) erro
 		return err
 	}
 
+	// Initialize learn store if learnings directory exists.
+	var learnStore *learn.Store
+	learningsDir := filepath.Join(".autopus", "learnings")
+	if _, statErr := os.Stat(learningsDir); statErr == nil {
+		learnStore, _ = learn.NewStore(".")
+	}
+
 	engineCfg := pipeline.EngineConfig{
 		SpecID:     specID,
 		Platform:   platform,
 		Strategy:   pipeline.Strategy(cfg.Strategy),
 		Checkpoint: cp,
 		DryRun:     cfg.DryRun,
+		RunConfig: pipeline.RunConfig{
+			SpecID:     specID,
+			LearnStore: learnStore,
+		},
 	}
 
 	engine := pipeline.NewSubprocessEngine(engineCfg)
@@ -125,4 +139,3 @@ func runPipeline(cmd *cobra.Command, specID string, cfg *pipelineRunConfig) erro
 	fmt.Fprintf(cmd.OutOrStdout(), "Pipeline complete: %d phases executed\n", len(result.PhaseResults))
 	return nil
 }
-

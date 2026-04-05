@@ -8,11 +8,14 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 )
 
 // Store manages learning entries in a JSONL file.
 type Store struct {
 	path string // path to pipeline.jsonl
+	mu   sync.Mutex
 }
 
 // NewStore creates a store rooted at dir, ensuring .autopus/learnings/ exists.
@@ -93,6 +96,32 @@ func (s *Store) NextID() (string, error) {
 		}
 	}
 	return fmt.Sprintf("L-%03d", maxNum+1), nil
+}
+
+// AppendAtomic atomically generates an ID and appends a new learning entry.
+// It holds a mutex to prevent race conditions between NextID and Append.
+func (s *Store) AppendAtomic(entryType EntryType, opts RecordOpts) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	id, err := s.NextID()
+	if err != nil {
+		return fmt.Errorf("next id: %w", err)
+	}
+
+	entry := LearningEntry{
+		ID:         id,
+		Timestamp:  time.Now(),
+		Type:       entryType,
+		Phase:      opts.Phase,
+		SpecID:     opts.SpecID,
+		Files:      opts.Files,
+		Packages:   opts.Packages,
+		Pattern:    opts.Pattern,
+		Resolution: opts.Resolution,
+		Severity:   opts.Severity,
+	}
+	return s.Append(entry)
 }
 
 // UpdateReuseCount increments reuse_count for the entry with the given ID.
