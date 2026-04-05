@@ -12,8 +12,8 @@ import (
 	"github.com/insajin/autopus-adk/pkg/detect"
 )
 
-// RunOrchestra는 설정에 따라 오케스트레이션을 실행한다.
-// @AX:ANCHOR: [AUTO] public API — 4 callers (pane_runner x2, orchestra.go, spec_review.go); do not change signature
+// RunOrchestra executes orchestration according to the given config.
+// @AX:ANCHOR: [AUTO] public API — 4 callers; do not change signature
 func RunOrchestra(ctx context.Context, cfg OrchestraConfig) (*OrchestraResult, error) {
 	if len(cfg.Providers) == 0 {
 		return nil, fmt.Errorf("providers 목록이 비어있습니다")
@@ -22,13 +22,11 @@ func RunOrchestra(ctx context.Context, cfg OrchestraConfig) (*OrchestraResult, e
 		return nil, fmt.Errorf("유효하지 않은 전략: %q", cfg.Strategy)
 	}
 
-	// Delegate to pane runner when a non-plain terminal is configured
-	// and subprocess mode is not explicitly requested
+	// Delegate to pane runner for non-plain terminals
 	if !cfg.SubprocessMode && cfg.Terminal != nil && cfg.Terminal.Name() != "plain" {
 		return RunPaneOrchestra(ctx, cfg)
 	}
 
-	// 타임아웃 설정
 	timeout := cfg.TimeoutSeconds
 	if timeout <= 0 {
 		timeout = 120
@@ -36,7 +34,6 @@ func RunOrchestra(ctx context.Context, cfg OrchestraConfig) (*OrchestraResult, e
 	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(timeout)*time.Second)
 	defer cancel()
 
-	// 바이너리 설치 여부 사전 검증
 	for _, p := range cfg.Providers {
 		if !detect.IsInstalled(p.Binary) {
 			return nil, fmt.Errorf("프로바이더 바이너리를 찾을 수 없습니다: %q", p.Binary)
@@ -69,7 +66,6 @@ func RunOrchestra(ctx context.Context, cfg OrchestraConfig) (*OrchestraResult, e
 
 	total := time.Since(start)
 
-	// 전략별 병합 처리
 	var merged, summary string
 	switch cfg.Strategy {
 	case StrategyConsensus:
@@ -115,25 +111,32 @@ type providerResult struct {
 	idx  int
 }
 
-// runParallel executes all providers in parallel with graceful degradation.
-// It collects all successful responses and failed provider info.
-// Returns (responses, failed, error). Error is non-nil only when ALL providers fail.
-// @AX:WARN: [AUTO] goroutines launched without per-goroutine context propagation — cancellation relies on shared ctx
+// runParallel executes all providers in parallel with per-goroutine context (R1)
+// and per-provider timeout (R2). Error is non-nil only when ALL providers fail.
 func runParallel(ctx context.Context, cfg OrchestraConfig) ([]ProviderResponse, []FailedProvider, error) {
 	results := make([]providerResult, len(cfg.Providers))
 	var wg sync.WaitGroup
 
+	// R2: per-provider timeout from config (default 120s)
+	perTimeout := time.Duration(cfg.TimeoutSeconds) * time.Second
+	if perTimeout <= 0 {
+		perTimeout = 120 * time.Second
+	}
+
 	for i, p := range cfg.Providers {
 		wg.Add(1)
-		go func(idx int, provider ProviderConfig) {
+		// R1: derive per-goroutine context for independent cancellation
+		childCtx, childCancel := context.WithTimeout(ctx, perTimeout)
+		go func(idx int, provider ProviderConfig, cancel context.CancelFunc) {
 			defer wg.Done()
-			resp, err := runProvider(ctx, provider, cfg.Prompt)
+			defer cancel()
+			resp, err := runProvider(childCtx, provider, cfg.Prompt)
 			if err != nil {
 				results[idx] = providerResult{err: err, idx: idx}
 				return
 			}
 			results[idx] = providerResult{resp: *resp, idx: idx}
-		}(i, p)
+		}(i, p, childCancel)
 	}
 	wg.Wait()
 
@@ -146,9 +149,14 @@ func runParallel(ctx context.Context, cfg OrchestraConfig) ([]ProviderResponse, 
 				Name:  cfg.Providers[r.idx].Name,
 				Error: r.err.Error(),
 			})
+		} else if r.resp.TimedOut {
+			// R2: provider exceeded per-provider timeout — record as failed
+			failed = append(failed, FailedProvider{
+				Name:  r.resp.Provider,
+				Error: fmt.Sprintf("timeout: provider exceeded %v deadline", perTimeout),
+			})
 		} else if r.resp.EmptyOutput {
 			// Treat empty stdout (exit 0 but no content) as a failed provider.
-			// This catches silent failures such as wrong CLI flags or interactive mode.
 			failed = append(failed, FailedProvider{
 				Name:  r.resp.Provider,
 				Error: "empty output: provider returned no content (check binary args or prompt_via_args setting)",
@@ -224,29 +232,23 @@ func runFastest(ctx context.Context, cfg OrchestraConfig) ([]ProviderResponse, e
 	return []ProviderResponse{resp}, nil
 }
 
-// runProvider는 단일 프로바이더를 실행하고 결과를 반환한다.
-// @AX:ANCHOR: [AUTO] internal fan_in=6 (relay, debate x2, runParallel, runPipeline, runFastest); signature is a stable contract
+// runProvider executes a single provider and returns its response.
+// @AX:ANCHOR: [AUTO] internal fan_in=6; signature is a stable contract
 func runProvider(ctx context.Context, provider ProviderConfig, prompt string) (*ProviderResponse, error) {
 	start := time.Now()
 
-	// 실행 명령 구성
 	args := append([]string{}, provider.Args...)
-
-	// PromptViaArgs=true인 경우 -p 플래그와 프롬프트를 추가하여 non-interactive 모드로 실행
-	// (예: gemini -m model -p "prompt" → headless 실행)
+	// Append -p flag for PromptViaArgs providers (non-interactive mode)
 	if provider.PromptViaArgs {
 		args = append(args, "-p", prompt)
 	}
 
-	// @AX:WARN: exec.CommandContext는 컨텍스트 취소 시 프로세스를 강제 종료한다.
-	// @AX:REASON: 타임아웃/취소 후 좀비 프로세스 방지를 위해 의도적 설계
 	cmd := newCommand(ctx, provider.Binary, args...)
 
 	var stdoutBuf, stderrBuf bytes.Buffer
 	cmd.SetStdout(&stdoutBuf)
 	cmd.SetStderr(&stderrBuf)
 
-	// PromptViaArgs=false인 경우 stdin으로 프롬프트 전달 (claude, codex)
 	if !provider.PromptViaArgs {
 		stdinPipe, err := cmd.StdinPipe()
 		if err != nil {
@@ -257,7 +259,6 @@ func runProvider(ctx context.Context, provider ProviderConfig, prompt string) (*
 			return nil, fmt.Errorf("%s 시작 실패: %w", provider.Name, err)
 		}
 
-		// 프롬프트 전송 후 stdin 닫기
 		if _, err := io.WriteString(stdinPipe, prompt); err != nil {
 			_ = cmd.Wait()
 			return nil, fmt.Errorf("%s stdin 쓰기 실패: %w", provider.Name, err)

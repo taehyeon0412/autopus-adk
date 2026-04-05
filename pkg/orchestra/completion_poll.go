@@ -2,6 +2,7 @@ package orchestra
 
 import (
 	"context"
+	"log"
 	"time"
 
 	"github.com/insajin/autopus-adk/pkg/terminal"
@@ -15,10 +16,16 @@ const (
 	outputIdleThreshold = 30 * time.Second
 )
 
+// defaultSafetyDeadline is the fallback deadline for WaitForCompletion when
+// the caller does not set one. Package-level var so tests can override.
+var defaultSafetyDeadline = 10 * time.Minute
+
 // ScreenPollDetector uses 2-phase consecutive screen matching for completion detection.
 // FALLBACK detector when signal-based detection is unavailable.
 type ScreenPollDetector struct {
 	term terminal.Terminal
+	// safetyDeadline overrides defaultSafetyDeadline when non-zero. Used by tests.
+	safetyDeadline time.Duration
 }
 
 // WaitForCompletion polls ReadScreen at 2s intervals using 2-phase consecutive match.
@@ -26,8 +33,20 @@ type ScreenPollDetector struct {
 // Phase 2: Second consecutive match confirms completion.
 // Idle fallback: After 60s without 2-phase match, checks pipe-pane output file idle.
 // The round parameter is accepted for interface conformance but unused by poll detection.
-// @AX:WARN [AUTO] blocking goroutine — runs until context cancellation; ensure caller sets deadline
+// @AX:NOTE [AUTO] blocking goroutine — safety deadline (10min) auto-applied when caller omits deadline (R3)
 func (d *ScreenPollDetector) WaitForCompletion(ctx context.Context, pi paneInfo, patterns []CompletionPattern, baseline string, _ int) (bool, error) {
+	// R3/R4: Enforce safety deadline when caller provides no deadline.
+	if _, ok := ctx.Deadline(); !ok {
+		deadline := defaultSafetyDeadline
+		if d.safetyDeadline > 0 {
+			deadline = d.safetyDeadline
+		}
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, deadline)
+		defer cancel()
+		log.Printf("[WARN] WaitForCompletion called without deadline; using %v safety fallback", deadline)
+	}
+
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
 
