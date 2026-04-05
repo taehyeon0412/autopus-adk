@@ -201,8 +201,8 @@ func TestRunMetricWithTimeout_Cancelled(t *testing.T) {
 	cfg := DefaultConfig()
 	cfg.ExperimentTimeout = 1 * time.Millisecond // extremely short
 
-	// sleep 1 should timeout
-	_, err := RunMetricWithTimeout(cfg, "sleep 1 && echo '{\"metric\": 1.0}'")
+	// sleep 1 should timeout — AllowShellMeta needed for && in test command
+	_, err := RunMetricWithTimeout(cfg, "sleep 1 && echo '{\"metric\": 1.0}'", AllowShellMeta())
 	assert.Error(t, err)
 }
 
@@ -247,7 +247,7 @@ func TestRunMetric_ContextCancelled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // cancel immediately
 
-	_, err := RunMetric(ctx, "sleep 1 && echo '{\"metric\": 1.0}'")
+	_, err := RunMetric(ctx, "sleep 1 && echo '{\"metric\": 1.0}'", AllowShellMeta())
 	assert.Error(t, err)
 }
 

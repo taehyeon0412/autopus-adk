@@ -149,3 +149,22 @@ func TestRunMetricMedian_SingleRun(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 7.5, out.Metric)
 }
+
+func TestRunMetric_RejectsInjection(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	_, err := RunMetric(ctx, "echo ok; rm -rf /")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "disallowed")
+}
+
+func TestRunMetric_AllowShellMetaBypass(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	// AllowShellMeta bypasses validation; command still runs
+	out, err := RunMetric(ctx, `echo '{"metric": 9.0}'`, AllowShellMeta())
+	require.NoError(t, err)
+	assert.Equal(t, 9.0, out.Metric)
+}

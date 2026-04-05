@@ -11,7 +11,7 @@ import (
 
 // RunMetricWithTimeout executes cmd with a deadline derived from cfg.ExperimentTimeout.
 // If cfg.ExperimentTimeout is zero, no additional timeout is applied.
-func RunMetricWithTimeout(cfg Config, cmd string) (MetricOutput, error) {
+func RunMetricWithTimeout(cfg Config, cmd string, opts ...ValidateOption) (MetricOutput, error) {
 	ctx := context.Background()
 
 	if cfg.ExperimentTimeout > 0 {
@@ -20,11 +20,11 @@ func RunMetricWithTimeout(cfg Config, cmd string) (MetricOutput, error) {
 		defer cancel()
 	}
 
-	return RunMetric(ctx, cmd)
+	return RunMetric(ctx, cmd, opts...)
 }
 
 // RunMetricMedianWithTimeout runs cmd cfg.MetricRuns times with per-run timeout and returns median.
-func RunMetricMedianWithTimeout(cfg Config, cmd string) (MetricOutput, error) {
+func RunMetricMedianWithTimeout(cfg Config, cmd string, opts ...ValidateOption) (MetricOutput, error) {
 	ctx := context.Background()
 
 	if cfg.ExperimentTimeout > 0 {
@@ -38,14 +38,18 @@ func RunMetricMedianWithTimeout(cfg Config, cmd string) (MetricOutput, error) {
 		runs = 1
 	}
 
-	return RunMetricMedian(ctx, cmd, runs)
+	return RunMetricMedian(ctx, cmd, runs, opts...)
 }
 
-// @AX:WARN [AUTO]: cmd is passed directly to sh -c without sanitization.
-// @AX:REASON: Caller must ensure cmd originates from a trusted config (CLI flags or SPEC), never from
-// user-supplied stdin or untrusted external sources. Arbitrary shell injection is possible otherwise.
+// @AX:WARN [AUTO]: cmd is passed to sh -c — mitigated by ValidateCommand but AllowShellMeta bypass can disable protection.
+// @AX:REASON: ValidateCommand (line 49) blocks shell metacharacters by default. However, callers passing
+// AllowShellMeta() skip all validation, so trusted-origin guarantees remain necessary for those paths.
 // RunMetric executes cmd via shell and parses the first JSON object from stdout.
-func RunMetric(ctx context.Context, cmd string) (MetricOutput, error) {
+func RunMetric(ctx context.Context, cmd string, opts ...ValidateOption) (MetricOutput, error) {
+	if err := ValidateCommand(cmd, opts...); err != nil {
+		return MetricOutput{}, fmt.Errorf("metric command validation failed: %w", err)
+	}
+
 	c := exec.CommandContext(ctx, "sh", "-c", cmd)
 	rawBytes, err := c.Output()
 	if err != nil {
@@ -81,14 +85,14 @@ func ExtractMetric(out MetricOutput, key string) (float64, error) {
 }
 
 // RunMetricMedian runs cmd runs times and returns the MetricOutput with the median Metric value.
-func RunMetricMedian(ctx context.Context, cmd string, runs int) (MetricOutput, error) {
+func RunMetricMedian(ctx context.Context, cmd string, runs int, opts ...ValidateOption) (MetricOutput, error) {
 	if runs <= 0 {
 		runs = 1
 	}
 
 	results := make([]MetricOutput, 0, runs)
 	for i := 0; i < runs; i++ {
-		out, err := RunMetric(ctx, cmd)
+		out, err := RunMetric(ctx, cmd, opts...)
 		if err != nil {
 			return MetricOutput{}, fmt.Errorf("run %d/%d failed: %w", i+1, runs, err)
 		}

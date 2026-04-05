@@ -60,7 +60,11 @@ func (m *WorktreeManager) Create(ctx context.Context, branch string) (string, er
 	}
 
 	// Sanitize branch name for use in a git branch identifier.
-	safeBranch := sanitizeBranchName(branch)
+	safeBranch, err := sanitizeBranchName(branch)
+	if err != nil {
+		_ = os.RemoveAll(dir)
+		return "", fmt.Errorf("invalid branch name: %w", err)
+	}
 	wtBranch := fmt.Sprintf("worktree/%s", safeBranch)
 
 	if m.isGitRepo {
@@ -79,10 +83,17 @@ func (m *WorktreeManager) Create(ctx context.Context, branch string) (string, er
 	return dir, nil
 }
 
-// @AX:WARN: [AUTO] git command execution with user-derived branch name — sanitizeBranchName must be called before this to prevent injection
+// @AX:WARN: [AUTO] git command execution with user-derived branch name — mitigated by inline ValidateBranchName (line 92) + upstream sanitizeBranchName in Create; defense-in-depth layers active
 // addWorktreeWithRetry runs "git -c gc.auto=0 worktree add" with exponential backoff
 // on shared resource lock errors (refs.lock, packed-refs.lock, etc.).
 func (m *WorktreeManager) addWorktreeWithRetry(ctx context.Context, dir, branch string) error {
+	// Inline validation — defense-in-depth even if caller already validated
+	if branch != "" {
+		if err := ValidateBranchName(branch); err != nil {
+			return fmt.Errorf("branch name validation failed: %w", err)
+		}
+	}
+
 	var lastErr error
 	wait := lockRetryBase
 
@@ -157,11 +168,15 @@ func (m *WorktreeManager) ActiveCount() int {
 	return len(m.paths)
 }
 
-// sanitizeBranchName replaces characters that are invalid in git branch names with dashes.
-func sanitizeBranchName(name string) string {
+// sanitizeBranchName validates and returns the branch name.
+// Returns error for names containing '..', starting with '-', or exceeding 255 chars.
+func sanitizeBranchName(name string) (string, error) {
+	if err := ValidateBranchName(name); err != nil {
+		return "", err
+	}
+	// Apply replacements for git-incompatible chars
 	replacer := strings.NewReplacer(
 		" ", "-",
-		".", "-",
 		"~", "-",
 		"^", "-",
 		":", "-",
@@ -169,9 +184,8 @@ func sanitizeBranchName(name string) string {
 		"*", "-",
 		"[", "-",
 		"\\", "-",
-		"..", "-",
 	)
-	return replacer.Replace(name)
+	return replacer.Replace(name), nil
 }
 
 // isLockError returns true when the git command output indicates a shared lock conflict.
