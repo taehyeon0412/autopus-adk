@@ -46,35 +46,3 @@ func newSearchCmd() *cobra.Command {
 	cmd.Flags().IntVar(&numResults, "num", 5, "Number of results to return")
 	return cmd
 }
-
-// newDocsCmd는 docs 서브커맨드를 생성한다.
-func newDocsCmd() *cobra.Command {
-	var topic string
-
-	cmd := &cobra.Command{
-		Use:   "docs <library>",
-		Short: "Lookup library documentation via Context7",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			client := search.NewContext7Client()
-
-			// 라이브러리 ID 조회
-			id, err := client.ResolveLibrary(args[0])
-			if err != nil {
-				return fmt.Errorf("라이브러리 조회 실패: %w", err)
-			}
-
-			// 문서 조회
-			docs, err := client.GetDocs(id, topic)
-			if err != nil {
-				return fmt.Errorf("문서 조회 실패: %w", err)
-			}
-
-			fmt.Println(docs)
-			return nil
-		},
-	}
-
-	cmd.Flags().StringVar(&topic, "topic", "", "Documentation topic to focus on")
-	return cmd
-}

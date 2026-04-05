@@ -172,13 +172,14 @@ func TestLSPCmd_MissingArgs(t *testing.T) {
 }
 
 // TestDocsCmd_NoArgs는 인자 없는 docs 커맨드를 테스트한다.
+// docs는 parent command이므로 서브커맨드 없이 실행하면 help를 표시하고 에러 없이 종료한다.
 func TestDocsCmd_NoArgs(t *testing.T) {
 	t.Parallel()
 
 	cmd := newTestRootCmd()
 	cmd.SetArgs([]string{"docs"})
 	err := cmd.Execute()
-	assert.Error(t, err)
+	assert.NoError(t, err)
 }
 
 // TestDocsCmd_WithLibrary는 라이브러리 이름으로 docs 커맨드를 테스트한다.
