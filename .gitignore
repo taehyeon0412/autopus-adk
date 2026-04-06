@@ -36,6 +36,8 @@ internal/cli/test-results/
 .claude/statusline.sh
 .autopus/orchestra/
 .autopus/cache/docs/
+.autopus/audit.jsonl
+setup.test
 
 # Security-sensitive files
 credentials.json
