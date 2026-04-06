@@ -189,6 +189,7 @@ func newWorkerSetupCmd() *cobra.Command {
 	var backendURL string
 	var token string
 	var workspaceID string
+	var apiKey string
 	cmd := &cobra.Command{
 		Use:   "setup",
 		Short: "Run worker setup wizard",
@@ -200,14 +201,16 @@ func newWorkerSetupCmd() *cobra.Command {
   3. AI 프로바이더 확인 (Claude, Codex, Gemini)
 
 비대화형 모드 (에이전트/CI 환경):
-  auto worker setup --token <jwt> --workspace <workspace-id>`,
+  auto worker setup --token <jwt> --workspace <workspace-id>
+  auto worker setup --api-key <acos_worker_...> --workspace <workspace-id>`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runWorkerSetup(cmd, backendURL, token, workspaceID)
+			return runWorkerSetup(cmd, backendURL, token, workspaceID, apiKey)
 		},
 	}
 	cmd.Flags().StringVar(&backendURL, "backend", "https://api.autopus.co", "Backend API URL")
-	cmd.Flags().StringVar(&token, "token", "", "Pre-obtained auth token — skips browser OAuth (for agents/CI)")
+	cmd.Flags().StringVar(&token, "token", "", "Pre-obtained JWT — skips browser OAuth (for agents/CI)")
 	cmd.Flags().StringVar(&workspaceID, "workspace", "", "Workspace ID — skips interactive selection")
+	cmd.Flags().StringVar(&apiKey, "api-key", "", "Worker API Key (acos_worker_...) — skips browser OAuth")
 	return cmd
 }
 

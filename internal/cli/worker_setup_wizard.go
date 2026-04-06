@@ -18,13 +18,14 @@ func userError(context string, err error) error {
 }
 
 // runWorkerSetup executes the 3-step setup wizard.
-// If preToken and preWorkspaceID are both non-empty, runs in non-interactive mode
-// (skips browser OAuth and workspace selection prompt). Suitable for agents and CI.
+// Non-interactive modes (for agents/CI):
+//   - preToken + preWorkspaceID: use JWT token, skip browser OAuth and workspace prompt
+//   - preAPIKey + preWorkspaceID: use Worker API Key, skip browser OAuth and workspace prompt
 //
-//	Step 1: Device Auth OAuth (PKCE) → Autopus server login  [skipped if preToken != ""]
+//	Step 1: Device Auth OAuth (PKCE) → Autopus server login  [skipped if preToken/preAPIKey != ""]
 //	Step 2: Workspace selection                              [skipped if preWorkspaceID != ""]
 //	Step 3: Provider auth check (claude/codex/gemini)
-func runWorkerSetup(cmd *cobra.Command, backendURL, preToken, preWorkspaceID string) error {
+func runWorkerSetup(cmd *cobra.Command, backendURL, preToken, preWorkspaceID, preAPIKey string) error {
 	out := cmd.OutOrStdout()
 	if backendURL == "" {
 		backendURL = defaultBackendURL
@@ -34,9 +35,17 @@ func runWorkerSetup(cmd *cobra.Command, backendURL, preToken, preWorkspaceID str
 	fmt.Fprintln(out, "───────────────────────────────")
 	fmt.Fprintln(out)
 
-	// Step 1: Auth — bypass if token provided.
+	// Step 1: Auth — bypass if token or API key provided.
 	var token string
-	if preToken != "" {
+	switch {
+	case preAPIKey != "":
+		fmt.Fprintln(out, "Step 1/3: Autopus 서버 인증 (Worker API Key 사용 — 비대화형)")
+		if err := setup.SaveAPIKeyCredentials(preAPIKey, backendURL); err != nil {
+			return userError("API 키 저장", err)
+		}
+		fmt.Fprintln(out, "  ✓ Worker API Key 저장 완료")
+		// token stays empty — API key is used for A2A WebSocket auth directly.
+	case preToken != "":
 		fmt.Fprintln(out, "Step 1/3: Autopus 서버 인증 (토큰 사용 — 비대화형)")
 		if err := setup.SaveCredentials(map[string]any{
 			"access_token": preToken,
@@ -46,7 +55,7 @@ func runWorkerSetup(cmd *cobra.Command, backendURL, preToken, preWorkspaceID str
 		}
 		fmt.Fprintln(out, "  ✓ 인증 토큰 저장 완료")
 		token = preToken
-	} else {
+	default:
 		fmt.Fprintln(out, "Worker는 Autopus 서버에서 작업을 받아 자동으로 실행하는")
 		fmt.Fprintln(out, "백그라운드 서비스입니다. 설정은 약 2분 정도 소요됩니다.")
 		fmt.Fprintln(out)
@@ -58,16 +67,23 @@ func runWorkerSetup(cmd *cobra.Command, backendURL, preToken, preWorkspaceID str
 	}
 
 	// Step 2: Workspace — bypass if ID provided.
+	// When using an API key without a workspace ID, we still need it for the worker config.
 	var workspace *setup.Workspace
 	if preWorkspaceID != "" {
 		fmt.Fprintln(out)
 		fmt.Fprintln(out, "Step 2/3: 워크스페이스 선택 (ID 직접 사용)")
-		ws, err := setup.FindWorkspaceByID(backendURL, token, preWorkspaceID)
-		if err != nil {
-			return userError("워크스페이스 조회", err)
+		if token != "" {
+			ws, err := setup.FindWorkspaceByID(backendURL, token, preWorkspaceID)
+			if err != nil {
+				return userError("워크스페이스 조회", err)
+			}
+			fmt.Fprintf(out, "  ✓ 워크스페이스: %s (%s)\n", ws.Name, ws.ID)
+			workspace = ws
+		} else {
+			// API key mode: workspace lookup requires auth — use ID directly.
+			workspace = &setup.Workspace{ID: preWorkspaceID, Name: preWorkspaceID}
+			fmt.Fprintf(out, "  ✓ 워크스페이스 ID: %s\n", preWorkspaceID)
 		}
-		fmt.Fprintf(out, "  ✓ 워크스페이스: %s (%s)\n", ws.Name, ws.ID)
-		workspace = ws
 	} else {
 		var err error
 		workspace, err = stepSelectWorkspace(cmd, backendURL, token)
