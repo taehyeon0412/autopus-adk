@@ -18,9 +18,10 @@ const (
 
 // schedule represents a single schedule entry from the backend API.
 type schedule struct {
-	ID          string `json:"id"`
-	CronExpr    string `json:"cron_expr"`
-	TaskPayload string `json:"task_payload"`
+	ID             string `json:"id"`
+	CronExpr       string `json:"cron_expression"`
+	TaskPayload    string `json:"task_payload"`
+	TargetAgentType string `json:"target_agent_type"`
 }
 
 // Dispatcher fetches schedules from the backend and triggers local execution.
@@ -92,6 +93,9 @@ func (d *Dispatcher) tick(ctx context.Context) {
 	minuteKey := now.Truncate(time.Minute)
 
 	for _, s := range schedules {
+		if s.CronExpr == "" {
+			continue // Skip schedules with no cron expression configured.
+		}
 		expr, err := ParseCron(s.CronExpr)
 		if err != nil {
 			log.Printf("[scheduler] invalid cron %q for schedule %s: %v", s.CronExpr, s.ID, err)
