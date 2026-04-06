@@ -225,6 +225,22 @@ func stepSaveAndCheckProviders(cmd *cobra.Command, backendURL, token string, ws 
 
 	_ = setup.SaveProgress(3)
 
+	// Exchange JWT for a long-lived Worker API Key for A2A WebSocket auth.
+	// JWT tokens are not accepted by the A2A endpoint — only acos_worker_ keys are.
+	if token != "" {
+		apiKey, err := setup.CreateWorkerAPIKey(backendURL, token, ws.ID)
+		if err != nil {
+			fmt.Fprintf(out, "  ⚠ Worker API Key 생성 실패 (JWT로 계속 진행): %v\n", err)
+		} else {
+			if err := setup.SaveAPIKeyCredentials(apiKey, backendURL); err != nil {
+				return fmt.Errorf("save worker API key: %w", err)
+			}
+			fmt.Fprintln(out, "  ✓ Worker API Key 발급 및 저장 완료")
+			// Clear token so MCP config uses the API key path too.
+			token = apiKey
+		}
+	}
+
 	// Save worker config.
 	workerCfg := setup.WorkerConfig{
 		BackendURL:  backendURL,

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
 )
@@ -35,6 +36,17 @@ type Server struct {
 	cancel       context.CancelFunc
 }
 
+// toWebSocketURL converts an http/https URL to a ws/wss URL for WebSocket dialing.
+func toWebSocketURL(u string) string {
+	switch {
+	case strings.HasPrefix(u, "https://"):
+		return "wss://" + u[len("https://"):]
+	case strings.HasPrefix(u, "http://"):
+		return "ws://" + u[len("http://"):]
+	}
+	return u
+}
+
 // NewServer creates a new A2A server with the given configuration.
 func NewServer(config ServerConfig) *Server {
 	return &Server{
@@ -51,7 +63,7 @@ func (s *Server) Start(ctx context.Context) error {
 	ctx, s.cancel = context.WithCancel(ctx)
 
 	tc := TransportConfig{
-		URL:              s.config.BackendURL + "/ws/a2a",
+		URL:              toWebSocketURL(s.config.BackendURL) + "/ws/a2a",
 		AuthToken:        s.config.AuthToken,
 		HeartbeatSec:     30,
 		ReconnectBaseSec: 3,
