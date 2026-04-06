@@ -54,9 +54,13 @@ func NewTransport(config TransportConfig) *Transport {
 
 // Connect dials the WebSocket endpoint and starts the heartbeat loop.
 func (t *Transport) Connect(ctx context.Context) error {
-	// SEC-003: Warn on unencrypted WebSocket — don't hard-block for POC.
+	// SEC-003/V5: Block sending credentials over unencrypted WebSocket.
+	// Plaintext ws:// would expose API keys and JWT tokens on the wire.
 	if strings.HasPrefix(t.config.URL, "ws://") {
-		log.Printf("[a2a] WARNING: using unencrypted WebSocket connection — use wss:// in production")
+		if t.config.AuthToken != "" {
+			return fmt.Errorf("refusing to send auth token over unencrypted ws:// — use wss://")
+		}
+		log.Printf("[a2a] WARNING: unencrypted WebSocket connection — use wss:// in production")
 	}
 
 	// SEC-005: Attach auth token if configured.
