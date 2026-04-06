@@ -207,10 +207,16 @@ func (s *Server) messageLoop(ctx context.Context) {
 }
 
 // handleMessage parses a JSON-RPC message and routes it by method.
+// JSON-RPC responses (e.g., registration ack) have no method — they are silently ignored.
 func (s *Server) handleMessage(ctx context.Context, msg []byte) {
 	var req JSONRPCRequest
 	if err := json.Unmarshal(msg, &req); err != nil {
 		log.Printf("[a2a] invalid message: %v", err)
+		return
+	}
+
+	// Skip JSON-RPC responses (no method field) — e.g., registration ack.
+	if req.Method == "" {
 		return
 	}
 

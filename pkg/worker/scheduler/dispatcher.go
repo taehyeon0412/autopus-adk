@@ -128,9 +128,14 @@ func (d *Dispatcher) fetchSchedules(ctx context.Context) ([]schedule, error) {
 	}
 
 	limited := io.LimitReader(resp.Body, maxBodyBytes)
-	var result []schedule
-	if err := json.NewDecoder(limited).Decode(&result); err != nil {
+
+	// Backend returns { success: true, data: [...] } wrapper.
+	var wrapper struct {
+		Success bool       `json:"success"`
+		Data    []schedule `json:"data"`
+	}
+	if err := json.NewDecoder(limited).Decode(&wrapper); err != nil {
 		return nil, fmt.Errorf("decode schedules: %w", err)
 	}
-	return result, nil
+	return wrapper.Data, nil
 }
