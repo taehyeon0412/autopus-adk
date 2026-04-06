@@ -23,9 +23,9 @@ type WorkerStatus struct {
 // rawCredentials is used for flexible JSON parsing of both credential formats.
 type rawCredentials struct {
 	// JWT format fields
-	AccessToken  string    `json:"access_token"`
-	RefreshToken string    `json:"refresh_token"`
-	ExpiresAt    time.Time `json:"expires_at"`
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	ExpiresAt    string `json:"expires_at"` // RFC3339 or ISO8601 string — lenient parsing
 	// API key format fields
 	APIKey   string `json:"api_key"`
 	AuthType string `json:"auth_type"`
@@ -67,10 +67,17 @@ func checkAuthValidity() (authValid bool, authType string) {
 		return true, "api_key"
 	}
 
-	// JWT format: has access_token field. Valid if ExpiresAt is zero or after now+5min.
+	// JWT format: has access_token field. Valid if ExpiresAt is empty or after now+5min.
 	if creds.AccessToken != "" {
-		valid := creds.ExpiresAt.IsZero() || time.Until(creds.ExpiresAt) > 5*time.Minute
-		return valid, "jwt"
+		if creds.ExpiresAt == "" {
+			return true, "jwt"
+		}
+		expiry, err := time.Parse(time.RFC3339, creds.ExpiresAt)
+		if err != nil {
+			// Best-effort: treat unparseable expiry as valid (let server reject if expired).
+			return true, "jwt"
+		}
+		return time.Until(expiry) > 5*time.Minute, "jwt"
 	}
 
 	return false, "none"
