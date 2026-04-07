@@ -107,6 +107,11 @@ func stepWorkspaceSelect(ctx context.Context, client *connect.Client, preselecte
 }
 
 func promptWorkspaceSelect(workspaces []connect.Workspace) (id, name string, err error) {
+	// Guard against non-TTY hang: huh forms block indefinitely without a terminal.
+	if !isStdinTTY() {
+		return workspaces[0].ID, workspaces[0].Name, nil
+	}
+
 	options := make([]huh.Option[string], len(workspaces))
 	for i, ws := range workspaces {
 		label := ws.Name

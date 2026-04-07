@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
 	"golang.org/x/term"
 )
 
@@ -22,6 +23,11 @@ func EnsureSafeEnv() {
 	envOnce.Do(func() {
 		if !term.IsTerminal(int(os.Stdout.Fd())) {
 			os.Setenv("NO_COLOR", "1")
+			// Force an ASCII-only renderer so lipgloss/termenv never sends
+			// OSC 11 terminal queries that block in non-TTY environments.
+			lipgloss.SetDefaultRenderer(
+				lipgloss.NewRenderer(os.Stdout, termenv.WithProfile(termenv.Ascii)),
+			)
 		}
 	})
 }
