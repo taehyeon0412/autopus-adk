@@ -52,7 +52,10 @@ func DefaultFullConfig(projectName string) *HarnessConfig {
 			IntentGate: true,
 		},
 		Hooks: HooksConf{
-			PreCommitArch: true,
+			PreCommitArch:  true,
+			PreCommitLore:  true,
+			ReactCIFailure: true,
+			ReactReview:    true,
 		},
 		Session: SessionConf{
 			HandoffEnabled:   true,

@@ -57,8 +57,8 @@ router:
 hooks:
   pre_commit_arch: true
   pre_commit_lore: true
-  react_ci_failure: false
-  react_review: false
+  react_ci_failure: true
+  react_review: true
 
 session:
   handoff_enabled: true
