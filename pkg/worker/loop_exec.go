@@ -133,6 +133,7 @@ func (wl *WorkerLoop) executeWithBudget(ctx context.Context, taskCfg adapter.Tas
 	var stderrBuf bytes.Buffer
 	cmd.Stderr = &stderrBuf
 
+	log.Printf("[worker] task %s: starting subprocess: %s %v (workdir=%s)", taskCfg.TaskID, cmd.Path, cmd.Args[1:], cmd.Dir)
 	if err := cmd.Start(); err != nil {
 		return adapter.TaskResult{}, fmt.Errorf("start subprocess: %w", err)
 	}
@@ -158,6 +159,10 @@ func (wl *WorkerLoop) executeWithBudget(ctx context.Context, taskCfg adapter.Tas
 	// Wait for process to exit.
 	waitErr := cmd.Wait()
 	if parseErr != nil {
+		stderrStr := strings.TrimSpace(stderrBuf.String())
+		if stderrStr != "" {
+			log.Printf("[worker] task %s: stderr: %s", taskID, stderrStr)
+		}
 		return adapter.TaskResult{}, fmt.Errorf("parse stream: %w", parseErr)
 	}
 	if waitErr != nil {

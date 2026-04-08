@@ -31,6 +31,7 @@ func (a *ClaudeAdapter) BuildCommand(ctx context.Context, task TaskConfig) *exec
 		"--print",
 		"--output-format", "stream-json",
 		"--verbose",
+		"--dangerously-skip-permissions",
 		"--resume", sessionID,
 	}
 
