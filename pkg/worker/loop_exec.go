@@ -144,17 +144,17 @@ func (wl *WorkerLoop) executeWithBudget(ctx context.Context, taskCfg adapter.Tas
 		defer bc.EmergencyStop.ClearProcess()
 	}
 
-	// Write prompt — stdin stays open for warning injection.
+	// Write prompt and close stdin so claude --print can start processing.
+	// NOTE: closing stdin disables mid-session budget warning injection.
+	// A future iteration should use a separate signaling mechanism.
 	taskID := taskCfg.TaskID
 	if err := sw.WritePrompt(taskCfg.Prompt); err != nil {
 		log.Printf("[worker] task %s: failed to write prompt: %v", taskID, err)
 	}
+	sw.Close() // EOF signals claude --print that prompt is complete
 
 	// Parse stream output with optional budget tracking.
-	result, parseErr := wl.parseStreamWithBudget(stdout, taskID, sw, bc)
-
-	// Close stdin after stream parsing completes.
-	sw.Close()
+	result, parseErr := wl.parseStreamWithBudget(stdout, taskID, nil, bc)
 
 	// Wait for process to exit.
 	waitErr := cmd.Wait()
