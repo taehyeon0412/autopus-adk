@@ -89,6 +89,26 @@ t.Run("group", func(t *testing.T) {
 })
 ```
 
+## Database Migration Files
+
+WHEN creating or modifying database migration files (SQL migration scripts):
+
+### Naming Convention
+- Format: `{6-digit zero-padded number}_{description}.{up,down}.sql`
+- Example: `000376_add_retry_tracking.up.sql`, `000376_add_retry_tracking.down.sql`
+- NEVER use unpadded numbers (e.g., `376_` instead of `000376_`)
+
+### Number Assignment
+1. Scan the migrations directory for existing files: `ls migrations/*.sql 2>/dev/null | sort`
+2. Extract the highest existing migration number from filenames
+3. Increment by 1 and zero-pad to 6 digits with `fmt.Sprintf("%06d", nextNum)`
+4. Verify no existing file shares the same number before creating
+
+### Duplicate Prevention
+- Before writing migration files, grep for the target number: `ls migrations/{number}_*.sql 2>/dev/null`
+- If a conflict exists, increment until a unique number is found
+- Both `.up.sql` and `.down.sql` files MUST use the same number
+
 ## Completion Criteria
 
 - [ ] `go test -race ./...` — all tests pass, no data races

@@ -145,6 +145,29 @@ SPEC 디렉토리에서 `acceptance.md`를 **직접 읽어서** 구현 커버리
 
 이 검증은 RALF 루프에서 executor를 재스폰하여 누락된 acceptance criteria를 구현하도록 유도합니다.
 
+### 8. Migration File Validation
+
+WHEN changed files include SQL migration files (matching `migrations/*.sql` or `db/migrations/*.sql`), validate naming conventions and number uniqueness.
+
+**Detection**: Check `git diff --name-only` for files matching `**/migrations/*.sql`
+
+**Checks**:
+
+1. **Naming pattern**: Every migration file MUST match `^[0-9]{6}_.*\.(up|down)\.sql$` (6-digit zero-padded number prefix)
+   - FAIL if any migration file uses unpadded numbers (e.g., `340_` instead of `000340_`)
+   - Regex: `ls migrations/ | grep -vE '^[0-9]{6}_'` should return empty
+
+2. **Number uniqueness**: No two migration files may share the same number prefix
+   - Extract numbers: `ls migrations/*.sql | sed 's/.*\///' | cut -c1-6 | sort | uniq -d`
+   - FAIL if duplicates found
+
+3. **Pair completeness**: Every migration number MUST have both `.up.sql` and `.down.sql`
+   - FAIL if orphaned (only up or only down)
+
+**Skip condition**: No migration files in changed file set → skip check entirely.
+
+**Verdict impact**: Any failure → **FAIL** — Recommended Agent: executor — "Fix migration file naming: use 6-digit zero-padded format (000NNN_description.{up,down}.sql)"
+
 ## 하네스 전용 모드
 
 변경 파일이 `.md` 파일만인 경우 하네스 전용 모드로 동작합니다.
@@ -181,6 +204,7 @@ git diff --name-only | grep '\.md$' | xargs wc -l
 | 스텁 검사 | PASS/FAIL | [스텁 함수 목록] |
 | Smoke test | PASS/FAIL/SKIP | [entry point 실행 결과] |
 | 인수 기준 | N/M PASS/FAIL/SKIP | [미충족 기준 목록] |
+| 마이그레이션 | PASS/FAIL/SKIP | [파일명 패턴/중복/쌍 누락] |
 
 ### 전체 결과: PASS / FAIL
 ```
@@ -210,6 +234,7 @@ git diff --name-only | grep '\.md$' | xargs wc -l
 | 인수 기준 미충족 | executor | 미충족 acceptance criteria 구현 |
 | Smoke test 실패 | executor | CLI/API entry point 수정 |
 | 계약 불일치 | executor | 클라이언트-서버 엔드포인트 동기화 |
+| 마이그레이션 파일명 | executor | 6자리 zero-padded 형식으로 리네이밍 |
 
 복수 실패 시 가장 높은 우선순위 항목 기준으로 추천합니다.
 우선순위: 컴파일 에러 > 테스트 실패 > 린트 경고 > 파일 크기 초과 > 커버리지 부족
