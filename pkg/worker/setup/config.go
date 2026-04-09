@@ -10,12 +10,13 @@ import (
 
 // WorkerConfig holds the worker's persistent configuration.
 type WorkerConfig struct {
-	BackendURL  string   `yaml:"backend_url"`
-	WorkspaceID string   `yaml:"workspace_id"`
-	Providers   []string `yaml:"providers"`
-	WorkDir     string   `yaml:"work_dir"`
-	A2AURL      string   `yaml:"a2a_url"`
-	Concurrency int      `yaml:"concurrency"`
+	BackendURL   string   `yaml:"backend_url"`
+	WorkspaceID  string   `yaml:"workspace_id"`
+	Providers    []string `yaml:"providers"`
+	WorkDir      string   `yaml:"work_dir"`
+	KnowledgeDir string   `yaml:"knowledge_dir"` // directory to watch for knowledge sync (defaults to work_dir)
+	A2AURL       string   `yaml:"a2a_url"`
+	Concurrency  int      `yaml:"concurrency"`
 }
 
 // DefaultWorkerConfigPath returns the default path for worker.yaml.

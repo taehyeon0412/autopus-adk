@@ -44,18 +44,24 @@ func runWorkerForeground() error {
 	log.Printf("[worker] starting: provider=%s workspace=%s backend=%s",
 		providerName, cfg.WorkspaceID, cfg.BackendURL)
 
+	workDir := cfg.WorkDir
+	if workDir == "" {
+		workDir = "."
+	}
+
 	loopCfg := worker.LoopConfig{
 		BackendURL:      cfg.BackendURL,
 		WorkerName:      fmt.Sprintf("adk-worker-%s", providerName),
 		Skills:          []string{"coding", "review"},
 		Provider:        provider,
 		MCPConfig:       setup.DefaultMCPConfigPath(),
-		WorkDir:         ".",
+		WorkDir:         workDir,
 		AuthToken:       authToken,
 		CredentialsPath: setup.DefaultCredentialsPath(),
 		WorkspaceID:     cfg.WorkspaceID,
 		MaxConcurrency:  cfg.Concurrency,
 		KnowledgeSync:   true, // enable KH file sync when WorkspaceID is set
+		KnowledgeDir:    cfg.KnowledgeDir,
 	}
 
 	wl := worker.NewWorkerLoop(loopCfg)

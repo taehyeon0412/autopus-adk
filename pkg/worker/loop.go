@@ -40,6 +40,7 @@ type LoopConfig struct {
 	MaxConcurrency    int           // max parallel tasks (0 or 1 = sequential)
 	WorktreeIsolation bool          // enable worktree isolation for parallel tasks
 	KnowledgeSync     bool          // enable knowledge file sync
+	KnowledgeDir      string        // directory to watch for knowledge sync (defaults to WorkDir)
 }
 
 // WorkerLoop integrates A2A Server, ProviderAdapter, ContextBuilder, and StreamParser.

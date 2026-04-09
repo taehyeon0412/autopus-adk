@@ -59,10 +59,14 @@ func (wl *WorkerLoop) startServices(ctx context.Context) {
 			wl.config.BackendURL,
 			wl.config.AuthToken,
 		)
+		knowledgeDir := wl.config.KnowledgeDir
+		if knowledgeDir == "" {
+			knowledgeDir = wl.config.WorkDir
+		}
 		wl.knowledgeWatcher = startKnowledgeWatcher(
 			wl.lifecycleCtx,
 			wl.knowledgeSyncer,
-			wl.config.WorkDir,
+			knowledgeDir,
 		)
 	}
 
