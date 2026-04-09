@@ -12,6 +12,7 @@ type TaskPayload struct {
 	PMNotes       string // PM instructions (optional)
 	PolicySummary string // security policy summary
 	KnowledgeCtx  string // Knowledge Hub context (optional)
+	MemoryCtx     string // Agent Memory context (optional, SPEC-KHINT-001 REQ-003)
 	SpecID        string // SPEC reference (optional)
 }
 
@@ -44,6 +45,11 @@ func (b *ContextBuilder) Build(payload TaskPayload) string {
 		sb.WriteString("\n## Knowledge Context\n\n")
 		sb.WriteString(payload.KnowledgeCtx)
 		sb.WriteString("\n")
+	}
+
+	if payload.MemoryCtx != "" {
+		sb.WriteString("\n")
+		sb.WriteString(payload.MemoryCtx)
 	}
 
 	if payload.SpecID != "" {
