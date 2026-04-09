@@ -31,14 +31,25 @@ func Load(dir string) (*HarnessConfig, error) {
 		return nil, fmt.Errorf("parse config: %w", err)
 	}
 
+	// Normalize platform names before validation.
+	if MigratePlatformNames(&cfg) {
+		// Persist the corrected config so subsequent loads don't repeat the migration.
+		if corrected, marshalErr := yaml.Marshal(&cfg); marshalErr == nil {
+			_ = os.WriteFile(path, corrected, 0644)
+		}
+	}
+
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("validate config: %w", err)
 	}
 	return &cfg, nil
 }
 
-// Save는 설정을 autopus.yaml에 저장한다.
+// Save validates and writes the config to autopus.yaml.
 func Save(dir string, cfg *HarnessConfig) error {
+	if err := cfg.Validate(); err != nil {
+		return fmt.Errorf("validate config: %w", err)
+	}
 	data, err := yaml.Marshal(cfg)
 	if err != nil {
 		return fmt.Errorf("marshal config: %w", err)

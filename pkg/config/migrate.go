@@ -112,6 +112,33 @@ func EnsureOrchestraProvider(cfg *HarnessConfig, providerName string) error {
 	return nil
 }
 
+// ProviderToPlatform maps common provider/binary names to valid platform names.
+// Used to normalize user input that confuses provider names with platform names.
+// Returns "" when no mapping is needed (name is already a valid platform name or unknown).
+func ProviderToPlatform(name string) string {
+	switch name {
+	case "claude":
+		return "claude-code"
+	case "gemini":
+		return "gemini-cli"
+	default:
+		return "" // no normalization needed or unknown
+	}
+}
+
+// MigratePlatformNames normalizes provider names mistakenly used as platform names.
+// Returns true if any platform name was corrected.
+func MigratePlatformNames(cfg *HarnessConfig) bool {
+	changed := false
+	for i, p := range cfg.Platforms {
+		if corrected := ProviderToPlatform(p); corrected != "" {
+			cfg.Platforms[i] = corrected
+			changed = true
+		}
+	}
+	return changed
+}
+
 // PlatformToProvider maps platform names to orchestra provider names.
 // @AX:NOTE: [AUTO] "opencode" maps to "codex" — intentional alias per SPEC-ORCHCFG-002 migration
 func PlatformToProvider(platform string) string {
@@ -187,3 +214,4 @@ func replaceInSlice(slice []string, old, new string) []string {
 func containsString(slice []string, s string) bool {
 	return slices.Contains(slice, s)
 }
+

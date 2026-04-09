@@ -120,6 +120,24 @@ func TestInitCmd_QualityFlag(t *testing.T) {
 	assert.Contains(t, string(data), "ultra", "autopus.yaml must contain quality preset 'ultra'")
 }
 
+// TestInitCmd_PlatformNormalization verifies provider names are normalized to platform names.
+func TestInitCmd_PlatformNormalization(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+
+	cmd := newTestRootCmd()
+	// "gemini" (provider name) must be normalized to "gemini-cli" (platform name).
+	cmd.SetArgs([]string{"init", "--dir", dir, "--project", "test-proj", "--platforms", "gemini", "--yes"})
+	err := cmd.Execute()
+	require.NoError(t, err)
+
+	data, err := os.ReadFile(filepath.Join(dir, "autopus.yaml"))
+	require.NoError(t, err)
+	content := string(data)
+	assert.Contains(t, content, "gemini-cli", "gemini provider name must be normalized to gemini-cli platform name")
+	assert.NotContains(t, content, "platforms:\n- gemini\n", "raw 'gemini' provider name must not appear as platform")
+}
+
 // TestInitCmd_NoReviewGateFlag verifies --no-review-gate disables review gate.
 func TestInitCmd_NoReviewGateFlag(t *testing.T) {
 	t.Parallel()

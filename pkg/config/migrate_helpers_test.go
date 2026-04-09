@@ -33,6 +33,52 @@ func TestPlatformToProvider_AllCases(t *testing.T) {
 	}
 }
 
+// TestProviderToPlatform_AllCases verifies every provider-to-platform mapping.
+func TestProviderToPlatform_AllCases(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"claude", "claude-code"},
+		{"gemini", "gemini-cli"},
+		{"codex", ""},    // already valid as platform name
+		{"opencode", ""}, // already valid as platform name
+		{"cursor", ""},   // no provider→platform mapping
+		{"unknown", ""},
+		{"", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			t.Parallel()
+			got := ProviderToPlatform(tt.input)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// TestMigratePlatformNames_NormalizesGemini verifies gemini is mapped to gemini-cli.
+func TestMigratePlatformNames_NormalizesGemini(t *testing.T) {
+	t.Parallel()
+	cfg := &HarnessConfig{
+		Platforms: []string{"claude-code", "gemini"},
+	}
+	changed := MigratePlatformNames(cfg)
+	assert.True(t, changed)
+	assert.Equal(t, []string{"claude-code", "gemini-cli"}, cfg.Platforms)
+}
+
+// TestMigratePlatformNames_NoChangeWhenValid verifies no mutation on valid platform names.
+func TestMigratePlatformNames_NoChangeWhenValid(t *testing.T) {
+	t.Parallel()
+	cfg := &HarnessConfig{
+		Platforms: []string{"claude-code", "gemini-cli"},
+	}
+	changed := MigratePlatformNames(cfg)
+	assert.False(t, changed)
+	assert.Equal(t, []string{"claude-code", "gemini-cli"}, cfg.Platforms)
+}
+
 // TestContainsString_TrueAndFalse verifies containsString returns correct results.
 func TestContainsString_TrueAndFalse(t *testing.T) {
 	t.Parallel()

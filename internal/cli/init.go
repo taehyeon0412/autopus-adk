@@ -63,9 +63,14 @@ func newInitCmd() *cobra.Command {
 			if platforms != "" {
 				for _, p := range strings.Split(platforms, ",") {
 					p = strings.TrimSpace(p)
-					if p != "" {
-						platformList = append(platformList, p)
+					if p == "" {
+						continue
 					}
+					// Normalize provider names to platform names (e.g., "gemini" → "gemini-cli").
+					if corrected := config.ProviderToPlatform(p); corrected != "" {
+						p = corrected
+					}
+					platformList = append(platformList, p)
 				}
 			}
 			if len(platformList) == 0 {

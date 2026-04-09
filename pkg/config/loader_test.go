@@ -90,6 +90,16 @@ platforms:
 	assert.Contains(t, err.Error(), "validate config")
 }
 
+func TestSave_RejectsInvalidConfig(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	cfg := DefaultFullConfig("test")
+	cfg.Platforms = []string{"invalid-platform"}
+	err := Save(dir, cfg)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "validate config")
+}
+
 func TestSave(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
