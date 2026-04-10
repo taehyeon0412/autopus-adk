@@ -41,7 +41,7 @@ func TestClaudeAdapter_InstallHooks_WithHooks(t *testing.T) {
 
 	hooks := []adapter.HookConfig{
 		{Event: "PreToolUse", Matcher: "Bash", Type: "command", Command: "auto check --arch --quiet", Timeout: 30},
-		{Event: "PostToolUse", Matcher: "Bash", Type: "command", Command: "auto react --ci-failure --quiet", Timeout: 60},
+		{Event: "PostToolUse", Matcher: "Bash", Type: "command", Command: "auto react check --quiet", Timeout: 60},
 	}
 
 	err := a.InstallHooks(context.Background(), hooks, nil)

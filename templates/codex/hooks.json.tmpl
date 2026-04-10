@@ -22,18 +22,12 @@
       }{{end}}
     ]{{end}}{{if or .Hooks.ReactCIFailure .Hooks.ReactReview}},
     "PostToolUse": [
-      {{if .Hooks.ReactCIFailure}}{
+      {
         "matcher": "Bash",
         "type": "command",
-        "command": "auto react --ci-failure --quiet",
+        "command": "auto react check --quiet",
         "timeout": 60
-      }{{end}}{{if and .Hooks.ReactCIFailure .Hooks.ReactReview}},{{end}}
-      {{if .Hooks.ReactReview}}{
-        "matcher": "Bash",
-        "type": "command",
-        "command": "auto react --review --quiet",
-        "timeout": 60
-      }{{end}}
+      }
     ]{{end}},
     "Stop": [
       {

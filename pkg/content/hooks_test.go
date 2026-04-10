@@ -73,6 +73,20 @@ func TestGenerateHookConfigs_AllDisabled(t *testing.T) {
 	assert.Empty(t, gitHooks)
 }
 
+func TestGenerateHookConfigs_DeduplicatesReactHooks(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.HooksConf{
+		ReactCIFailure: true,
+		ReactReview:    true,
+	}
+
+	hooks, _, err := content.GenerateHookConfigs(cfg, "claude", true)
+	require.NoError(t, err)
+	require.Len(t, hooks, 1)
+	assert.Equal(t, "auto react check --quiet", hooks[0].Command)
+}
+
 func TestGitHookScript_Content(t *testing.T) {
 	t.Parallel()
 

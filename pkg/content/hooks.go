@@ -31,7 +31,7 @@ func generateCLIHooks(cfg config.HooksConf, _ string) []adapter.HookConfig {
 	var hooks []adapter.HookConfig
 
 	if cfg.PreCommitArch {
-		hooks = append(hooks, adapter.HookConfig{
+		hooks = appendUniqueHook(hooks, adapter.HookConfig{
 			Event:   "PreToolUse",
 			Matcher: "Bash",
 			Type:    "command",
@@ -41,7 +41,7 @@ func generateCLIHooks(cfg config.HooksConf, _ string) []adapter.HookConfig {
 	}
 
 	if cfg.PreCommitLore {
-		hooks = append(hooks, adapter.HookConfig{
+		hooks = appendUniqueHook(hooks, adapter.HookConfig{
 			Event:   "PreToolUse",
 			Matcher: "Bash",
 			Type:    "command",
@@ -51,7 +51,7 @@ func generateCLIHooks(cfg config.HooksConf, _ string) []adapter.HookConfig {
 	}
 
 	if cfg.ReactCIFailure {
-		hooks = append(hooks, adapter.HookConfig{
+		hooks = appendUniqueHook(hooks, adapter.HookConfig{
 			Event:   "PostToolUse",
 			Matcher: "Bash",
 			Type:    "command",
@@ -61,7 +61,7 @@ func generateCLIHooks(cfg config.HooksConf, _ string) []adapter.HookConfig {
 	}
 
 	if cfg.ReactReview {
-		hooks = append(hooks, adapter.HookConfig{
+		hooks = appendUniqueHook(hooks, adapter.HookConfig{
 			Event:   "PostToolUse",
 			Matcher: "Bash",
 			Type:    "command",
@@ -71,6 +71,15 @@ func generateCLIHooks(cfg config.HooksConf, _ string) []adapter.HookConfig {
 	}
 
 	return hooks
+}
+
+func appendUniqueHook(hooks []adapter.HookConfig, hook adapter.HookConfig) []adapter.HookConfig {
+	for _, existing := range hooks {
+		if existing == hook {
+			return hooks
+		}
+	}
+	return append(hooks, hook)
 }
 
 // generateGitHooks는 .git/hooks/ 스크립트를 생성한다.

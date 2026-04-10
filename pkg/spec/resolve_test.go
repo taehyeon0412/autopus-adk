@@ -39,6 +39,20 @@ func TestResolveSpecDir_Submodule(t *testing.T) {
 	assert.Equal(t, "autopus-adk", result.TargetModule)
 }
 
+func TestResolveSpecDir_NestedSubmoduleDepth2(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	specDir := filepath.Join(dir, "apps", "backend", ".autopus", "specs", "SPEC-GO-001")
+	require.NoError(t, os.MkdirAll(specDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(specDir, "spec.md"), []byte("# SPEC-GO-001: Backend"), 0o644))
+
+	result, err := spec.ResolveSpecDir(dir, "SPEC-GO-001")
+	require.NoError(t, err)
+	assert.Equal(t, specDir, result.SpecDir)
+	assert.Equal(t, filepath.Join("apps", "backend"), result.TargetModule)
+}
+
 func TestResolveSpecDir_NotFound(t *testing.T) {
 	t.Parallel()
 

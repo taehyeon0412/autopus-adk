@@ -9,8 +9,11 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/insajin/autopus-adk/pkg/config"
 	"github.com/insajin/autopus-adk/pkg/issue"
 )
+
+const defaultIssueRepo = "Insajin/autopus-adk"
 
 // detectGitRepo extracts the GitHub owner/repo from git remote origin.
 func detectGitRepo() string {
@@ -18,7 +21,10 @@ func detectGitRepo() string {
 	if err != nil {
 		return ""
 	}
-	url := strings.TrimSpace(string(out))
+	return parseGitHubRepo(strings.TrimSpace(string(out)))
+}
+
+func parseGitHubRepo(url string) string {
 	// Handle SSH: git@github.com:owner/repo.git
 	// Handle HTTPS: https://github.com/owner/repo.git
 	url = strings.TrimSuffix(url, ".git")
@@ -36,6 +42,30 @@ func detectGitRepo() string {
 		}
 	}
 	return ""
+}
+
+func resolveIssueRepo(explicit, command string) string {
+	var cfgRepo string
+	if cfg, err := config.Load("."); err == nil {
+		cfgRepo = cfg.IssueReport.Repo
+	}
+	return resolveIssueRepoInputs(explicit, command, cfgRepo, detectGitRepo())
+}
+
+func resolveIssueRepoInputs(explicit, command, cfgRepo, gitRepo string) string {
+	if explicit != "" {
+		return explicit
+	}
+	if cfgRepo != "" {
+		return cfgRepo
+	}
+	if strings.HasPrefix(strings.TrimSpace(command), "auto ") || strings.TrimSpace(command) == "auto" {
+		return defaultIssueRepo
+	}
+	if gitRepo != "" {
+		return gitRepo
+	}
+	return defaultIssueRepo
 }
 
 // newIssueCmd creates the `auto issue` command group.
@@ -92,15 +122,8 @@ func runIssueReport(cmd *cobra.Command, dryRun, autoSubmit bool, errMsg, command
 		Labels:  []string{"auto-report"},
 	}
 
-	// Resolve target repository: flag takes precedence, then auto-detect from git remote.
-	if repo != "" {
-		report.Repo = repo
-	} else {
-		report.Repo = detectGitRepo()
-	}
-	if report.Repo == "" {
-		return fmt.Errorf("cannot detect GitHub repository from git remote. Use --repo flag or run inside a git repo")
-	}
+	// Resolve target repository: explicit flag > autopus.yaml > autopus default > git remote fallback.
+	report.Repo = resolveIssueRepo(repo, command)
 
 	submitter := issue.NewSubmitter(nil)
 	report.Hash = submitter.ComputeHash(errMsg, command)
@@ -189,9 +212,7 @@ func newIssueListCmd() *cobra.Command {
 // runIssueList calls gh issue list filtering by the auto-report label.
 func runIssueList(cmd *cobra.Command, repo string) error {
 	ghArgs := []string{"issue", "list", "--label", "auto-report"}
-	if repo != "" {
-		ghArgs = append([]string{"--repo", repo}, ghArgs...)
-	}
+	ghArgs = append([]string{"--repo", resolveIssueRepo(repo, "auto issue list")}, ghArgs...)
 	return runGHCmd(cmd, ghArgs...)
 }
 
@@ -215,9 +236,7 @@ func newIssueSearchCmd() *cobra.Command {
 // runIssueSearch calls gh issue list with a search query.
 func runIssueSearch(cmd *cobra.Command, repo, query string) error {
 	ghArgs := []string{"issue", "list", "--search", query}
-	if repo != "" {
-		ghArgs = append([]string{"--repo", repo}, ghArgs...)
-	}
+	ghArgs = append([]string{"--repo", resolveIssueRepo(repo, "auto issue search")}, ghArgs...)
 	return runGHCmd(cmd, ghArgs...)
 }
 

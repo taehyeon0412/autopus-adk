@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-
 func TestNewIssueCmd_SubcommandsRegistered(t *testing.T) {
 	t.Parallel()
 
@@ -118,6 +117,24 @@ func TestBuildIssueTitle_Empty(t *testing.T) {
 	t.Parallel()
 	title := buildIssueTitle("", "")
 	assert.Equal(t, "[auto] issue report", title)
+}
+
+func TestParseGitHubRepo(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, "org/repo", parseGitHubRepo("git@github.com:org/repo.git"))
+	assert.Equal(t, "org/repo", parseGitHubRepo("https://github.com/org/repo.git"))
+	assert.Equal(t, "", parseGitHubRepo("https://example.com/org/repo.git"))
+}
+
+func TestResolveIssueRepoInputs_Priority(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, "custom/repo", resolveIssueRepoInputs("custom/repo", "auto spec review", "cfg/repo", "git/repo"))
+	assert.Equal(t, "cfg/repo", resolveIssueRepoInputs("", "auto spec review", "cfg/repo", "git/repo"))
+	assert.Equal(t, defaultIssueRepo, resolveIssueRepoInputs("", "auto spec review", "", "git/repo"))
+	assert.Equal(t, "git/repo", resolveIssueRepoInputs("", "make test", "", "git/repo"))
+	assert.Equal(t, defaultIssueRepo, resolveIssueRepoInputs("", "make test", "", ""))
 }
 
 func TestConfirmIssue_Yes(t *testing.T) {

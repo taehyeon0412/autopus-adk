@@ -35,7 +35,7 @@ echo "   실패 정보: $CI_FAILURE_FILE"
 # autopus CLI로 에이전트 알림 (설치된 경우)
 if command -v auto > /dev/null 2>&1; then
     echo "🤖 에이전트에게 CI 실패 전달 중..."
-    auto react --ci-failure --input "$CI_FAILURE_FILE" --quiet || true
+    auto react check --quiet || true
 fi
 
 echo "✅ CI 실패 대응 완료"

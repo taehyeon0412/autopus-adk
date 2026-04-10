@@ -14,14 +14,21 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	reactLookPath = exec.LookPath
+	reactOutput   = func(name string, args ...string) ([]byte, error) {
+		return exec.Command(name, args...).Output()
+	}
+)
+
 // @AX:NOTE [AUTO] [downgraded from ANCHOR — fan_in < 3] ciRun struct unmarshalled from gh CLI output; field names must match JSON keys; single production caller within react.go
 // ciRun represents a GitHub Actions run from `gh run list` JSON output.
 type ciRun struct {
-	DatabaseID  int64  `json:"databaseId"`
-	Name        string `json:"name"`
-	Conclusion  string `json:"conclusion"`
-	HeadBranch  string `json:"headBranch"`
-	UpdatedAt   string `json:"updatedAt"`
+	DatabaseID int64  `json:"databaseId"`
+	Name       string `json:"name"`
+	Conclusion string `json:"conclusion"`
+	HeadBranch string `json:"headBranch"`
+	UpdatedAt  string `json:"updatedAt"`
 }
 
 // newReactCmd creates the `auto react` parent command.
@@ -72,7 +79,7 @@ func newReactApplyCmd() *cobra.Command {
 
 func runReactCheck(cmd *cobra.Command, _ []string, quiet bool) error {
 	// Verify gh CLI is installed
-	if _, err := exec.LookPath("gh"); err != nil {
+	if _, err := reactLookPath("gh"); err != nil {
 		return fmt.Errorf("gh CLI not found. Install it from: https://cli.github.com/")
 	}
 
@@ -80,13 +87,23 @@ func runReactCheck(cmd *cobra.Command, _ []string, quiet bool) error {
 	if !quiet {
 		fmt.Fprintln(out, "Checking for CI failures...")
 	}
+	hasRemote, err := hasGitRemote()
+	if err != nil {
+		return err
+	}
+	if !hasRemote {
+		if !quiet {
+			fmt.Fprintln(out, "No git remote configured. Skipping CI checks.")
+		}
+		return nil
+	}
 
 	// Fetch failed runs
-	result, err := exec.Command("gh", "run", "list",
+	result, err := reactOutput("gh", "run", "list",
 		"--status", "failure",
 		"--limit", "5",
 		"--json", "databaseId,name,conclusion,headBranch,updatedAt",
-	).Output()
+	)
 	if err != nil {
 		return fmt.Errorf("failed to list CI runs: %w", err)
 	}
@@ -142,11 +159,19 @@ func runReactCheck(cmd *cobra.Command, _ []string, quiet bool) error {
 	return nil
 }
 
+func hasGitRemote() (bool, error) {
+	out, err := reactOutput("git", "remote")
+	if err != nil {
+		return false, nil
+	}
+	return strings.TrimSpace(string(out)) != "", nil
+}
+
 func fetchRunLogs(runID int64) (string, error) {
-	out, err := exec.Command("gh", "run", "view",
+	out, err := reactOutput("gh", "run", "view",
 		fmt.Sprintf("%d", runID),
 		"--log-failed",
-	).Output()
+	)
 	if err != nil {
 		return "", err
 	}

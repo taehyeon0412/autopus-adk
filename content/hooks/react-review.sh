@@ -38,7 +38,7 @@ EOF
     # autopus CLI로 에이전트 알림 (설치된 경우)
     if command -v auto > /dev/null 2>&1; then
         echo "🤖 리뷰 에이전트에게 변경 요청 전달 중..."
-        auto react --review --input "$REVIEW_FILE" --quiet || true
+        auto react check --quiet || true
     fi
 
     echo "✅ 리뷰 대응 완료"
