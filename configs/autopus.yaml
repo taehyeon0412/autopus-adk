@@ -73,11 +73,10 @@ orchestra:
     claude:
       binary: claude
       args: ["--print", "--model", "opus", "--effort", "high"]
-    opencode:
-      binary: opencode
-      args: ["run", "-m", "openai/gpt-5.4"]
-      pane_args: ["-m", "openai/gpt-5.4"]
-      prompt_via_args: true
+    codex:
+      binary: codex
+      args: ["exec", "--full-auto", "-m", "gpt-5.4"]
+      pane_args: ["-m", "gpt-5.4"]
     gemini:
       binary: gemini
       args: ["-m", "gemini-3.1-pro-preview", "-p", ""]
@@ -85,16 +84,16 @@ orchestra:
   commands:
     plan:
       strategy: consensus
-      providers: [claude, opencode, gemini]
+      providers: [claude, codex, gemini]
     review:
       strategy: debate
-      providers: [claude, opencode, gemini]
+      providers: [claude, codex, gemini]
     secure:
       strategy: consensus
-      providers: [claude, opencode, gemini]
+      providers: [claude, codex, gemini]
     brainstorm:
       strategy: debate
-      providers: [claude, opencode, gemini]
+      providers: [claude, codex, gemini]
 
 quality:
   default: balanced

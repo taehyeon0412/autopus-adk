@@ -41,11 +41,6 @@ func TestDefaultCompletionPatterns_ProviderSpecificMatching(t *testing.T) {
 			expectedProvider: "gemini",
 		},
 		{
-			name:             "opencode: Ask anything placeholder",
-			screen:           "Ask anything about your code",
-			expectedProvider: "opencode",
-		},
-		{
 			name:             "codex: codex> prompt",
 			screen:           "codex> ",
 			expectedProvider: "codex",
@@ -110,11 +105,6 @@ func TestIsPromptVisible_ANSIWrappedPrompts(t *testing.T) {
 			matched: true,
 		},
 		{
-			name:    "opencode prompt with ANSI",
-			screen:  "\x1b[1mAsk anything\x1b[0m",
-			matched: true,
-		},
-		{
 			name:    "shell $ prompt with ANSI",
 			screen:  "\x1b[33m$\x1b[0m ",
 			matched: true,
@@ -172,7 +162,6 @@ func TestSessionReadyPatterns_CLIPromptsMatch(t *testing.T) {
 	}{
 		{"claude prompt", "❯"},
 		{"gemini prompt", "> Type your message..."},
-		{"opencode prompt", "Ask anything"},
 		{"codex prompt", "codex> "},
 	}
 

@@ -24,7 +24,6 @@ func stripANSI(s string) string {
 // defaultPromptPatterns matches common shell and CLI prompts.
 // @AX:NOTE [AUTO] hardcoded prompt regexes — must stay in sync with DefaultCompletionPatterns
 var defaultPromptPatterns = []*regexp.Regexp{
-	regexp.MustCompile(`(?m)Ask anything`),              // opencode TUI input placeholder
 	regexp.MustCompile(`(?m)^❯\s*$`),                    // claude code prompt (unicode heavy right-pointing angle)
 	regexp.MustCompile(`(?m)^\s*>\s*(Type your|@|\s*$)`), // gemini TUI prompt (> Type your..., > @, bare >)
 	regexp.MustCompile(`(?im)^codex>\s*$`),              // codex prompt (case-insensitive)
@@ -35,7 +34,6 @@ var defaultPromptPatterns = []*regexp.Regexp{
 // sessionReadyPromptPatterns matches CLI-specific prompts WITHOUT shell patterns ($ and #).
 // Used by waitForSessionReady to avoid premature detection on bare shell prompts.
 var sessionReadyPromptPatterns = []*regexp.Regexp{
-	regexp.MustCompile(`(?m)Ask anything`),              // opencode TUI input placeholder
 	regexp.MustCompile(`(?m)^❯\s*$`),                    // claude code prompt (unicode heavy right-pointing angle)
 	regexp.MustCompile(`(?m)^\s*>\s*(Type your|@|\s*$)`), // gemini TUI prompt (> Type your..., > @, bare >)
 	regexp.MustCompile(`(?im)^codex>\s*$`),              // codex prompt (case-insensitive)
@@ -50,7 +48,6 @@ func SessionReadyPatterns() []CompletionPattern {
 		{Provider: "claude", Pattern: regexp.MustCompile(`(?m)^❯\s*$`)},
 		{Provider: "codex", Pattern: regexp.MustCompile(`(?im)^codex>\s*$`)},
 		{Provider: "gemini", Pattern: regexp.MustCompile(`(?m)^\s*>\s*(Type your|@|\s*$)`)},
-		{Provider: "opencode", Pattern: regexp.MustCompile(`(?m)Ask anything`)},
 	}
 }
 
@@ -75,7 +72,6 @@ func isSessionReady(screen string, patterns []CompletionPattern) bool {
 }
 
 // startupTimeoutFor returns the per-provider startup timeout.
-// opencode loads plugins/MCP on startup similarly to claude, requiring a longer timeout.
 func startupTimeoutFor(provider ProviderConfig) time.Duration {
 	if provider.StartupTimeout > 0 {
 		return provider.StartupTimeout
@@ -85,8 +81,6 @@ func startupTimeoutFor(provider ProviderConfig) time.Duration {
 		return 15 * time.Second
 	case "gemini":
 		return 10 * time.Second
-	case "opencode":
-		return 15 * time.Second
 	default:
 		return 30 * time.Second
 	}

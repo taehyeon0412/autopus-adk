@@ -115,7 +115,6 @@ func TestStartupTimeoutFor_ProviderSpecific(t *testing.T) {
 	}{
 		{"claude 15s", ProviderConfig{Name: "claude"}, 15 * time.Second},
 		{"gemini 10s", ProviderConfig{Name: "gemini"}, 10 * time.Second},
-		{"opencode 15s", ProviderConfig{Name: "opencode"}, 15 * time.Second},
 		{"unknown default 30s", ProviderConfig{Name: "unknown"}, 30 * time.Second},
 		{"custom override", ProviderConfig{Name: "claude", StartupTimeout: 60 * time.Second}, 60 * time.Second},
 	}

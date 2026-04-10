@@ -113,7 +113,6 @@ func DefaultCompletionPatterns() []CompletionPattern {
 		{Provider: "claude", Pattern: regexp.MustCompile(`(?m)^❯\s*$`)},
 		{Provider: "codex", Pattern: regexp.MustCompile(`(?im)^codex>\s*$`)},
 		{Provider: "gemini", Pattern: regexp.MustCompile(`(?m)^\s*>\s*(Type your|@|\s*$)`)},
-		{Provider: "opencode", Pattern: regexp.MustCompile(`(?m)Ask anything`)},
 	}
 }
 
