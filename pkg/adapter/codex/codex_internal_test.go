@@ -233,6 +233,7 @@ func TestGenerateConfig_MCPServers(t *testing.T) {
 	files, err := a.generateConfig(cfg)
 	require.NoError(t, err)
 	content := string(files[0].Content)
+	assert.Contains(t, content, "[mcp_servers.autopus]")
 	assert.Contains(t, content, "[mcp_servers.context7]")
 }
 

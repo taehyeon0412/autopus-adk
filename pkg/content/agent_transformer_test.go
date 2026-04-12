@@ -77,8 +77,7 @@ func TestTransformAgentForCodex_RichInstructions(t *testing.T) {
 	// S1: TOML with developer_instructions >= 200 chars
 	assert.Contains(t, result, `name = "executor"`)
 	assert.Contains(t, result, `model = "gpt-5.4"`)
-	assert.Contains(t, result, "[developer_instructions]")
-	assert.Contains(t, result, "text = ")
+	assert.Contains(t, result, "developer_instructions =")
 	assert.Contains(t, result, "{{.ProjectName}}")
 	assert.Contains(t, result, "{{if .IsFullMode}}")
 	assert.Greater(t, len(result), 200)
@@ -114,7 +113,7 @@ func TestTransformAgentForCodex_EmptyBody(t *testing.T) {
 
 	assert.Contains(t, result, `name = "minimal"`)
 	assert.Contains(t, result, `model = "gpt-5-nano"`)
-	assert.Contains(t, result, "[developer_instructions]")
+	assert.Contains(t, result, "developer_instructions =")
 }
 
 func TestTransformAgentForGemini_EmptyBody(t *testing.T) {

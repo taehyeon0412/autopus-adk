@@ -67,7 +67,7 @@ Use .claude/rules/ for guidelines.
 	require.NoError(t, err)
 	assert.Greater(t, len(data), 200, "Codex agent TOML should be >= 200 chars")
 	assert.Contains(t, string(data), `name = "test-agent"`)
-	assert.Contains(t, string(data), "[developer_instructions]")
+	assert.Contains(t, string(data), "developer_instructions =")
 
 	// Verify Gemini agent MD exists
 	geminiAgent := filepath.Join(templateDir, "gemini", "agents", "test-agent.md.tmpl")

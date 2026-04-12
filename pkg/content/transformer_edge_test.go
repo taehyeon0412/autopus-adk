@@ -102,7 +102,7 @@ func TestCondenseBody_OnlyCodeBlock(t *testing.T) {
 	result := content.TransformAgentForCodex(src)
 	// Should still produce valid TOML with developer_instructions
 	assert.Contains(t, result, `name = "codeonly"`)
-	assert.Contains(t, result, "[developer_instructions]")
+	assert.Contains(t, result, "developer_instructions =")
 	assert.NotContains(t, result, "some code")
 }
 

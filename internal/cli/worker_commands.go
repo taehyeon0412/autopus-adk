@@ -25,6 +25,7 @@ func addWorkerSubcommands(parent *cobra.Command) {
 		newWorkerStopCmd(),
 		newWorkerStatusCmd(),
 		newWorkerLogsCmd(),
+		newWorkerMCPServeCmd(),
 		newWorkerRestartCmd(),
 		newWorkerHistoryCmd(),
 		newWorkerCostCmd(),

@@ -104,11 +104,10 @@ func TransformAgentForCodex(src AgentSource) string {
 	fmt.Fprintf(&sb, "name = %q\n", src.Meta.Name)
 	fmt.Fprintf(&sb, "description = %q\n", src.Meta.Description)
 	fmt.Fprintf(&sb, "model = %q\n", model)
-	sb.WriteString("\n[developer_instructions]\n")
 
 	// Build rich developer_instructions from body sections
 	instructions := buildCodexInstructions(src.Meta, body)
-	fmt.Fprintf(&sb, "text = %q\n", instructions)
+	fmt.Fprintf(&sb, "developer_instructions = %q\n", instructions)
 
 	return sb.String()
 }
@@ -189,5 +188,4 @@ func buildCodexInstructions(meta AgentSourceMeta, body string) string {
 
 	return sb.String()
 }
-
 
