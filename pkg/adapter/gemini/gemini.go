@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	contentfs "github.com/insajin/autopus-adk/content"
 	"github.com/insajin/autopus-adk/pkg/adapter"
 	"github.com/insajin/autopus-adk/pkg/config"
 	tmpl "github.com/insajin/autopus-adk/pkg/template"
@@ -120,6 +121,18 @@ func (a *Adapter) Generate(ctx context.Context, cfg *config.HarnessConfig) (*ada
 		}
 	}
 	files = append(files, settingsFiles...)
+
+	routerFiles, err := a.renderRouterCommand(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("제미니 라우터 템플릿 렌더링 실패: %w", err)
+	}
+	files = append(files, routerFiles...)
+
+	statusFiles, err := a.copyStatusline()
+	if err != nil {
+		return nil, fmt.Errorf("제미니 statusline 복사 실패: %w", err)
+	}
+	files = append(files, statusFiles...)
 
 	// Install hooks and permissions to .gemini/settings.json
 	if err := a.applyHooksAndPermissions(ctx, cfg); err != nil {
@@ -257,7 +270,51 @@ func (a *Adapter) prepareFiles(cfg *config.HarnessConfig) ([]adapter.FileMapping
 	}
 	files = append(files, settingsMappings...)
 
+	routerMappings, err := a.prepareRouterCommand(cfg)
+	if err != nil {
+		return nil, err
+	}
+	files = append(files, routerMappings...)
+
+	statusFiles, err := a.prepareStatusline()
+	if err != nil {
+		return nil, err
+	}
+	files = append(files, statusFiles...)
+
 	return files, nil
+}
+
+// prepareStatusline reads statusline.sh from embedded FS and returns a FileMapping.
+func (a *Adapter) prepareStatusline() ([]adapter.FileMapping, error) {
+	data, err := contentfs.FS.ReadFile("statusline.sh")
+	if err != nil {
+		return nil, fmt.Errorf("statusline.sh 읽기 실패: %w", err)
+	}
+	return []adapter.FileMapping{{
+		TargetPath:      filepath.Join(".gemini", "statusline.sh"),
+		OverwritePolicy: adapter.OverwriteAlways,
+		Checksum:        checksum(string(data)),
+		Content:         data,
+	}}, nil
+}
+
+// copyStatusline copies statusline.sh to the target project.
+func (a *Adapter) copyStatusline() ([]adapter.FileMapping, error) {
+	data, err := contentfs.FS.ReadFile("statusline.sh")
+	if err != nil {
+		return nil, fmt.Errorf("statusline.sh 읽기 실패: %w", err)
+	}
+	destPath := filepath.Join(a.root, ".gemini", "statusline.sh")
+	if err := os.WriteFile(destPath, data, 0755); err != nil {
+		return nil, fmt.Errorf("statusline.sh 쓰기 실패: %w", err)
+	}
+	return []adapter.FileMapping{{
+		TargetPath:      filepath.Join(".gemini", "statusline.sh"),
+		OverwritePolicy: adapter.OverwriteAlways,
+		Checksum:        checksum(string(data)),
+		Content:         data,
+	}}, nil
 }
 
 

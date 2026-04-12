@@ -72,10 +72,15 @@ func (a *Adapter) Clean(_ context.Context) error {
 		}
 	}
 
-	// Remove .gemini/settings.json
-	settingsPath := filepath.Join(a.root, ".gemini", "settings.json")
-	if err := os.Remove(settingsPath); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("settings.json 제거 실패: %w", err)
+	// Remove .gemini/settings.json and statusline.sh
+	filesToRemove := []string{
+		filepath.Join(a.root, ".gemini", "settings.json"),
+		filepath.Join(a.root, ".gemini", "statusline.sh"),
+	}
+	for _, f := range filesToRemove {
+		if err := os.Remove(f); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("%s 제거 실패: %w", filepath.Base(f), err)
+		}
 	}
 
 	// Remove AUTOPUS marker section from GEMINI.md

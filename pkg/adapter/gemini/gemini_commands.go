@@ -14,6 +14,47 @@ import (
 
 const commandsTemplateDir = "gemini/commands/auto"
 
+// renderRouterCommand renders the single router template (auto-router.md.tmpl)
+// and writes it to .gemini/skills/auto/SKILL.md
+func (a *Adapter) renderRouterCommand(cfg *config.HarnessConfig) ([]adapter.FileMapping, error) {
+	mappings, err := a.prepareRouterCommand(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, m := range mappings {
+		destPath := filepath.Join(a.root, m.TargetPath)
+		if err := os.MkdirAll(filepath.Dir(destPath), 0755); err != nil {
+			return nil, fmt.Errorf("gemini router 디렉터리 생성 실패: %w", err)
+		}
+		if err := os.WriteFile(destPath, m.Content, 0644); err != nil {
+			return nil, fmt.Errorf("gemini router 파일 쓰기 실패 %s: %w", destPath, err)
+		}
+	}
+
+	return mappings, nil
+}
+
+// prepareRouterCommand renders the router template and returns a file mapping.
+func (a *Adapter) prepareRouterCommand(cfg *config.HarnessConfig) ([]adapter.FileMapping, error) {
+	tmplContent, err := templates.FS.ReadFile("gemini/commands/auto-router.md.tmpl")
+	if err != nil {
+		return nil, fmt.Errorf("제미니 라우터 템플릿 읽기 실패: %w", err)
+	}
+
+	rendered, err := a.engine.RenderString(string(tmplContent), cfg)
+	if err != nil {
+		return nil, fmt.Errorf("제미니 라우터 템플릿 렌더링 실패: %w", err)
+	}
+
+	return []adapter.FileMapping{{
+		TargetPath:      filepath.Join(".gemini", "skills", "auto", "SKILL.md"),
+		OverwritePolicy: adapter.OverwriteAlways,
+		Checksum:        checksum(rendered),
+		Content:         []byte(rendered),
+	}}, nil
+}
+
 // renderCommandTemplates reads Gemini command templates from embedded FS,
 // renders them, and writes to .gemini/commands/auto/.
 func (a *Adapter) renderCommandTemplates(cfg *config.HarnessConfig) ([]adapter.FileMapping, error) {
