@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"os/exec"
+	"time"
 )
 
 // command는 실행 커맨드 인터페이스이다 (테스트 목 지원).
@@ -15,6 +16,7 @@ type command interface {
 	Start() error
 	Wait() error
 	ExitCode() int
+	Terminate(reason string) error
 }
 
 // execCommand는 실제 exec.Cmd 래퍼이다.
@@ -24,8 +26,12 @@ type execCommand struct {
 
 // newCommand는 컨텍스트 기반 커맨드를 생성한다.
 var newCommand = func(ctx context.Context, name string, args ...string) command {
-	return &execCommand{cmd: exec.CommandContext(ctx, name, args...)}
+	cmd := exec.CommandContext(ctx, name, args...)
+	configureCommand(cmd)
+	return &execCommand{cmd: cmd}
 }
+
+var providerWaitGracePeriod = 2 * time.Second
 
 func (e *execCommand) StdinPipe() (io.WriteCloser, error) {
 	return e.cmd.StdinPipe()
@@ -56,4 +62,8 @@ func (e *execCommand) ExitCode() int {
 		return -1
 	}
 	return e.cmd.ProcessState.ExitCode()
+}
+
+func (e *execCommand) Terminate(reason string) error {
+	return terminateCommand(e.cmd, reason)
 }

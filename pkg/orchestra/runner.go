@@ -258,12 +258,17 @@ func runProvider(ctx context.Context, provider ProviderConfig, prompt string) (*
 		if err := cmd.Start(); err != nil {
 			return nil, fmt.Errorf("%s 시작 실패: %w", provider.Name, err)
 		}
+		waitCh := startCommandWait(cmd)
 
 		if _, err := io.WriteString(stdinPipe, prompt); err != nil {
-			_ = cmd.Wait()
+			_ = cmd.Terminate(provider.Name + " stdin write failure")
+			drainCommandWait(waitCh)
 			return nil, fmt.Errorf("%s stdin 쓰기 실패: %w", provider.Name, err)
 		}
 		_ = stdinPipe.Close()
+
+		waitErr := waitForCommand(ctx, cmd, provider.Name, waitCh)
+		return buildProviderResponse(start, provider, &stdoutBuf, &stderrBuf, waitErr, ctx, cmd.ExitCode())
 	} else {
 		// Close stdin explicitly to prevent CLIs (e.g. claude -p) from waiting for input
 		cmd.SetStdin(nil)
@@ -272,7 +277,48 @@ func runProvider(ctx context.Context, provider ProviderConfig, prompt string) (*
 		}
 	}
 
-	waitErr := cmd.Wait()
+	waitCh := startCommandWait(cmd)
+	waitErr := waitForCommand(ctx, cmd, provider.Name, waitCh)
+	return buildProviderResponse(start, provider, &stdoutBuf, &stderrBuf, waitErr, ctx, cmd.ExitCode())
+}
+
+func startCommandWait(cmd command) <-chan error {
+	waitCh := make(chan error, 1)
+	go func() {
+		waitCh <- cmd.Wait()
+	}()
+	return waitCh
+}
+
+func waitForCommand(ctx context.Context, cmd command, providerName string, waitCh <-chan error) error {
+	select {
+	case err := <-waitCh:
+		return err
+	default:
+	}
+
+	select {
+	case err := <-waitCh:
+		return err
+	case <-ctx.Done():
+		_ = cmd.Terminate(providerName + " context cancelled")
+		select {
+		case err := <-waitCh:
+			return err
+		case <-time.After(providerWaitGracePeriod):
+			return ctx.Err()
+		}
+	}
+}
+
+func drainCommandWait(waitCh <-chan error) {
+	select {
+	case <-waitCh:
+	case <-time.After(providerWaitGracePeriod):
+	}
+}
+
+func buildProviderResponse(start time.Time, provider ProviderConfig, stdoutBuf, stderrBuf *bytes.Buffer, waitErr error, ctx context.Context, exitCode int) (*ProviderResponse, error) {
 	duration := time.Since(start)
 
 	output := stdoutBuf.String()
@@ -281,16 +327,14 @@ func runProvider(ctx context.Context, provider ProviderConfig, prompt string) (*
 		Output:      output,
 		Error:       stderrBuf.String(),
 		Duration:    duration,
-		ExitCode:    cmd.ExitCode(),
+		ExitCode:    exitCode,
 		EmptyOutput: strings.TrimSpace(output) == "",
 	}
 
-	// Check for context cancellation (includes timeout).
 	if ctx.Err() != nil {
 		resp.TimedOut = true
 	}
 
-	// Return error only when process failed and was not timed out.
 	if waitErr != nil && !resp.TimedOut && resp.ExitCode != 0 {
 		return resp, fmt.Errorf("%s 실행 오류 (exit %d): %w", provider.Name, resp.ExitCode, waitErr)
 	}
