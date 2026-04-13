@@ -11,8 +11,8 @@ SPEC 문서를 기반으로 코드를 구현합니다.{{if .IsFullMode}} {{.Meth
 ```
 @auto go SPEC-ID
 @auto go SPEC-ID --continue
-@auto go SPEC-ID --team --auto --loop
 @auto go SPEC-ID --solo --quality ultra
+@auto go SPEC-ID --auto --loop
 ```
 
 ### 플래그
@@ -20,7 +20,7 @@ SPEC 문서를 기반으로 코드를 구현합니다.{{if .IsFullMode}} {{.Meth
 | Flag | Description |
 |------|-------------|
 | `--continue` | 이전 중단 지점에서 재개합니다. |
-| `--team` | Codex에서는 `.codex/agents/`에 정의된 하네스 에이전트를 여러 `spawn_agent` 워커로 병렬 오케스트레이션하는 모드입니다. |
+| `--team` | Codex에서는 future native multi-agent를 위한 reserved compatibility flag입니다. 현재는 기본 subagent pipeline을 계속 사용합니다. |
 | `--solo` | 서브에이전트 없이 메인 세션에서 직접 구현합니다. |
 | `--strategy <value>` | `--multi` 리뷰 전략을 지정합니다. |
 | `--skip-scaffold` | 초기 테스트 스캐폴딩 단계를 건너뜁니다. |
@@ -105,7 +105,8 @@ auto orchestra run "{review topic}" --strategy consensus --rounds fast
 
 ## Codex Notes
 
-- `--team`은 Claude Code의 TeamCreate API가 아니라, 메인 세션이 `.codex/agents/` 역할 정의를 읽고 여러 `spawn_agent` 호출을 병렬 조정하는 의미입니다.
+- Codex의 기본 구현 모드는 `spawn_agent(...)` 기반 subagent pipeline입니다.
+- `--team`은 future native multi-agent surface를 위한 reserved compatibility flag이며, 현재 Codex에서는 추가 오케스트레이션 의미를 부여하지 않습니다.
 - `--multi`는 구현 이후 reviewer / security-auditor / orchestra 리뷰를 추가로 붙이는 강화 모드입니다.
 - 전체 파이프라인 단계, 재시도 한도, 게이트 규칙은 `@auto go ...` 라우터 본문을 우선합니다.
 

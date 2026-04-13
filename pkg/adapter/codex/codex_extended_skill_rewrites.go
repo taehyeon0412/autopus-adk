@@ -35,120 +35,33 @@ func codexAgentTeamsSkillBody() string {
 
 ## Overview
 
-In Codex, ` + "`--team`" + ` is a harness-defined multi-agent orchestration pattern, not a native Team API. The main session acts as the lead coordinator and manages parallel workers with ` + "`spawn_agent(...)`" + `, ` + "`send_input(...)`" + `, and ` + "`wait_agent(...)`" + `.
+This document is a reserved placeholder for a future native Codex multi-agent / teams surface.
 
 **Activation flag**: ` + "`@auto go SPEC-ID --team`" + `
 
-The worker roles come from the harness-generated agent definitions under ` + "`.codex/agents/*.toml`" + `. Use those role contracts as the source of truth for prompts, ownership, and quality expectations.
+Today, Codex should continue to use the default ` + "`spawn_agent(...)`" + ` subagent pipeline. Do not reinterpret ` + "`--team`" + ` as extra parallel orchestration in the harness.
 
-## Activation
+## Current Behavior
 
-Use this mode only when the work can be partitioned into disjoint ownership slices.
+- ` + "`@auto go`" + ` without flags: use the default subagent pipeline
+- ` + "`@auto go --solo`" + `: disable subagents and stay in the main session
+- ` + "`@auto go --team`" + `: keep compatibility with future native multi-agent naming, but continue with the default subagent pipeline for now
 
-- Good fit: multiple packages, clear ownership boundaries, independent validation tasks
-- Poor fit: one-file changes, tightly coupled refactors, debugging a single failing path
+## Why This Is Reserved
 
-If decomposition is unclear, fall back to the default pipeline or ` + "`--solo`" + `.
+- Codex already supports subagents natively via ` + "`spawn_agent(...)`" + `
+- Public Codex docs do not define a separate local CLI Team API equivalent to Claude Code Agent Teams
+- Overloading ` + "`--team`" + ` to mean "extra ` + "`spawn_agent(...)`" + ` fan-out" would conflict with the likely future meaning of native multi-agent support
 
-## Role Model
+## What To Use Instead
 
-### Lead (main session)
+- Use ` + "`.codex/skills/agent-pipeline.md`" + ` for the default execution model
+- Use ` + "`.codex/agents/*.toml`" + ` as the role source of truth for spawned workers
+- Use ` + "`.codex/skills/worktree-isolation.md`" + ` when parallel ownership boundaries are explicit
 
-- Loads the SPEC and decides the split strategy
-- Reads ` + "`.codex/agents/`" + ` role definitions before spawning workers
-- Spawns workers with explicit ownership and completion criteria
-- Tracks progress, merges findings, and resolves conflicts
-- Runs the final integration step after worker results return
+## Revisit Condition
 
-### Builder workers
-
-- Usually ` + "`planner`" + ` for decomposition, then ` + "`executor`" + ` and ` + "`tester`" + ` for implementation
-- Own a disjoint file set or concern slice
-- Implement RED → GREEN → REFACTOR inside their forked workspace
-- Return changed file paths, tests run, and unresolved blockers
-
-### Guardian workers
-
-- Usually ` + "`validator`" + `, ` + "`reviewer`" + `, ` + "`security-auditor`" + `, optional ` + "`annotator`" + ` / ` + "`frontend-specialist`" + `
-- Review builder output without sharing mutable state
-- Report PASS / FAIL or APPROVE / REQUEST_CHANGES with actionable evidence
-
-## Harness Role Mapping
-
-Prefer the harness roles exactly as generated:
-
-| Slice | Preferred agents |
-|------|------------------|
-| Task decomposition | ` + "`planner`" + ` |
-| Implementation | ` + "`executor`" + ` |
-| Test expansion | ` + "`tester`" + ` |
-| Validation gate | ` + "`validator`" + ` |
-| Final review | ` + "`reviewer`" + ` + ` + "`security-auditor`" + ` |
-| Annotation / UX | ` + "`annotator`" + `, ` + "`frontend-specialist`" + ` when needed |
-
-Do not invent ad-hoc worker roles when an equivalent harness agent already exists.
-
-## Coordination Pattern
-
-Use the main session as the message bus:
-
-` + "```python" + `
-builder = spawn_agent(
-    agent_type="executor",
-    fork_context=True,
-    message="""
-    Own only: pkg/auth/*, internal/auth/*
-    Do not edit tests outside pkg/auth/.
-    Return changed files, tests run, and blockers.
-    """,
-)
-
-guardian = spawn_agent(
-    agent_type="validator",
-    fork_context=True,
-    message="""
-    Read-only review for pkg/auth/* after implementation lands.
-    Report Verdict, Issues, and missing tests.
-    """,
-)
-
-wait_agent(targets=[builder], timeout_ms=180000)
-send_input(
-    target=guardian,
-    message="Builder completed. Validate the auth slice and focus on regressions.",
-)
-wait_agent(targets=[guardian], timeout_ms=180000)
-` + "```" + `
-
-## Partial Validation
-
-Builders can request focused validation through the main session:
-
-1. Builder returns a checkpoint or blocker.
-2. Main session forwards a narrow ask to a validator/reviewer with ` + "`send_input(...)`" + `.
-3. Guardian responds with issues scoped to the owned slice.
-4. Main session decides whether to respawn the builder or continue.
-
-This preserves Codex's actual control flow without pretending workers can directly message each other.
-
-## Failure Handling
-
-| Scenario | Codex handling |
-|----------|----------------|
-| Builder blocked | Respawn a narrowed worker or handle the blocker in the main session |
-| Validator disagrees with builder | Main session consolidates findings and issues a focused remediation task |
-| Ownership overlap detected | Cancel team mode for that slice and rerun sequentially |
-| Too much coordination overhead | Fall back to default pipeline |
-
-## Isolation Rules
-
-Team mode in Codex still depends on strict ownership isolation:
-
-- One worker, one write scope
-- Shared files move back to the main session or sequential execution
-- Validation workers remain read-only
-
-For deeper guidance on parallel file ownership and branch hygiene, see .codex/skills/worktree-isolation.md. For actual role definitions, inspect ` + "`.codex/agents/`" + `.
+Enable a real ` + "`--team`" + ` route only when Codex exposes a documented native multi-agent surface that is distinct from ordinary subagent spawning.
 `
 }
 
@@ -165,11 +78,11 @@ This skill is the default for ` + "`@auto go SPEC-ID`" + `.
 | Flag | Mode | Codex meaning |
 |------|------|---------------|
 | none | Subagent pipeline | Main session orchestrates specialists phase-by-phase |
-| ` + "`--team`" + ` | Parallel team pattern | Main session coordinates multiple harness-defined workers from ` + "`.codex/agents/`" + ` |
+| ` + "`--team`" + ` | Reserved compatibility flag | Keep the default subagent pipeline until Codex ships a documented native multi-agent surface |
 | ` + "`--solo`" + ` | Single session | No worker spawning; implement directly in the main session |
 | ` + "`--multi`" + ` | Multi-provider review | Run additional review/validation passes when configured, prefer orchestra-backed review when available |
 
-See .codex/skills/agent-teams.md for the Codex interpretation of ` + "`--team`" + ` and .codex/skills/worktree-isolation.md for parallel ownership rules.
+See .codex/skills/agent-teams.md for the reserved ` + "`--team`" + ` policy and .codex/skills/worktree-isolation.md for parallel ownership rules.
 
 ## Phase 0.5: Autonomy Policy
 

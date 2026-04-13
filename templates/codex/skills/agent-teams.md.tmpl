@@ -4,141 +4,30 @@
 
 ## Overview
 
-In Codex, `--team` is a harness-defined multi-agent mode. The main session coordinates multiple workers with `spawn_agent(...)`, `send_input(...)`, and `wait_agent(...)` using the role contracts generated in `.codex/agents/*.toml`.
+This document is a reserved placeholder for a future native Codex multi-agent / teams surface.
 
 **Activation flag**: `@auto go SPEC-ID --team`
 
-## Activation
+Today, Codex should continue to use the default `spawn_agent(...)` subagent pipeline. Do not reinterpret `--team` as extra parallel orchestration in the harness.
 
-Use this mode only when work can be decomposed into disjoint ownership slices. If ownership is unclear, fall back to the default subagent pipeline.
+## Current Behavior
 
-## Team Roles
+- `@auto go` without flags: use the default subagent pipeline
+- `@auto go --solo`: disable subagents and stay in the main session
+- `@auto go --team`: keep compatibility with future native multi-agent naming, but continue with the default subagent pipeline for now
 
-### Lead (main session)
+## Why This Is Reserved
 
-**Responsibilities**: planner + reviewer
+- Codex already supports subagents natively via `spawn_agent(...)`
+- Public Codex docs do not define a separate local CLI Team API equivalent to Claude Code Agent Teams
+- Overloading `--team` to mean "extra spawn_agent fan-out" would conflict with the likely future meaning of native multi-agent support
 
-- Reads `.codex/agents/` role definitions
-- Spawns workers and assigns ownership via `spawn_agent(...)`
-- Runs Phase 1 (Planning) to produce the execution plan
-- Monitors task list and consolidates results
-- Runs Phase 4 (Review) and finalizes output
-- Re-assigns or falls back to sequential handling if a worker fails
+## What To Use Instead
 
-### Builder workers
+- Use `.codex/skills/agent-pipeline.md` for the default execution model
+- Use `.codex/agents/*.toml` as the role source of truth for spawned workers
+- Use `.codex/skills/worktree-isolation.md` when parallel ownership boundaries are explicit
 
-**Responsibilities**: executor + tester + annotator + frontend-specialist
+## Revisit Condition
 
-- Implements code following TDD (RED → GREEN → REFACTOR)
-- Writes tests in Phase 1.5 (Test Scaffold) before implementation
-- Owns only a disjoint file set
-- Returns changed files, tests run, and blockers
-
-### Guardian workers
-
-**Responsibilities**: validator + security-auditor + perf-engineer
-
-- Executes Gate 2 (Validation): coverage, lint, race conditions
-- Performs security audit on modified files
-- Monitors performance regressions
-- Responds to focused validation requests from the main session
-
-## Harness Role Mapping
-
-Use the generated harness roles as-is:
-
-- Planning: `planner`
-- Implementation: `executor`
-- Tests: `tester`
-- Validation: `validator`
-- Review: `reviewer`, `security-auditor`
-- Optional: `annotator`, `frontend-specialist`
-
-## Team Creation Pattern
-
-```python
-planner = spawn_agent(
-    agent_type="planner",
-    fork_context=True,
-    message="""
-    Read SPEC-XXX and return a task table with ownership boundaries.
-    """
-)
-
-builder = spawn_agent(
-    agent_type="executor",
-    fork_context=True,
-    message="""
-    Own only: pkg/foo/*.
-    Follow TDD and return changed files plus tests run.
-    """
-)
-
-guardian = spawn_agent(
-    agent_type="validator",
-    fork_context=True,
-    message="""
-    Read-only validation for pkg/foo/* after the builder completes.
-    """
-)
-```
-
-## Execution Flow
-
-```
-Lead: Phase 1 (Planning)
-  → Planner returns ownership table
-
-Builder: Phase 1.5 (Test Scaffold)
-  → Writes failing tests first (RED)
-
-Builder: Phase 2 (Implementation)
-  → GREEN phase in forked workspace
-  → Main session reviews and integrates result
-
-Builder: Phase 2.5 (Annotation)
-  → Applies @AX tags to modified files
-
-Guardian: Gate 2 (Validation)
-  → go test -race ./...
-  → Coverage check (85%+)
-  → golangci-lint run
-  → Security audit
-
-Lead: Phase 4 (Review)
-  → Consolidates all results
-  → Final quality check
-  → Produces review report
-```
-
-## Coordination Pattern
-
-Use the main session as the message bus:
-
-```python
-wait_agent(targets=[builder], timeout_ms=180000)
-send_input(
-    target=guardian,
-    message="Builder completed. Validate only pkg/foo/* and report issues.",
-)
-wait_agent(targets=[guardian], timeout_ms=180000)
-```
-
-## Failure Handling
-
-| Scenario | Action |
-|----------|--------|
-| Builder blocked | Respawn a narrower worker or handle the blocker in the main session |
-| Validator disagrees with builder | Main session consolidates findings and issues a focused remediation task |
-| Ownership overlap detected | Cancel team mode for that slice and rerun sequentially |
-| Too much coordination overhead | Fall back to default pipeline |
-
-## Worktree Isolation
-
-The same worktree isolation rules apply in Codex team mode:
-
-- One worker, one write scope
-- Shared files move back to the main session or sequential execution
-- Validation workers remain read-only
-
-**Ref**: `.codex/skills/worktree-isolation.md`
+Enable a real `--team` route only when Codex exposes a documented native multi-agent surface that is distinct from ordinary subagent spawning.

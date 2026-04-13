@@ -40,5 +40,6 @@ SPEC-ID를 인자로 받아 구현을 실행합니다.
 
 - `--continue` 플래그로 중단점에서 재개
 - 개별 이슈는 `auto-fix`로 수정
-- Codex의 `--team`은 `.codex/agents/` 역할 정의를 사용하는 병렬 `spawn_agent` 오케스트레이션 의미입니다
+- Codex의 기본 구현 모드는 `spawn_agent(...)` 기반 subagent pipeline입니다
+- `--team`은 future native multi-agent surface를 위한 reserved compatibility flag입니다
 - `--multi`는 reviewer/security-auditor/orchestra 기반 추가 검증을 요청하는 의미입니다

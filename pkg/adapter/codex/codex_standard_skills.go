@@ -254,7 +254,7 @@ Where the original Autopus workflow mentions Claude-specific capabilities:
 - %s means ask the user directly in one concise message unless an equivalent native Codex UI exists.
 - %s maps to Codex subagent spawning via %s.
 - %s maps to %s when coordinating an already-running agent.
-- %s is not available in Codex; interpret %s as parallel %s orchestration with disjoint scopes.
+- %s is not available in Codex; keep %s as a reserved compatibility flag for future native multi-agent support and use %s subagents as the default workflow today.
 - Detailed helper references live under %s and %s in this repository.
 `,
 		"`@auto <subcommand> ...`",
@@ -415,17 +415,17 @@ func rewriteCodexTriageElicitation(body string) string {
 }
 
 func rewriteCodexTeamModeSection(body string) string {
-	replacement := `#### Route B: Parallel Team Mode (` + "`--team`" + `)
+	replacement := `#### Route B: Reserved Team Flag (` + "`--team`" + `)
 
-IMPORTANT: Codex does not provide Claude Code Agent Teams primitives such as ` + "`TeamCreate`" + `.
+IMPORTANT: Codex does not currently provide a documented native Team API equivalent to Claude Code ` + "`TeamCreate`" + `.
 
-When ` + "`--team`" + ` is set in Codex:
-- Treat it as parallel orchestration with multiple ` + "`spawn_agent(...)`" + ` workers.
-- Coordinate those workers from the main session with ` + "`send_input(...)`" + ` and ` + "`wait_agent(...)`" + `.
-- Assign each worker a disjoint write scope and preserve worktree isolation rules.
-- If the task cannot be decomposed cleanly, fall back to Route A.
+When ` + "`--team`" + ` is set in Codex today:
+- Treat it as a reserved compatibility flag for future native multi-agent support.
+- Continue with Route A's default ` + "`spawn_agent(...)`" + ` subagent pipeline.
+- Do not reinterpret the flag as extra fan-out or a special harness-only worker topology.
+- Keep ownership isolation and validation rules identical to Route A.
 
-Use the same specialist mix as Route A (` + "`planner`" + `, ` + "`executor`" + `, ` + "`tester`" + `, ` + "`validator`" + `, optional reviewers/auditors), but do not rely on team-only APIs or shared team state.
+Revisit this route only when Codex exposes a documented native multi-agent surface that is distinct from ordinary subagent spawning.
 
 `
 
