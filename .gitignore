@@ -24,6 +24,7 @@ coverage.out
 # Build artifacts
 /auto
 /auto_prev
+/auto-patched
 /generate-templates
 dist/
 coverage.html
@@ -37,6 +38,7 @@ internal/cli/test-results/
 .autopus/orchestra/
 .autopus/cache/docs/
 .autopus/audit.jsonl
+.worktrees/
 setup.test
 
 # Security-sensitive files
