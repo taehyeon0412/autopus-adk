@@ -6,6 +6,18 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 
+- **Gemini CLI Harness Parity**: Gemini CLI 어댑터에 Claude Code 및 Codex 수준의 기능 패리티 구현
+  - `/auto` 라우터 명령어 지원 (`auto-router.md.tmpl`)
+  - 상태 업데이트를 위한 `statusline.sh` 복사 로직 추가
+  - 테스트 코드에 Gemini 템플릿 포함 및 검증 추가
+
+### Fixed
+
+- **macOS Self-Update Crash (zsh: killed)**: `auto update --self` 실행 시 macOS 커널 보호(SIGKILL) 및 Linux ETXTBSY 에러 우회
+  - 실행 중인 바이너리를 덮어쓰지 않고 `.old`로 이동(Rename) 후 새 바이너리로 교체하도록 `replacer.go` 수정
+  - Cross-device 링크 시 fallback (io.Copy) 로직 추가
+
+
 - **Init Platform Auto-Detection**: `auto init` without `--platforms` now scans PATH for supported installed coding CLIs and installs all detected supported platforms
   - `internal/cli/init.go` — default platform selection now delegates to PATH-based detection when `--platforms` is omitted
   - `internal/cli/init_helpers.go` — `detectDefaultPlatforms()` filters detected CLIs to ADK-supported init targets (`claude-code`, `codex`, `gemini-cli`) with Claude fallback
