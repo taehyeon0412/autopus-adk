@@ -9,7 +9,6 @@ import (
 	"github.com/insajin/autopus-adk/pkg/adapter"
 	"github.com/insajin/autopus-adk/pkg/config"
 	"github.com/insajin/autopus-adk/pkg/content"
-	"github.com/insajin/autopus-adk/templates"
 )
 
 // generateHooks renders hooks.json template and merges with existing user hooks.
@@ -66,16 +65,26 @@ func (a *Adapter) prepareHooksFile(cfg *config.HarnessConfig) ([]adapter.FileMap
 
 // renderHooksTemplate renders the codex hooks.json template.
 func (a *Adapter) renderHooksTemplate(cfg *config.HarnessConfig) (string, error) {
-	tmplContent, err := templates.FS.ReadFile("codex/hooks.json.tmpl")
+	hooks, _, err := content.GenerateHookConfigs(cfg.Hooks, adapterName, true)
 	if err != nil {
-		return "", fmt.Errorf("codex hooks 템플릿 읽기 실패: %w", err)
+		return "", fmt.Errorf("codex hooks 생성 실패: %w", err)
 	}
 
-	rendered, err := a.engine.RenderString(string(tmplContent), cfg)
-	if err != nil {
-		return "", fmt.Errorf("codex hooks 템플릿 렌더링 실패: %w", err)
+	doc := hooksDoc{Hooks: make(map[string][]hookEntry)}
+	for _, hook := range hooks {
+		doc.Hooks[hook.Event] = append(doc.Hooks[hook.Event], hookEntry{
+			Type:    hook.Type,
+			Command: hook.Command,
+			Matcher: hook.Matcher,
+			Timeout: hook.Timeout,
+		})
 	}
-	return rendered, nil
+
+	rendered, err := json.MarshalIndent(doc, "", "  ")
+	if err != nil {
+		return "", fmt.Errorf("codex hooks JSON 직렬화 실패: %w", err)
+	}
+	return string(rendered), nil
 }
 
 // mergeHooks reads existing hooks.json from disk, preserves user hooks (no __autopus__ marker),
@@ -111,11 +120,11 @@ type hooksDoc struct {
 
 // hookEntry represents a single hook entry in hooks.json.
 type hookEntry struct {
-	Type     string `json:"type,omitempty"`
-	Command  string `json:"command"`
-	Matcher  string `json:"matcher,omitempty"`
-	Timeout  int    `json:"timeout,omitempty"`
-	Autopus  bool   `json:"__autopus__,omitempty"`
+	Type    string `json:"type,omitempty"`
+	Command string `json:"command"`
+	Matcher string `json:"matcher,omitempty"`
+	Timeout int    `json:"timeout,omitempty"`
+	Autopus bool   `json:"__autopus__,omitempty"`
 }
 
 // stampAutopusMarker marks all hooks in the document as Autopus-managed.

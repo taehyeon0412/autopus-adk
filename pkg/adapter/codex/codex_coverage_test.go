@@ -76,7 +76,12 @@ func TestRenderHooksTemplate(t *testing.T) {
 	t.Parallel()
 	rendered, err := NewWithRoot(t.TempDir()).renderHooksTemplate(config.DefaultFullConfig("test"))
 	require.NoError(t, err)
-	assert.Contains(t, rendered, "SessionStart")
+	assert.Contains(t, rendered, "PreToolUse")
+	assert.Contains(t, rendered, "PostToolUse")
+	assert.NotContains(t, rendered, "SessionStart")
+	assert.NotContains(t, rendered, "auto session save")
+	assert.NotContains(t, rendered, "auto check --status")
+	assert.NotContains(t, rendered, "auto check --lore --quiet")
 }
 
 func TestGenerateHooks_WritesToDisk(t *testing.T) {
@@ -110,7 +115,8 @@ func TestPrepareHooksFile_MergesExisting(t *testing.T) {
 
 	content := string(files[0].Content)
 	assert.Contains(t, content, "user.sh", "user hook preserved")
-	assert.Contains(t, content, "SessionStart", "autopus hooks added")
+	assert.Contains(t, content, "PreToolUse", "autopus hooks added")
+	assert.Contains(t, content, "PostToolUse", "autopus hooks added")
 }
 
 func TestMergeHooks_InvalidRenderedJSON(t *testing.T) {

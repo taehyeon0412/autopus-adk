@@ -18,18 +18,41 @@ func NewRootCmd() *cobra.Command {
 	var (
 		verbose    bool
 		configPath string
+		think      bool
+		ultraThink bool
+		autoMode   bool
+		loopMode   bool
+		multiMode  bool
+		quality    string
 	)
 
 	root := &cobra.Command{
-		Use:           "auto",
-		Short:         "Autopus-ADK: Agentic Development Kit",
-		Long:          "Autopus-ADK는 코딩 CLI에 하네스를 설치하는 Go 기반 셋업 도구입니다.",
-		SilenceUsage:  true,
-		SilenceErrors: true,
+		Use:              "auto",
+		Short:            "Autopus-ADK: Agentic Development Kit",
+		Long:             "Autopus-ADK는 코딩 CLI에 하네스를 설치하는 Go 기반 셋업 도구입니다.",
+		SilenceUsage:     true,
+		SilenceErrors:    true,
+		TraverseChildren: true,
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			flags, err := collectGlobalFlags(cmd, configPath)
+			if err != nil {
+				return err
+			}
+			ctx := withGlobalFlags(cmd.Context(), flags)
+			cmd.Root().SetContext(ctx)
+			cmd.SetContext(ctx)
+			return nil
+		},
 	}
 
 	root.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose output")
 	root.PersistentFlags().StringVar(&configPath, "config", "", "Config file path (default: ./autopus.yaml)")
+	root.PersistentFlags().BoolVar(&think, "think", false, "Enable step-by-step reasoning mode")
+	root.PersistentFlags().BoolVar(&ultraThink, "ultrathink", false, "Enable deeper step-by-step reasoning mode")
+	root.PersistentFlags().BoolVar(&autoMode, "auto", false, "Run without confirmation prompts")
+	root.PersistentFlags().BoolVar(&loopMode, "loop", false, "Retry quality gates until pass or circuit break")
+	root.PersistentFlags().BoolVar(&multiMode, "multi", false, "Enable multi-provider review/orchestration mode")
+	root.PersistentFlags().StringVar(&quality, "quality", "", "Quality mode preset (ultra/balanced)")
 
 	root.AddCommand(newVersionCmd())
 	root.AddCommand(newInitCmd())

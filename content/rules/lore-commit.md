@@ -15,10 +15,14 @@ IMPORTANT: All commits MUST use Lore format. Never use plain commit messages or 
 
 <body>
 
-Why: <reason for this change>
-Decision: <what was decided>
-Alternatives: <other options considered>
-Ref: <SPEC-ID or issue>
+Constraint: <invariant or design boundary>
+Confidence: <low|medium|high>
+Scope-risk: <local|module|system>
+Reversibility: <trivial|moderate|difficult>
+Directive: <follow-up guidance>
+Tested: <what was verified>
+Not-tested: <what remains unverified>
+Related: <SPEC-ID, issue, or related change>
 
 🐙 Autopus <noreply@autopus.co>
 ```
@@ -37,10 +41,9 @@ Ref: <SPEC-ID or issue>
 
 ## Rules
 
-- Subject: 50 characters max, imperative mood
-- Body: Focus on **why**, not what
-- Why, Decision trailers: REQUIRED for all commits with design decisions
-- Alternatives trailer: REQUIRED when alternatives were considered
-- Ref trailer: Include when a SPEC or issue exists
+- `auto check --lore` currently enforces a valid Lore type prefix and the Autopus sign-off.
+- Structured Lore trailers use the `Constraint` / `Rejected` / `Confidence` / `Scope-risk` / `Reversibility` / `Directive` / `Tested` / `Not-tested` / `Related` protocol.
+- Default `autopus.yaml` requires `Constraint` when Lore trailer validation is enabled.
+- `Why` / `Decision` / `Alternatives` trailers are legacy guidance and are no longer the source of truth.
 - Sign with `🐙 Autopus <noreply@autopus.co>`
 - NEVER add `Co-Authored-By` trailers

@@ -25,7 +25,10 @@ func TestGenerateHooks(t *testing.T) {
 	assert.Len(t, files, 1)
 	assert.Equal(t, filepath.Join(".codex", "hooks.json"), files[0].TargetPath)
 	assert.FileExists(t, filepath.Join(dir, ".codex", "hooks.json"))
-	assert.Contains(t, string(files[0].Content), "SessionStart")
+	assert.Contains(t, string(files[0].Content), "PreToolUse")
+	assert.Contains(t, string(files[0].Content), "PostToolUse")
+	assert.NotContains(t, string(files[0].Content), "SessionStart")
+	assert.NotContains(t, string(files[0].Content), "Stop")
 }
 
 func TestPrepareHooksFile_NoDiskWrite(t *testing.T) {
@@ -111,9 +114,9 @@ func TestPrepareRuleMappings_NoDiskWrite(t *testing.T) {
 func TestStripFrontmatter(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		name    string
-		input   string
-		want    string
+		name  string
+		input string
+		want  string
 	}{
 		{
 			name:  "with frontmatter",
@@ -218,8 +221,10 @@ func TestGenerateHooks_ValidJSON(t *testing.T) {
 
 	hooks, ok := parsed["hooks"].(map[string]interface{})
 	require.True(t, ok, "should have hooks key")
-	assert.Contains(t, hooks, "SessionStart")
-	assert.Contains(t, hooks, "Stop")
+	assert.Contains(t, hooks, "PreToolUse")
+	assert.Contains(t, hooks, "PostToolUse")
+	assert.NotContains(t, hooks, "SessionStart")
+	assert.NotContains(t, hooks, "Stop")
 }
 
 // --- Config mcp_servers ---

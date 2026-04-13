@@ -35,18 +35,19 @@ func newInitCmd() *cobra.Command {
 		dir          string
 		project      string
 		platforms    string
-		quality      string
 		noReviewGate bool
 		yes          bool
 	)
 
 	// @AX:WARN [AUTO]: RunE closure captures mutable flag vars — do not add goroutines inside RunE
-	// @AX:REASON: quality, noReviewGate, yes are captured by reference; concurrent access would race
+	// @AX:REASON: noReviewGate and yes are captured by reference; concurrent access would race
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Initialize autopus harness in the current project",
 		Long:  "코딩 CLI에 Autopus 하네스를 설치합니다. autopus.yaml을 생성하고 플랫폼 파일을 설치합니다.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			quality := globalFlagsFromContext(cmd.Context()).Quality
+
 			if dir == "" {
 				var err error
 				dir, err = os.Getwd()
@@ -223,7 +224,6 @@ func newInitCmd() *cobra.Command {
 	cmd.Flags().StringVar(&dir, "dir", "", "프로젝트 루트 디렉터리 (기본값: 현재 디렉터리)")
 	cmd.Flags().StringVar(&project, "project", "", "프로젝트 이름")
 	cmd.Flags().StringVar(&platforms, "platforms", "", "설치할 플랫폼 목록 (쉼표 구분, 예: claude-code,codex)")
-	cmd.Flags().StringVar(&quality, "quality", "", "Quality mode preset (ultra/balanced)")
 	cmd.Flags().BoolVar(&noReviewGate, "no-review-gate", false, "Disable review gate")
 	cmd.Flags().BoolVar(&yes, "yes", false, "Non-interactive mode (use defaults)")
 
