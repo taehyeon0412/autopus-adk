@@ -5,19 +5,19 @@ import "fmt"
 // IterationBudget defines the total iteration budget and thresholds.
 // @NOTE: Threshold percentages: 70% warning, 90% danger, 100% hard limit.
 type IterationBudget struct {
-	Limit            int
-	WarnThreshold    float64 // default 0.70
-	DangerThreshold  float64 // default 0.90
+	Limit           int     `json:"limit"`
+	WarnThreshold   float64 `json:"warn_threshold,omitempty"`   // default 0.70
+	DangerThreshold float64 `json:"danger_threshold,omitempty"` // default 0.90
 }
 
 // ThresholdLevel indicates the current budget consumption level.
 type ThresholdLevel int
 
 const (
-	LevelOK     ThresholdLevel = iota // below 70%
-	LevelWarn                         // 70%-89%
-	LevelDanger                       // 90%-99%
-	LevelExhausted                    // 100%+
+	LevelOK        ThresholdLevel = iota // below 70%
+	LevelWarn                            // 70%-89%
+	LevelDanger                          // 90%-99%
+	LevelExhausted                       // 100%+
 )
 
 // DefaultBudget returns an IterationBudget with standard thresholds.

@@ -56,7 +56,7 @@ type BudgetConfig struct {
 // executeWithParallel wraps executeSubprocess with semaphore gating, worktree
 // isolation, and audit event recording. It is the primary execution entry point
 // called from handleTask.
-func (wl *WorkerLoop) executeWithParallel(ctx context.Context, taskCfg adapter.TaskConfig) (adapter.TaskResult, error) {
+func (wl *WorkerLoop) executeWithParallel(ctx context.Context, taskCfg adapter.TaskConfig, bc *BudgetConfig) (adapter.TaskResult, error) {
 	taskID := taskCfg.TaskID
 	startTime := time.Now()
 
@@ -97,7 +97,7 @@ func (wl *WorkerLoop) executeWithParallel(ctx context.Context, taskCfg adapter.T
 	}
 
 	// Delegate to the core subprocess executor.
-	result, err := wl.executeSubprocess(ctx, taskCfg)
+	result, err := wl.executeWithBudget(ctx, taskCfg, bc)
 	durationMS := time.Since(startTime).Milliseconds()
 
 	// Record completion or failure in the audit log.
@@ -114,7 +114,7 @@ func (wl *WorkerLoop) executeWithParallel(ctx context.Context, taskCfg adapter.T
 	return result, nil
 }
 
-func (wl *WorkerLoop) executePipelineWithParallel(ctx context.Context, taskID, prompt, model string, phases []Phase, instructions map[Phase]string) (adapter.TaskResult, error) {
+func (wl *WorkerLoop) executePipelineWithParallel(ctx context.Context, taskID, prompt, model string, phases []Phase, instructions map[Phase]string, promptTemplates map[Phase]string, bc *BudgetConfig) (adapter.TaskResult, error) {
 	startTime := time.Now()
 
 	if wl.auditWriter != nil {
@@ -156,6 +156,10 @@ func (wl *WorkerLoop) executePipelineWithParallel(ctx context.Context, taskID, p
 	pe := NewPipelineExecutor(wl.config.Provider, wl.config.MCPConfig, workDir)
 	pe.SetEnvVars(envVars)
 	pe.SetPhaseInstructions(instructions)
+	pe.SetPhasePromptTemplates(promptTemplates)
+	if bc != nil && bc.Budget.Limit > 0 {
+		pe.SetIterationBudget(bc.Budget)
+	}
 	result, err := pe.ExecuteWithPlan(ctx, taskID, prompt, model, phases)
 	durationMS := time.Since(startTime).Milliseconds()
 
@@ -219,6 +223,17 @@ func prepareTaskRuntimeEnv(taskCfg *adapter.TaskConfig) error {
 	taskCfg.EnvVars["GOCACHE"] = goCacheDir
 
 	return nil
+}
+
+func budgetConfigFromMessage(msg taskPayloadMessage) *BudgetConfig {
+	if msg.IterationBudget == nil || msg.IterationBudget.Limit <= 0 {
+		return nil
+	}
+	cloned := *msg.IterationBudget
+	return &BudgetConfig{
+		Budget:        cloned,
+		EmergencyStop: security.NewEmergencyStop(),
+	}
 }
 
 // executeSubprocess spawns the provider CLI, pipes the prompt via stdin,

@@ -36,7 +36,7 @@ func TestCacheSecurityPolicy_AtomicWrite(t *testing.T) {
 	policy := SecurityPolicy{AllowNetwork: false, AllowFS: true, TimeoutSec: 30}
 
 	// Write initial policy.
-	require.NoError(t, cacheSecurityPolicy(taskID, policy))
+	require.NoError(t, cacheSecurityPolicy(taskID, policy, ""))
 
 	dir, _ := policyDir()
 	target := filepath.Join(dir, fmt.Sprintf("autopus-policy-%s.json", taskID))
@@ -44,7 +44,7 @@ func TestCacheSecurityPolicy_AtomicWrite(t *testing.T) {
 
 	// Overwrite with a different policy — should be atomic (no partial reads).
 	policy2 := SecurityPolicy{AllowNetwork: true, AllowFS: false, TimeoutSec: 60}
-	require.NoError(t, cacheSecurityPolicy(taskID, policy2))
+	require.NoError(t, cacheSecurityPolicy(taskID, policy2, ""))
 
 	data, err := os.ReadFile(target)
 	require.NoError(t, err)
@@ -65,7 +65,7 @@ func TestCacheSecurityPolicy_WritesFile(t *testing.T) {
 	}
 	taskID := "test-policy-cache"
 
-	require.NoError(t, cacheSecurityPolicy(taskID, policy))
+	require.NoError(t, cacheSecurityPolicy(taskID, policy, ""))
 
 	path := filepath.Join(os.TempDir(), fmt.Sprintf("autopus-%d", os.Getuid()), fmt.Sprintf("autopus-policy-%s.json", taskID))
 	defer os.Remove(path)
@@ -113,5 +113,6 @@ func TestRegisterAgentCard_CorrectJSONRPC(t *testing.T) {
 	require.NoError(t, json.Unmarshal(req.Params, &card))
 	assert.Equal(t, "card-test", card.Name)
 	assert.Equal(t, []string{"skill-a", "skill-b"}, card.Skills)
+	assert.Equal(t, DefaultCapabilities(), card.Capabilities)
 	assert.Equal(t, []string{"text"}, card.SupportedInputModes)
 }

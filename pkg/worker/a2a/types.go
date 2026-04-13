@@ -1,6 +1,8 @@
 package a2a
 
-import "encoding/json"
+import (
+	"encoding/json"
+)
 
 // A2A JSON-RPC method constants.
 const (
@@ -63,6 +65,7 @@ type AgentCard struct {
 	URL                 string   `json:"url"`
 	WorkspaceID         string   `json:"workspace_id,omitempty"`
 	Skills              []string `json:"skills"`
+	Capabilities        []string `json:"capabilities,omitempty"`
 	SupportedInputModes []string `json:"supported_input_modes"`
 }
 
@@ -95,14 +98,26 @@ type SecurityPolicy struct {
 	TimeoutSec   int      `json:"timeout_sec,omitempty"`
 }
 
+// IterationBudget defines a server-issued tool-call budget for the task.
+type IterationBudget struct {
+	Limit           int     `json:"limit"`
+	WarnThreshold   float64 `json:"warn_threshold,omitempty"`
+	DangerThreshold float64 `json:"danger_threshold,omitempty"`
+}
+
 // SendMessageParams is the payload for the tasks/send method.
 type SendMessageParams struct {
-	TaskID               string            `json:"task_id"`
-	Payload              json.RawMessage   `json:"payload"`
-	Model                string            `json:"model,omitempty"`
-	PipelinePhases       []string          `json:"pipeline_phases,omitempty"`
-	PipelineInstructions map[string]string `json:"pipeline_instructions,omitempty"`
-	SecurityPolicy       SecurityPolicy    `json:"security_policy"`
+	TaskID                   string            `json:"task_id"`
+	Payload                  json.RawMessage   `json:"payload"`
+	Model                    string            `json:"model,omitempty"`
+	PipelinePhases           []string          `json:"pipeline_phases,omitempty"`
+	PipelineInstructions     map[string]string `json:"pipeline_instructions,omitempty"`
+	PipelinePromptTemplates  map[string]string `json:"pipeline_prompt_templates,omitempty"`
+	IterationBudget          *IterationBudget  `json:"iteration_budget,omitempty"`
+	ControlPlaneCapabilities []string          `json:"control_plane_capabilities,omitempty"`
+	ControlPlaneSignature    string            `json:"control_plane_signature,omitempty"`
+	PolicySignature          string            `json:"policy_signature,omitempty"`
+	SecurityPolicy           SecurityPolicy    `json:"security_policy"`
 }
 
 // TaskResult holds the outcome of a completed or failed task.

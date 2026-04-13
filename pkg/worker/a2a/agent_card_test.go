@@ -15,6 +15,7 @@ func TestCardBuilder_BasicBuild(t *testing.T) {
 	assert.Equal(t, "my-worker", card.Name)
 	assert.Equal(t, "https://api.example.com", card.URL)
 	assert.Equal(t, "Autopus ADK Worker", card.Description)
+	assert.Equal(t, DefaultCapabilities(), card.Capabilities)
 	assert.Equal(t, []string{"text"}, card.SupportedInputModes)
 }
 

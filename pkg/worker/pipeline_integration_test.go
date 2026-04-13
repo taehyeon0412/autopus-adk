@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/insajin/autopus-adk/pkg/worker/adapter"
+	"github.com/insajin/autopus-adk/pkg/worker/routing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -102,6 +103,19 @@ func TestPipelineExecute_ContextCancel(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestPipelineExecute_MissingDefaultPhasePlanInSignedMode(t *testing.T) {
+	t.Setenv("AUTOPUS_A2A_POLICY_SIGNING_SECRET", "test-secret")
+
+	script := `cat /dev/stdin > /dev/null; echo '{"type":"result","output":"phase ok","cost_usd":0.01,"duration_ms":100}'`
+	mock := &pipelineMockAdapter{script: script}
+
+	pe := NewPipelineExecutor(mock, "", t.TempDir())
+	_, err := pe.Execute(context.Background(), "pipe-signed-no-plan", "initial prompt")
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "missing pipeline phase plan")
+}
+
 func TestPipelineExecuteWithPlan_UsesServerSelectedPhaseOrder(t *testing.T) {
 	script := `cat /dev/stdin > /dev/null; echo '{"type":"result","output":"phase ok","cost_usd":0.01,"duration_ms":100}'`
 	mock := &pipelineMockAdapter{script: script}
@@ -135,6 +149,23 @@ func TestPipelineExecuteWithPlan_UsesServerSelectedPhaseInstructions(t *testing.
 	require.NoError(t, err)
 	require.Len(t, mock.calls, 1)
 	assert.Contains(t, mock.calls[0].Prompt, "server-provided planning instruction")
+	assert.Contains(t, mock.calls[0].Prompt, "initial prompt")
+}
+
+func TestPipelineExecuteWithPlan_UsesServerSelectedPromptTemplates(t *testing.T) {
+	script := `cat /dev/stdin > /dev/null; echo '{"type":"result","output":"phase ok","cost_usd":0.01,"duration_ms":100}'`
+	mock := &pipelineMockAdapter{script: script}
+
+	pe := NewPipelineExecutor(mock, "", t.TempDir())
+	pe.SetPhasePromptTemplates(map[Phase]string{
+		PhasePlanner: "SERVER TEMPLATE\n\n{{input}}",
+	})
+
+	_, err := pe.ExecuteWithPlan(context.Background(), "pipe-template", "initial prompt", "server-model", []Phase{PhasePlanner})
+
+	require.NoError(t, err)
+	require.Len(t, mock.calls, 1)
+	assert.Contains(t, mock.calls[0].Prompt, "SERVER TEMPLATE")
 	assert.Contains(t, mock.calls[0].Prompt, "initial prompt")
 }
 
@@ -177,4 +208,20 @@ func TestPipelineRunPhase_CodexJSONTurnCompletion(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "phase ok", result.Output)
 	assert.Equal(t, PhasePlanner, result.Phase)
+}
+
+func TestPipelineExecuteWithPlan_DisablesLocalRoutingWhenSignedControlPlaneEnabled(t *testing.T) {
+	t.Setenv("AUTOPUS_A2A_POLICY_SIGNING_SECRET", "test-secret")
+
+	script := `cat /dev/stdin > /dev/null; echo '{"type":"result","output":"phase ok","cost_usd":0.01,"duration_ms":100}'`
+	mock := &pipelineMockAdapter{script: script}
+
+	pe := NewPipelineExecutor(mock, "", t.TempDir())
+	pe.SetRouter(routing.NewRouter(enabledRoutingConfig()))
+
+	_, err := pe.ExecuteWithPlan(context.Background(), "pipe-no-local-routing", "short prompt", "", []Phase{PhasePlanner})
+
+	require.NoError(t, err)
+	require.Len(t, mock.calls, 1)
+	assert.Empty(t, mock.calls[0].Model)
 }

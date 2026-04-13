@@ -2,16 +2,19 @@ package worker
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"log"
 	"strings"
 
+	"github.com/insajin/autopus-adk/pkg/worker/a2a"
 	"github.com/insajin/autopus-adk/pkg/worker/adapter"
 	"github.com/insajin/autopus-adk/pkg/worker/budget"
 	"github.com/insajin/autopus-adk/pkg/worker/compress"
 	"github.com/insajin/autopus-adk/pkg/worker/routing"
+	"github.com/insajin/autopus-adk/pkg/worker/security"
 	"github.com/insajin/autopus-adk/pkg/worker/stream"
 )
 
@@ -46,14 +49,16 @@ var defaultPipelinePhases = []Phase{
 // planner -> executor(s) -> tester -> reviewer.
 // Triggered when a single --print execution exceeds the context window.
 type PipelineExecutor struct {
-	provider          adapter.ProviderAdapter
-	mcpConfig         string
-	workDir           string
-	envVars           map[string]string
-	phaseInstructions map[Phase]string
-	allocator         *budget.PhaseAllocator     // nil if budget not configured
-	compressor        compress.ContextCompressor // nil if compression not configured
-	router            *routing.Router            // nil if routing not configured
+	provider             adapter.ProviderAdapter
+	mcpConfig            string
+	workDir              string
+	envVars              map[string]string
+	phaseInstructions    map[Phase]string
+	phasePromptTemplates map[Phase]string
+	allocator            *budget.PhaseAllocator // nil if budget not configured
+	iterationBudget      *budget.IterationBudget
+	compressor           compress.ContextCompressor // nil if compression not configured
+	router               *routing.Router            // nil if routing not configured
 }
 
 // NewPipelineExecutor creates a new PipelineExecutor.
@@ -68,6 +73,12 @@ func NewPipelineExecutor(provider adapter.ProviderAdapter, mcpConfig, workDir st
 // SetBudget configures per-phase budget allocation for the pipeline.
 func (pe *PipelineExecutor) SetBudget(total int, alloc budget.PhaseAllocation) {
 	pe.allocator = budget.NewPhaseAllocator(total, alloc)
+}
+
+// SetIterationBudget configures a server-issued total iteration budget for the pipeline.
+func (pe *PipelineExecutor) SetIterationBudget(iterationBudget budget.IterationBudget) {
+	pe.iterationBudget = &iterationBudget
+	pe.allocator = budget.NewPhaseAllocator(iterationBudget.Limit, budget.DefaultAllocation())
 }
 
 // SetCompressor configures context compression for phase transitions.
@@ -99,6 +110,18 @@ func (pe *PipelineExecutor) SetPhaseInstructions(instructions map[Phase]string) 
 	}
 }
 
+// SetPhasePromptTemplates configures server-selected full prompt templates for pipeline phases.
+func (pe *PipelineExecutor) SetPhasePromptTemplates(templates map[Phase]string) {
+	if len(templates) == 0 {
+		pe.phasePromptTemplates = nil
+		return
+	}
+	pe.phasePromptTemplates = make(map[Phase]string, len(templates))
+	for phase, template := range templates {
+		pe.phasePromptTemplates[phase] = template
+	}
+}
+
 // SetRouter configures model routing for the pipeline (REQ-ROUTE-01).
 func (pe *PipelineExecutor) SetRouter(r *routing.Router) {
 	pe.router = r
@@ -117,8 +140,9 @@ func (pe *PipelineExecutor) ExecuteWithPlan(ctx context.Context, taskID, prompt,
 	log.Printf("[pipeline] starting phase-split for task %s", taskID)
 
 	// Resolve model once from the original prompt (REQ-ROUTE-01).
+	// In signed control-plane mode, local routing fallback is disabled.
 	routedModel := model
-	if routedModel == "" && pe.router != nil {
+	if routedModel == "" && pe.router != nil && !a2a.SignedControlPlaneEnforced() {
 		routedModel = pe.router.Route(pe.provider.Name(), prompt)
 	}
 
@@ -126,8 +150,12 @@ func (pe *PipelineExecutor) ExecuteWithPlan(ctx context.Context, taskID, prompt,
 	var totalCost float64
 	var totalDuration int64
 	prevOutput := prompt
+	normalizedPhases := normalizePhasePlan(phases)
+	if len(normalizedPhases) == 0 {
+		return adapter.TaskResult{}, fmt.Errorf("missing pipeline phase plan")
+	}
 
-	for _, phase := range normalizePhasePlan(phases) {
+	for _, phase := range normalizedPhases {
 		select {
 		case <-ctx.Done():
 			return adapter.TaskResult{}, ctx.Err()
@@ -229,7 +257,33 @@ func ParsePhaseInstructions(instructions map[string]string) (map[Phase]string, e
 	return parsed, nil
 }
 
+// ParsePhasePromptTemplates validates server-provided full prompt templates.
+func ParsePhasePromptTemplates(templates map[string]string) (map[Phase]string, error) {
+	if len(templates) == 0 {
+		return nil, nil
+	}
+
+	parsed := make(map[Phase]string, len(templates))
+	for rawPhase, template := range templates {
+		phase, err := ParsePhase(rawPhase)
+		if err != nil {
+			return nil, err
+		}
+		if strings.TrimSpace(template) == "" {
+			continue
+		}
+		parsed[phase] = strings.TrimSpace(template)
+	}
+	if len(parsed) == 0 {
+		return nil, nil
+	}
+	return parsed, nil
+}
+
 func normalizePhasePlan(phases []Phase) []Phase {
+	if len(phases) == 0 && a2a.SignedControlPlaneEnforced() {
+		return nil
+	}
 	if len(phases) == 0 {
 		return append([]Phase(nil), defaultPipelinePhases...)
 	}
@@ -237,8 +291,14 @@ func normalizePhasePlan(phases []Phase) []Phase {
 }
 
 func (pe *PipelineExecutor) phasePrompt(phase Phase, input string) (string, error) {
+	if template, ok := pe.phasePromptTemplates[phase]; ok && strings.TrimSpace(template) != "" {
+		return renderPhasePromptTemplate(template, input), nil
+	}
 	if instruction, ok := pe.phaseInstructions[phase]; ok && strings.TrimSpace(instruction) != "" {
 		return fmt.Sprintf("%s\n\n%s", instruction, input), nil
+	}
+	if a2a.SignedControlPlaneEnforced() {
+		return input, nil
 	}
 
 	switch phase {
@@ -253,6 +313,13 @@ func (pe *PipelineExecutor) phasePrompt(phase Phase, input string) (string, erro
 	default:
 		return "", fmt.Errorf("unsupported phase %q", phase)
 	}
+}
+
+func renderPhasePromptTemplate(template, input string) string {
+	if strings.Contains(template, "{{input}}") {
+		return strings.ReplaceAll(template, "{{input}}", input)
+	}
+	return fmt.Sprintf("%s\n\n%s", template, input)
 }
 
 // runPhase spawns a single subprocess for the given phase.
@@ -285,8 +352,19 @@ func (pe *PipelineExecutor) runPhase(ctx context.Context, taskID string, phase P
 		return PhaseResult{}, fmt.Errorf("stdout pipe: %w", err)
 	}
 
+	var stderrBuf bytes.Buffer
+	cmd.Stderr = &stderrBuf
+
 	if err := cmd.Start(); err != nil {
 		return PhaseResult{}, fmt.Errorf("start subprocess: %w", err)
+	}
+
+	var emergencyStop *security.EmergencyStop
+	phaseBudget := pe.phaseIterationBudget(phase)
+	if phaseBudget != nil {
+		emergencyStop = security.NewEmergencyStop()
+		emergencyStop.SetProcess(cmd)
+		defer emergencyStop.ClearProcess()
 	}
 
 	go func() {
@@ -294,15 +372,21 @@ func (pe *PipelineExecutor) runPhase(ctx context.Context, taskID string, phase P
 		io.Copy(stdin, strings.NewReader(prompt))
 	}()
 
-	result, parseErr := pe.parsePhaseStream(stdout, phase)
+	result, parseErr := pe.parsePhaseStream(stdout, phase, phaseBudget, emergencyStop)
 
 	waitErr := cmd.Wait()
 	if parseErr != nil {
+		if stderrStr := strings.TrimSpace(stderrBuf.String()); stderrStr != "" {
+			return PhaseResult{}, fmt.Errorf("parse stream: %w\nstderr: %s", parseErr, stderrStr)
+		}
 		return PhaseResult{}, fmt.Errorf("parse stream: %w", parseErr)
 	}
 	if waitErr != nil {
 		if result.Output != "" {
 			return result, nil
+		}
+		if stderrStr := strings.TrimSpace(stderrBuf.String()); stderrStr != "" {
+			return PhaseResult{}, fmt.Errorf("subprocess exit: %w\nstderr: %s", waitErr, stderrStr)
 		}
 		return PhaseResult{}, fmt.Errorf("subprocess exit: %w", waitErr)
 	}
@@ -312,11 +396,15 @@ func (pe *PipelineExecutor) runPhase(ctx context.Context, taskID string, phase P
 
 // parsePhaseStream reads subprocess stdout and extracts the phase result.
 // Counts tool_call and tool_use events for budget tracking.
-func (pe *PipelineExecutor) parsePhaseStream(r io.Reader, phase Phase) (PhaseResult, error) {
+func (pe *PipelineExecutor) parsePhaseStream(r io.Reader, phase Phase, phaseBudget *budget.IterationBudget, emergencyStop *security.EmergencyStop) (PhaseResult, error) {
 	scanner := bufio.NewScanner(r)
 	var result PhaseResult
 	result.Phase = phase
 	hasResult := false
+	var counter *budget.Counter
+	if phaseBudget != nil {
+		counter = budget.NewCounter(*phaseBudget)
+	}
 
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -333,6 +421,14 @@ func (pe *PipelineExecutor) parsePhaseStream(r io.Reader, phase Phase) (PhaseRes
 		// Count tool calls for budget tracking (REQ-BUDGET-05).
 		if evt.Type == stream.EventToolCall || evt.Type == "tool_use" {
 			result.ToolCalls++
+			if counter != nil {
+				state := counter.Increment()
+				if state.Level == budget.LevelExhausted && emergencyStop != nil {
+					log.Printf("[pipeline] phase %s budget exhausted, stopping", phase)
+					_ = emergencyStop.Stop("pipeline_iteration_budget_exceeded")
+					return result, fmt.Errorf("phase %s iteration budget exceeded: %d/%d", phase, state.Count, state.Budget.Limit)
+				}
+			}
 		}
 
 		if evt.Type == "result" {
@@ -352,6 +448,18 @@ func (pe *PipelineExecutor) parsePhaseStream(r io.Reader, phase Phase) (PhaseRes
 		return PhaseResult{}, fmt.Errorf("no result event for phase %s", phase)
 	}
 	return result, nil
+}
+
+func (pe *PipelineExecutor) phaseIterationBudget(phase Phase) *budget.IterationBudget {
+	if pe.iterationBudget == nil || pe.allocator == nil {
+		return nil
+	}
+	phaseBudget := *pe.iterationBudget
+	phaseBudget.Limit = pe.allocator.PhaseLimit(string(phase))
+	if phaseBudget.Limit <= 0 {
+		return nil
+	}
+	return &phaseBudget
 }
 
 // aggregateResults combines all phase results into a single TaskResult.

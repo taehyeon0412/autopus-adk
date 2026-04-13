@@ -15,6 +15,7 @@ import (
 	"github.com/insajin/autopus-adk/pkg/worker/adapter"
 	"github.com/insajin/autopus-adk/pkg/worker/audit"
 	"github.com/insajin/autopus-adk/pkg/worker/auth"
+	"github.com/insajin/autopus-adk/pkg/worker/budget"
 	"github.com/insajin/autopus-adk/pkg/worker/knowledge"
 	workerNet "github.com/insajin/autopus-adk/pkg/worker/net"
 	"github.com/insajin/autopus-adk/pkg/worker/parallel"
@@ -136,16 +137,18 @@ func (wl *WorkerLoop) Close() error {
 
 // taskPayloadMessage is the JSON structure received from the A2A backend.
 type taskPayloadMessage struct {
-	Description          string            `json:"description"`
-	Prompt               string            `json:"prompt,omitempty"`
-	PMNotes              string            `json:"pm_notes,omitempty"`
-	PolicySummary        string            `json:"policy_summary,omitempty"`
-	KnowledgeCtx         string            `json:"knowledge_ctx,omitempty"`
-	PipelinePhases       []string          `json:"pipeline_phases,omitempty"`
-	PipelineInstructions map[string]string `json:"pipeline_instructions,omitempty"`
-	SpecID               string            `json:"spec_id,omitempty"`
-	Model                string            `json:"model,omitempty"`
-	SessionID            string            `json:"session_id,omitempty"`
+	Description             string                  `json:"description"`
+	Prompt                  string                  `json:"prompt,omitempty"`
+	PMNotes                 string                  `json:"pm_notes,omitempty"`
+	PolicySummary           string                  `json:"policy_summary,omitempty"`
+	KnowledgeCtx            string                  `json:"knowledge_ctx,omitempty"`
+	PipelinePhases          []string                `json:"pipeline_phases,omitempty"`
+	PipelineInstructions    map[string]string       `json:"pipeline_instructions,omitempty"`
+	PipelinePromptTemplates map[string]string       `json:"pipeline_prompt_templates,omitempty"`
+	IterationBudget         *budget.IterationBudget `json:"iteration_budget,omitempty"`
+	SpecID                  string                  `json:"spec_id,omitempty"`
+	Model                   string                  `json:"model,omitempty"`
+	SessionID               string                  `json:"session_id,omitempty"`
 }
 
 // handleTask is the A2A TaskHandler callback invoked when a task is received.
@@ -189,12 +192,12 @@ func (wl *WorkerLoop) handleTask(ctx context.Context, taskID string, payload jso
 		})
 	}
 
-	// Prefer the server-selected model when present. Local routing remains as a
-	// backward-compatible fallback until the control plane migration is complete.
+	// Prefer the server-selected model when present. In signed control-plane
+	// mode, local routing fallback is disabled so the worker stays thin.
 	var model string
 	if msg.Model != "" {
 		model = msg.Model
-	} else if wl.config.Router != nil {
+	} else if wl.config.Router != nil && !a2a.SignedControlPlaneEnforced() {
 		model = wl.config.Router.Route(wl.config.Provider.Name(), descriptionSeed)
 	}
 
@@ -207,6 +210,7 @@ func (wl *WorkerLoop) handleTask(ctx context.Context, taskID string, payload jso
 		WorkDir:   wl.config.WorkDir,
 		Model:     model,
 	}
+	budgetCfg := budgetConfigFromMessage(msg)
 
 	phasePlan, err := ParsePhasePlan(msg.PipelinePhases)
 	if err != nil {
@@ -216,13 +220,17 @@ func (wl *WorkerLoop) handleTask(ctx context.Context, taskID string, payload jso
 	if err != nil {
 		return nil, fmt.Errorf("parse pipeline instructions: %w", err)
 	}
+	phasePromptTemplates, err := ParsePhasePromptTemplates(msg.PipelinePromptTemplates)
+	if err != nil {
+		return nil, fmt.Errorf("parse pipeline prompt templates: %w", err)
+	}
 
 	// Execute subprocess with semaphore gating, worktree isolation, and audit recording.
 	var result adapter.TaskResult
-	if len(phasePlan) > 0 || len(phaseInstructions) > 0 {
-		result, err = wl.executePipelineWithParallel(ctx, taskID, prompt, model, phasePlan, phaseInstructions)
+	if len(phasePlan) > 0 || len(phaseInstructions) > 0 || len(phasePromptTemplates) > 0 {
+		result, err = wl.executePipelineWithParallel(ctx, taskID, prompt, model, phasePlan, phaseInstructions, phasePromptTemplates, budgetCfg)
 	} else {
-		result, err = wl.executeWithParallel(ctx, taskCfg)
+		result, err = wl.executeWithParallel(ctx, taskCfg, budgetCfg)
 	}
 	if err != nil {
 		log.Printf("[worker] task %s failed: %v", taskID, err)

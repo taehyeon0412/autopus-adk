@@ -63,6 +63,7 @@ func (b *CardBuilder) Build() AgentCard {
 		Description:         description,
 		URL:                 b.backendURL,
 		Skills:              skills,
+		Capabilities:        DefaultCapabilities(),
 		SupportedInputModes: []string{"text"},
 	}
 }

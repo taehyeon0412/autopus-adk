@@ -18,7 +18,7 @@ func policyDir() (string, error) {
 }
 
 // cacheSecurityPolicy writes the security policy to a secure temp file for subprocess access.
-func cacheSecurityPolicy(taskID string, policy SecurityPolicy) error {
+func cacheSecurityPolicy(taskID string, policy SecurityPolicy, signature string) error {
 	data, err := json.MarshalIndent(policy, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal policy: %w", err)
@@ -50,6 +50,9 @@ func cacheSecurityPolicy(taskID string, policy SecurityPolicy) error {
 	if err := os.Rename(tmpPath, target); err != nil {
 		os.Remove(tmpPath)
 		return fmt.Errorf("rename policy file: %w", err)
+	}
+	if err := writePolicySignature(target, signature); err != nil {
+		return err
 	}
 	return nil
 }

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/insajin/autopus-adk/pkg/worker/adapter"
+	"github.com/insajin/autopus-adk/pkg/worker/budget"
 	"github.com/insajin/autopus-adk/pkg/worker/compress"
 )
 
@@ -104,6 +105,29 @@ func TestParsePhaseInstructions_Invalid(t *testing.T) {
 	}
 }
 
+func TestParsePhasePromptTemplates(t *testing.T) {
+	templates, err := ParsePhasePromptTemplates(map[string]string{
+		"planner":  "PLAN\n\n{{input}}",
+		"reviewer": "REVIEW\n\n{{input}}",
+	})
+	if err != nil {
+		t.Fatalf("ParsePhasePromptTemplates returned error: %v", err)
+	}
+	if got, want := len(templates), 2; got != want {
+		t.Fatalf("len(templates) = %d, want %d", got, want)
+	}
+	if templates[PhasePlanner] != "PLAN\n\n{{input}}" {
+		t.Fatalf("unexpected planner template: %q", templates[PhasePlanner])
+	}
+}
+
+func TestParsePhasePromptTemplates_Invalid(t *testing.T) {
+	_, err := ParsePhasePromptTemplates(map[string]string{"deployer": "ship it"})
+	if err == nil {
+		t.Fatal("expected invalid phase prompt templates to fail")
+	}
+}
+
 func TestPipelineExecutor_PhasePromptUsesServerInstruction(t *testing.T) {
 	pe := NewPipelineExecutor(adapter.NewClaudeAdapter(), "", "/tmp")
 	pe.SetPhaseInstructions(map[Phase]string{
@@ -119,6 +143,37 @@ func TestPipelineExecutor_PhasePromptUsesServerInstruction(t *testing.T) {
 	}
 	if !strings.Contains(result, "test input") {
 		t.Fatal("phase prompt should include phase input")
+	}
+}
+
+func TestPipelineExecutor_PhasePromptUsesServerTemplate(t *testing.T) {
+	pe := NewPipelineExecutor(adapter.NewClaudeAdapter(), "", "/tmp")
+	pe.SetPhasePromptTemplates(map[Phase]string{
+		PhasePlanner: "SERVER TEMPLATE\n\n{{input}}",
+	})
+
+	result, err := pe.phasePrompt(PhasePlanner, "test input")
+	if err != nil {
+		t.Fatalf("phasePrompt returned error: %v", err)
+	}
+	if !strings.Contains(result, "SERVER TEMPLATE") {
+		t.Fatal("phase prompt should use server-selected template")
+	}
+	if !strings.Contains(result, "test input") {
+		t.Fatal("phase prompt template should include phase input")
+	}
+}
+
+func TestPipelineExecutor_PhasePromptFallsBackToRawInputInSignedMode(t *testing.T) {
+	t.Setenv("AUTOPUS_A2A_POLICY_SIGNING_SECRET", "test-secret")
+
+	pe := NewPipelineExecutor(adapter.NewClaudeAdapter(), "", "/tmp")
+	result, err := pe.phasePrompt(PhasePlanner, "test input")
+	if err != nil {
+		t.Fatalf("phasePrompt returned error: %v", err)
+	}
+	if result != "test input" {
+		t.Fatalf("phase prompt = %q, want raw input passthrough", result)
 	}
 }
 
@@ -165,6 +220,25 @@ func TestPipelineExecutor_SetCompressor(t *testing.T) {
 	pe.SetCompressor(c)
 	if pe.compressor == nil {
 		t.Error("compressor should be set after SetCompressor")
+	}
+}
+
+func TestPipelineExecutor_SetIterationBudget(t *testing.T) {
+	pe := NewPipelineExecutor(adapter.NewClaudeAdapter(), "", "/tmp")
+	pe.SetIterationBudget(budget.IterationBudget{
+		Limit:           20,
+		WarnThreshold:   0.70,
+		DangerThreshold: 0.90,
+	})
+
+	if pe.iterationBudget == nil {
+		t.Fatal("iteration budget should be configured")
+	}
+	if pe.allocator == nil {
+		t.Fatal("phase allocator should be configured from iteration budget")
+	}
+	if got := pe.allocator.PhaseLimit("planner"); got != 2 {
+		t.Fatalf("planner phase limit = %d, want 2", got)
 	}
 }
 

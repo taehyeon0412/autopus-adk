@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/insajin/autopus-adk/pkg/worker/a2a"
 	"github.com/insajin/autopus-adk/pkg/worker/security"
 )
 
@@ -64,6 +65,11 @@ func runWorkerValidate(cmd *cobra.Command, policyPath, command, workDir string) 
 	var policy security.SecurityPolicy
 	if err := json.Unmarshal(data, &policy); err != nil {
 		fmt.Fprintf(cmd.OutOrStdout(), "DENY: invalid policy file: %v\n", err)
+		os.Exit(1)
+		return nil
+	}
+	if err := a2a.VerifyCachedPolicyFile(policyPath, policy); err != nil {
+		fmt.Fprintf(cmd.OutOrStdout(), "DENY: invalid policy signature: %v\n", err)
 		os.Exit(1)
 		return nil
 	}

@@ -94,6 +94,7 @@ func (s *Server) Start(ctx context.Context) error {
 		URL:                 s.config.BackendURL,
 		WorkspaceID:         s.config.WorkspaceID,
 		Skills:              s.config.Skills,
+		Capabilities:        DefaultCapabilities(),
 		SupportedInputModes: []string{"text"},
 	}
 	if err := s.RegisterAgentCard(card); err != nil {

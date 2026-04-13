@@ -10,6 +10,7 @@ import (
 
 	"github.com/insajin/autopus-adk/pkg/worker/a2a"
 	"github.com/insajin/autopus-adk/pkg/worker/adapter"
+	"github.com/insajin/autopus-adk/pkg/worker/budget"
 	"github.com/insajin/autopus-adk/pkg/worker/routing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -306,6 +307,36 @@ func TestHandleTask_PrefersBackendSelectedModel(t *testing.T) {
 	assert.Equal(t, "server-selected-model", mock.last.Model)
 }
 
+func TestHandleTask_DisablesLocalRoutingWhenSignedControlPlaneEnabled(t *testing.T) {
+	t.Setenv(a2a.PolicySigningSecretEnv, "test-secret")
+
+	script := `head -c0; echo '{"type":"result","output":"done","cost_usd":0.02,"duration_ms":300}'`
+	mock := &mockAdapter{name: "mock", script: script}
+	router := routing.NewRouter(routing.RoutingConfig{
+		Enabled: true,
+		Thresholds: routing.ClassifierThresholds{
+			SimpleMaxChars:  10,
+			ComplexMinChars: 20,
+		},
+		Models: map[string]routing.ProviderModels{
+			"mock": {Simple: "local-simple", Medium: "local-medium", Complex: "local-complex"},
+		},
+	})
+
+	wl := &WorkerLoop{
+		config: LoopConfig{Provider: mock, WorkDir: t.TempDir(), Router: router},
+	}
+
+	payload, _ := json.Marshal(taskPayloadMessage{
+		Description: "this description would route locally",
+	})
+
+	result, err := wl.handleTask(context.Background(), "task-ht-no-local-routing", payload)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Empty(t, mock.last.Model)
+}
+
 func TestHandleTask_UsesBackendSelectedPipelinePhases(t *testing.T) {
 	script := `head -c0; echo '{"type":"result","output":"done","cost_usd":0.02,"duration_ms":300}'`
 	mock := &mockAdapter{name: "mock", script: script}
@@ -352,6 +383,52 @@ func TestHandleTask_UsesBackendSelectedPipelineInstructions(t *testing.T) {
 	require.Len(t, mock.calls, 1)
 	assert.Contains(t, mock.calls[0].Prompt, "backend-selected planning instruction")
 	assert.Contains(t, mock.calls[0].Prompt, "backend-built prompt")
+}
+
+func TestHandleTask_UsesBackendSelectedPipelinePromptTemplates(t *testing.T) {
+	script := `head -c0; echo '{"type":"result","output":"done","cost_usd":0.02,"duration_ms":300}'`
+	mock := &mockAdapter{name: "mock", script: script}
+
+	wl := &WorkerLoop{
+		config: LoopConfig{Provider: mock, WorkDir: t.TempDir()},
+	}
+
+	payload, _ := json.Marshal(taskPayloadMessage{
+		Prompt:         "backend-built prompt",
+		PipelinePhases: []string{"planner"},
+		PipelinePromptTemplates: map[string]string{
+			"planner": "SERVER TEMPLATE\n\n{{input}}",
+		},
+	})
+
+	result, err := wl.handleTask(context.Background(), "task-ht-pipeline-template", payload)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Len(t, mock.calls, 1)
+	assert.Contains(t, mock.calls[0].Prompt, "SERVER TEMPLATE")
+	assert.Contains(t, mock.calls[0].Prompt, "backend-built prompt")
+}
+
+func TestHandleTask_EnforcesServerIssuedIterationBudget(t *testing.T) {
+	script := `head -c0; echo '{"type":"tool_call"}'; echo '{"type":"result","output":"done","cost_usd":0.02,"duration_ms":300}'`
+	mock := &mockAdapter{name: "mock", script: script}
+
+	wl := &WorkerLoop{
+		config: LoopConfig{Provider: mock, WorkDir: t.TempDir()},
+	}
+
+	payload, _ := json.Marshal(taskPayloadMessage{
+		Prompt: "backend-built prompt",
+		IterationBudget: &budget.IterationBudget{
+			Limit:           1,
+			WarnThreshold:   0.70,
+			DangerThreshold: 0.90,
+		},
+	})
+
+	_, err := wl.handleTask(context.Background(), "task-ht-budget", payload)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "iteration budget exceeded")
 }
 
 func TestHandleTask_InvalidPipelineInstructions(t *testing.T) {

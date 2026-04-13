@@ -158,6 +158,21 @@ func paramsFromPolledTask(task PollResult) (SendMessageParams, error) {
 		if len(params.PipelineInstructions) == 0 && len(task.PipelineInstructions) > 0 {
 			params.PipelineInstructions = cloneStringMap(task.PipelineInstructions)
 		}
+		if len(params.PipelinePromptTemplates) == 0 && len(task.PipelinePromptTemplates) > 0 {
+			params.PipelinePromptTemplates = cloneStringMap(task.PipelinePromptTemplates)
+		}
+		if params.IterationBudget == nil && task.IterationBudget != nil {
+			params.IterationBudget = cloneIterationBudget(task.IterationBudget)
+		}
+		if len(params.ControlPlaneCapabilities) == 0 && len(task.ControlPlaneCapabilities) > 0 {
+			params.ControlPlaneCapabilities = append([]string(nil), task.ControlPlaneCapabilities...)
+		}
+		if params.ControlPlaneSignature == "" {
+			params.ControlPlaneSignature = task.ControlPlaneSignature
+		}
+		if params.PolicySignature == "" {
+			params.PolicySignature = task.PolicySignature
+		}
 		if len(params.Payload) == 0 {
 			params.Payload = task.Payload
 		}
@@ -165,11 +180,16 @@ func paramsFromPolledTask(task PollResult) (SendMessageParams, error) {
 	}
 
 	return SendMessageParams{
-		TaskID:               task.ID,
-		Model:                task.Model,
-		PipelinePhases:       append([]string(nil), task.PipelinePhases...),
-		PipelineInstructions: cloneStringMap(task.PipelineInstructions),
-		Payload:              task.Payload,
+		TaskID:                   task.ID,
+		Model:                    task.Model,
+		PipelinePhases:           append([]string(nil), task.PipelinePhases...),
+		PipelineInstructions:     cloneStringMap(task.PipelineInstructions),
+		PipelinePromptTemplates:  cloneStringMap(task.PipelinePromptTemplates),
+		IterationBudget:          cloneIterationBudget(task.IterationBudget),
+		ControlPlaneCapabilities: append([]string(nil), task.ControlPlaneCapabilities...),
+		ControlPlaneSignature:    task.ControlPlaneSignature,
+		PolicySignature:          task.PolicySignature,
+		Payload:                  task.Payload,
 	}, nil
 }
 
@@ -187,7 +207,37 @@ func (s *Server) enqueueAndDispatchTask(ctx context.Context, reqID json.RawMessa
 	s.tasks[params.TaskID] = &Task{ID: params.TaskID, Status: StatusWorking}
 	s.mu.Unlock()
 
-	if err := cacheSecurityPolicy(params.TaskID, params.SecurityPolicy); err != nil {
+	if err := validateSecurityPolicySignature(params.TaskID, params.SecurityPolicy, params.PolicySignature); err != nil {
+		s.mu.Lock()
+		delete(s.tasks, params.TaskID)
+		s.mu.Unlock()
+		return err
+	}
+	if err := validateControlPlaneSignature(
+		params.TaskID,
+		params.Model,
+		params.PipelinePhases,
+		params.PipelineInstructions,
+		params.PipelinePromptTemplates,
+		params.IterationBudget,
+		params.ControlPlaneCapabilities,
+		params.ControlPlaneSignature,
+	); err != nil {
+		s.mu.Lock()
+		delete(s.tasks, params.TaskID)
+		s.mu.Unlock()
+		return err
+	}
+	params.Model, params.PipelinePhases, params.PipelineInstructions, params.PipelinePromptTemplates, params.IterationBudget = applyControlPlaneCapabilities(
+		params.Model,
+		params.PipelinePhases,
+		params.PipelineInstructions,
+		params.PipelinePromptTemplates,
+		params.IterationBudget,
+		params.ControlPlaneCapabilities,
+	)
+
+	if err := cacheSecurityPolicy(params.TaskID, params.SecurityPolicy, params.PolicySignature); err != nil {
 		log.Printf("[a2a] cache policy error: %v", err)
 	}
 
@@ -223,7 +273,7 @@ func (s *Server) dispatchTask(ctx context.Context, reqID json.RawMessage, params
 		s.mu.Unlock()
 	}()
 
-	payload, err := mergeTaskPayload(params.Payload, params.Model, params.PipelinePhases, params.PipelineInstructions)
+	payload, err := mergeTaskPayload(params.Payload, params.Model, params.PipelinePhases, params.PipelineInstructions, params.PipelinePromptTemplates, params.IterationBudget)
 	if err != nil {
 		failResult := &TaskResult{Status: StatusFailed, Error: err.Error()}
 		_ = s.UpdateTaskStatus(params.TaskID, StatusFailed, failResult)
@@ -249,8 +299,8 @@ func (s *Server) dispatchTask(ctx context.Context, reqID json.RawMessage, params
 	}
 }
 
-func mergeTaskPayload(payload json.RawMessage, model string, pipelinePhases []string, pipelineInstructions map[string]string) (json.RawMessage, error) {
-	if model == "" && len(pipelinePhases) == 0 && len(pipelineInstructions) == 0 {
+func mergeTaskPayload(payload json.RawMessage, model string, pipelinePhases []string, pipelineInstructions map[string]string, pipelinePromptTemplates map[string]string, iterationBudget *IterationBudget) (json.RawMessage, error) {
+	if model == "" && len(pipelinePhases) == 0 && len(pipelineInstructions) == 0 && len(pipelinePromptTemplates) == 0 && !hasIterationBudget(iterationBudget) {
 		return payload, nil
 	}
 
@@ -264,6 +314,12 @@ func mergeTaskPayload(payload json.RawMessage, model string, pipelinePhases []st
 		}
 		if len(pipelineInstructions) > 0 {
 			obj["pipeline_instructions"] = pipelineInstructions
+		}
+		if len(pipelinePromptTemplates) > 0 {
+			obj["pipeline_prompt_templates"] = pipelinePromptTemplates
+		}
+		if hasIterationBudget(iterationBudget) {
+			obj["iteration_budget"] = iterationBudget
 		}
 		data, err := json.Marshal(obj)
 		if err != nil {
@@ -287,6 +343,12 @@ func mergeTaskPayload(payload json.RawMessage, model string, pipelinePhases []st
 	}
 	if len(pipelineInstructions) > 0 {
 		obj["pipeline_instructions"] = pipelineInstructions
+	}
+	if len(pipelinePromptTemplates) > 0 {
+		obj["pipeline_prompt_templates"] = pipelinePromptTemplates
+	}
+	if hasIterationBudget(iterationBudget) {
+		obj["iteration_budget"] = iterationBudget
 	}
 
 	data, err := json.Marshal(obj)

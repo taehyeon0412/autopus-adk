@@ -213,11 +213,11 @@ func TestCacheSecurityPolicy_WritesAndCleans(t *testing.T) {
 	}
 
 	// First call creates the file.
-	err := cacheSecurityPolicy("test-policy-task-001", policy)
+	err := cacheSecurityPolicy("test-policy-task-001", policy, "")
 	assert.NoError(t, err, "cacheSecurityPolicy should succeed on valid input")
 
 	// Second call for same task ID overwrites (rename is idempotent).
-	err = cacheSecurityPolicy("test-policy-task-001", policy)
+	err = cacheSecurityPolicy("test-policy-task-001", policy, "")
 	assert.NoError(t, err, "cacheSecurityPolicy should succeed on repeated call")
 }
 
