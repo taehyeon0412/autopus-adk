@@ -10,10 +10,32 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func withLegacyCredentialStore(t *testing.T) {
+	t.Helper()
+	prev := newCredentialStoreFunc
+	newCredentialStoreFunc = func() (CredentialStore, string) { return nil, "" }
+	t.Cleanup(func() { newCredentialStoreFunc = prev })
+}
+
+type failingCredentialStore struct{}
+
+func (failingCredentialStore) Save(service, value string) error {
+	return os.ErrPermission
+}
+
+func (failingCredentialStore) Load(service string) (string, error) {
+	return "", os.ErrNotExist
+}
+
+func (failingCredentialStore) Delete(service string) error {
+	return nil
+}
 
 func TestGeneratePKCE_VerifierLength(t *testing.T) {
 	t.Parallel()
@@ -90,7 +112,11 @@ func TestRefreshToken_Success(t *testing.T) {
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodPost, r.Method)
-		assert.Equal(t, "/oauth/token", r.URL.Path)
+		assert.Equal(t, "/api/v1/auth/cli-refresh", r.URL.Path)
+
+		var body map[string]string
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+		assert.Equal(t, "old-refresh-token", body["refresh_token"])
 
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(TokenResponse{
@@ -161,6 +187,7 @@ func TestRefreshToken_ConnectionRefused(t *testing.T) {
 func TestSaveCredentials_WritesFile(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("HOME", tmp)
+	withLegacyCredentialStore(t)
 
 	creds := map[string]any{
 		"access_token": "test-token",
@@ -182,6 +209,7 @@ func TestSaveCredentials_WritesFile(t *testing.T) {
 func TestSaveCredentials_Permissions(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("HOME", tmp)
+	withLegacyCredentialStore(t)
 
 	err := SaveCredentials(map[string]any{"key": "val"})
 	require.NoError(t, err)
@@ -195,6 +223,7 @@ func TestSaveCredentials_Permissions(t *testing.T) {
 func TestSaveCredentials_ReadOnlyDir(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("HOME", tmp)
+	withLegacyCredentialStore(t)
 
 	dir := filepath.Join(tmp, ".config", "autopus")
 	require.NoError(t, os.MkdirAll(dir, 0700))
@@ -205,6 +234,49 @@ func TestSaveCredentials_ReadOnlyDir(t *testing.T) {
 
 	err := SaveCredentials(map[string]any{"key": "val"})
 	require.Error(t, err)
+}
+
+func TestSaveCredentials_SecureStoreRoundTrip(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+
+	prev := newCredentialStoreFunc
+	newCredentialStoreFunc = func() (CredentialStore, string) {
+		return NewCredentialStore(WithForceFileBackend(true))
+	}
+	t.Cleanup(func() { newCredentialStoreFunc = prev })
+
+	err := SaveCredentials(map[string]any{
+		"access_token": "secure-token",
+		"expires_at":   time.Now().Add(time.Hour).Format(time.RFC3339),
+	})
+	require.NoError(t, err)
+
+	token, err := LoadAuthToken()
+	require.NoError(t, err)
+	assert.Equal(t, "secure-token", token)
+
+	_, statErr := os.Stat(DefaultCredentialsPath())
+	assert.ErrorIs(t, statErr, os.ErrNotExist)
+}
+
+func TestLoadAuthToken_EncryptedFileFallbackAfterPrimaryMiss(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("HOME", tmp)
+
+	fileStore := newEncryptedFileStore(defaultCredentialDir())
+	payload := `{"access_token":"fallback-token","expires_at":"2030-01-01T00:00:00Z"}`
+	require.NoError(t, fileStore.Save(workerCredentialService, payload))
+
+	prev := newCredentialStoreFunc
+	newCredentialStoreFunc = func() (CredentialStore, string) {
+		return failingCredentialStore{}, ""
+	}
+	t.Cleanup(func() { newCredentialStoreFunc = prev })
+
+	token, err := LoadAuthToken()
+	require.NoError(t, err)
+	assert.Equal(t, "fallback-token", token)
 }
 
 func TestOpenBrowser_RunsOnDarwin(t *testing.T) {

@@ -23,7 +23,6 @@ func TestSaveAndLoadWorkerConfig_RoundTrip(t *testing.T) {
 		WorkDir:           "/tmp/autopus-work",
 		WorktreeIsolation: true,
 		KnowledgeDir:      "/tmp/autopus-work",
-		KnowledgeSourceID: "src-123",
 		MemoryAgentID:     "11111111-2222-4333-8444-555555555555",
 		A2AURL:            "https://a2a.autopus.co",
 		Concurrency:       3,
@@ -42,7 +41,6 @@ func TestSaveAndLoadWorkerConfig_RoundTrip(t *testing.T) {
 	assert.Equal(t, original.WorkDir, loaded.WorkDir)
 	assert.Equal(t, original.WorktreeIsolation, loaded.WorktreeIsolation)
 	assert.Equal(t, original.KnowledgeDir, loaded.KnowledgeDir)
-	assert.Equal(t, original.KnowledgeSourceID, loaded.KnowledgeSourceID)
 	assert.Equal(t, original.MemoryAgentID, loaded.MemoryAgentID)
 	assert.Equal(t, original.A2AURL, loaded.A2AURL)
 	assert.Equal(t, original.Concurrency, loaded.Concurrency)
@@ -88,7 +86,6 @@ func TestSaveWorkerConfig_WritesToDisk(t *testing.T) {
 		WorkDir:           "/tmp/work",
 		WorktreeIsolation: true,
 		KnowledgeDir:      "/tmp/work",
-		KnowledgeSourceID: "src-001",
 		A2AURL:            "https://a2a.autopus.co",
 		Concurrency:       2,
 	}
@@ -101,7 +98,20 @@ func TestSaveWorkerConfig_WritesToDisk(t *testing.T) {
 	assert.Equal(t, cfg.WorkspaceID, loaded.WorkspaceID)
 	assert.Equal(t, cfg.Providers, loaded.Providers)
 	assert.Equal(t, cfg.WorktreeIsolation, loaded.WorktreeIsolation)
-	assert.Equal(t, cfg.KnowledgeSourceID, loaded.KnowledgeSourceID)
+}
+
+func TestLoadWorkerConfigFrom_IgnoresLegacyKnowledgeSourceID(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "worker.yaml")
+	data := []byte("backend_url: https://api.autopus.co\nworkspace_id: ws-123\nknowledge_source_id: legacy-src\n")
+	require.NoError(t, os.WriteFile(path, data, 0o600))
+
+	loaded, err := LoadWorkerConfigFrom(path)
+	require.NoError(t, err)
+	assert.Equal(t, "https://api.autopus.co", loaded.BackendURL)
+	assert.Equal(t, "ws-123", loaded.WorkspaceID)
 }
 
 func TestLoadWorkerConfig_NoFile(t *testing.T) {

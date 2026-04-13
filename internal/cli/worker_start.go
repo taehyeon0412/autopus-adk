@@ -20,9 +20,13 @@ func runWorkerForeground() error {
 	if err != nil {
 		return fmt.Errorf("load worker config: %w (run 'auto worker setup' first)", err)
 	}
+	credStore, warn := setup.NewCredentialStore()
+	if warn != "" {
+		log.Printf("[worker] credential store warning: %s", warn)
+	}
 
-	// V4 fix: LoadAuthToken reads the correct token based on auth_type
-	// (api_key → Worker API Key, jwt → access_token).
+	// LoadAuthToken reads the correct token based on auth_type
+	// (legacy api_key → Worker API Key, jwt → access_token).
 	authToken, err := setup.LoadAuthToken()
 	if err != nil {
 		return fmt.Errorf("load auth token: %w", err)
@@ -59,12 +63,12 @@ func runWorkerForeground() error {
 		WorkDir:           workDir,
 		AuthToken:         authToken,
 		CredentialsPath:   setup.DefaultCredentialsPath(),
+		CredentialStore:   credStore,
 		WorkspaceID:       cfg.WorkspaceID,
 		MaxConcurrency:    cfg.Concurrency,
 		WorktreeIsolation: cfg.WorktreeIsolation || cfg.Concurrency > 1,
-		KnowledgeSync:     true, // enable KH file sync when WorkspaceID is set
+		KnowledgeSync:     true, // enable backend knowledge context when WorkspaceID is set
 		KnowledgeDir:      cfg.KnowledgeDir,
-		KnowledgeSourceID: cfg.KnowledgeSourceID,
 	}
 
 	wl := worker.NewWorkerLoop(loopCfg)
@@ -84,10 +88,22 @@ func runWorkerForeground() error {
 
 // resolveProvider picks the first available provider from config.
 func resolveProvider(providers []string) string {
+	for _, name := range providers {
+		if authenticated, _ := setup.CheckProviderAuth(name); authenticated {
+			return name
+		}
+	}
 	if len(providers) > 0 {
 		return providers[0]
 	}
 	// Fallback: detect installed providers.
+	for _, p := range setup.DetectProviders() {
+		if p.Installed {
+			if authenticated, _ := setup.CheckProviderAuth(p.Name); authenticated {
+				return p.Name
+			}
+		}
+	}
 	for _, p := range setup.DetectProviders() {
 		if p.Installed {
 			return p.Name

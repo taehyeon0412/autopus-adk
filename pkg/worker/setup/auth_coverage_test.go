@@ -18,6 +18,7 @@ func TestSaveCredentials_WriteFileFails(t *testing.T) {
 	// Use a read-only file at the credentials path to force write failure.
 	homeDir, cleanup := isolatedHome(t)
 	defer cleanup()
+	withLegacyCredentialStore(t)
 
 	configDir := filepath.Join(homeDir, ".config", "autopus")
 	require.NoError(t, os.MkdirAll(configDir, 0700))
@@ -35,6 +36,7 @@ func TestSaveCredentials_WriteFileFails(t *testing.T) {
 func TestSaveCredentials_MkdirAllFails(t *testing.T) {
 	homeDir, cleanup := isolatedHome(t)
 	defer cleanup()
+	withLegacyCredentialStore(t)
 
 	// Create a file at the .config path to block MkdirAll.
 	require.NoError(t, os.WriteFile(filepath.Join(homeDir, ".config"), []byte("block"), 0600))
@@ -51,10 +53,10 @@ func TestRequestDeviceCode_UnwrappedResponse(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		dc := DeviceCode{
-			DeviceCode:  "dev-123",
-			UserCode:    "CODE-456",
-			ExpiresIn:   300,
-			Interval:    5,
+			DeviceCode:              "dev-123",
+			UserCode:                "CODE-456",
+			ExpiresIn:               300,
+			Interval:                5,
 			VerificationURI:         "https://app.example.com/device",
 			VerificationURIComplete: "",
 		}
@@ -119,7 +121,7 @@ func TestCredstoreFileDelete_ReadOnlyDir(t *testing.T) {
 	// Save first then make dir read-only.
 	require.NoError(t, store.Save("test-del", "val"))
 	require.NoError(t, os.Chmod(dir, 0500)) // remove write permission
-	defer os.Chmod(dir, 0700)              // restore for cleanup
+	defer os.Chmod(dir, 0700)               // restore for cleanup
 
 	err := store.Delete("test-del")
 	// Error depends on OS — we just verify it is non-nil OR the file is gone.

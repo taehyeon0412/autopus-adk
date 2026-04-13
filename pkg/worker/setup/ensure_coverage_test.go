@@ -18,10 +18,11 @@ import (
 // TestSaveTokenCredentials_WritesExpiry verifies saveTokenCredentials writes
 // expires_at when ExpiresIn > 0.
 func TestSaveTokenCredentials_WritesExpiry(t *testing.T) {
+	_, cleanup := isolatedHome(t)
+	defer cleanup()
+	withLegacyCredentialStore(t)
+
 	credPath := DefaultCredentialsPath()
-	if _, err := os.Stat(credPath); !os.IsNotExist(err) {
-		t.Skip("real credentials.json exists")
-	}
 	defer os.Remove(credPath)
 
 	tokenResp := &TokenResponse{
@@ -38,6 +39,7 @@ func TestSaveTokenCredentials_WritesExpiry(t *testing.T) {
 
 	var creds map[string]any
 	require.NoError(t, json.Unmarshal(data, &creds))
+	assert.Equal(t, "jwt", creds["auth_type"])
 	assert.Equal(t, "test-access", creds["access_token"])
 	assert.Equal(t, "test-refresh", creds["refresh_token"])
 	assert.NotEmpty(t, creds["expires_at"])
@@ -45,10 +47,11 @@ func TestSaveTokenCredentials_WritesExpiry(t *testing.T) {
 
 // TestSaveTokenCredentials_NoExpiry verifies expires_at is omitted when ExpiresIn=0.
 func TestSaveTokenCredentials_NoExpiry(t *testing.T) {
+	_, cleanup := isolatedHome(t)
+	defer cleanup()
+	withLegacyCredentialStore(t)
+
 	credPath := DefaultCredentialsPath()
-	if _, err := os.Stat(credPath); !os.IsNotExist(err) {
-		t.Skip("real credentials.json exists")
-	}
 	defer os.Remove(credPath)
 
 	tokenResp := &TokenResponse{
@@ -65,17 +68,16 @@ func TestSaveTokenCredentials_NoExpiry(t *testing.T) {
 
 	var creds map[string]any
 	require.NoError(t, json.Unmarshal(data, &creds))
+	assert.Equal(t, "jwt", creds["auth_type"])
 	_, hasExpiry := creds["expires_at"]
 	assert.False(t, hasExpiry, "expires_at should not be set when ExpiresIn=0")
 }
 
 // TestTryRefreshCredentials_NoCredentials verifies false returned when no creds file.
 func TestTryRefreshCredentials_NoCredentials(t *testing.T) {
-	t.Parallel()
-
-	if _, err := os.Stat(DefaultCredentialsPath()); !os.IsNotExist(err) {
-		t.Skip("real credentials.json exists")
-	}
+	_, cleanup := isolatedHome(t)
+	defer cleanup()
+	withLegacyCredentialStore(t)
 
 	ok := tryRefreshCredentials(context.Background(), "https://api.autopus.co")
 	assert.False(t, ok)
@@ -83,10 +85,11 @@ func TestTryRefreshCredentials_NoCredentials(t *testing.T) {
 
 // TestTryRefreshCredentials_NoRefreshToken verifies false returned when no refresh token.
 func TestTryRefreshCredentials_NoRefreshToken(t *testing.T) {
+	_, cleanup := isolatedHome(t)
+	defer cleanup()
+	withLegacyCredentialStore(t)
+
 	credPath := DefaultCredentialsPath()
-	if _, err := os.Stat(credPath); !os.IsNotExist(err) {
-		t.Skip("real credentials.json exists")
-	}
 	defer os.Remove(credPath)
 
 	// Write creds without refresh_token.
@@ -101,10 +104,11 @@ func TestTryRefreshCredentials_NoRefreshToken(t *testing.T) {
 
 // TestTryRefreshCredentials_ServerError verifies false returned on server error.
 func TestTryRefreshCredentials_ServerError(t *testing.T) {
+	_, cleanup := isolatedHome(t)
+	defer cleanup()
+	withLegacyCredentialStore(t)
+
 	credPath := DefaultCredentialsPath()
-	if _, err := os.Stat(credPath); !os.IsNotExist(err) {
-		t.Skip("real credentials.json exists")
-	}
 	defer os.Remove(credPath)
 
 	// Server that fails token refresh.

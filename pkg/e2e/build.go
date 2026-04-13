@@ -20,7 +20,6 @@ var defaultSubmoduleMap = map[string]string{
 	"ADK":      "autopus-adk",
 	"Backend":  "Autopus",
 	"Frontend": "Autopus/frontend",
-	"Bridge":   "autopus-bridge",
 }
 
 // reLabelSuffix matches a trailing "(Label)" at the end of a build command.
@@ -76,7 +75,6 @@ var sectionLabelMap = map[string]string{
 	"ADK":      "ADK",
 	"Backend":  "Backend",
 	"Frontend": "Frontend",
-	"Bridge":   "Bridge",
 }
 
 // MatchBuild finds the BuildEntry matching a scenario's section header.

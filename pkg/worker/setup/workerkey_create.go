@@ -1,8 +1,7 @@
-// Package setup - workerkey_create.go: creates a Worker API Key via the backend REST API.
+// Package setup - workerkey_create.go: creates a legacy Worker API Key via the backend REST API.
 //
-// After Device Auth OAuth, the setup wizard calls CreateWorkerAPIKey to exchange
-// the short-lived JWT for a long-lived acos_worker_ key. The key is then stored
-// in credentials.json so the worker daemon uses it for A2A WebSocket auth.
+// This path is kept for backward compatibility with older workers that still
+// use acos_worker_ credentials instead of JWT/refresh token auth.
 package setup
 
 import (

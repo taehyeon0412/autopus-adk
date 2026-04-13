@@ -54,33 +54,15 @@ func (wl *WorkerLoop) startServices(ctx context.Context) {
 		}
 	}
 
-	// 3. Knowledge syncer + watcher: enabled when KnowledgeSync, WorkspaceID,
-	// and KnowledgeSourceID are all set.
+	// 3. Local knowledge search: automatic file sync via the legacy bridge path
+	// has been removed, so only backend search is initialized here.
 	if wl.config.KnowledgeSync && wl.config.WorkspaceID != "" {
 		wl.knowledgeSearcher = knowledge.NewKnowledgeSearcher(
 			wl.config.BackendURL,
 			wl.config.AuthToken,
 			wl.config.WorkspaceID,
 		)
-		if wl.config.KnowledgeSourceID == "" {
-			log.Printf("[worker] knowledge sync disabled: knowledge_source_id is not configured")
-		} else {
-			wl.knowledgeSyncer = knowledge.NewSyncer(
-				wl.config.BackendURL,
-				wl.config.AuthToken,
-				wl.config.WorkspaceID,
-				wl.config.KnowledgeSourceID,
-			)
-			knowledgeDir := wl.config.KnowledgeDir
-			if knowledgeDir == "" {
-				knowledgeDir = wl.config.WorkDir
-			}
-			wl.knowledgeWatcher = startKnowledgeWatcher(
-				wl.lifecycleCtx,
-				wl.knowledgeSyncer,
-				knowledgeDir,
-			)
-		}
+		log.Printf("[worker] automatic knowledge file sync is disabled")
 	}
 
 	// 3b. Memory searcher: enabled alongside knowledge (SPEC-KHINT-001 REQ-003).

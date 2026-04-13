@@ -10,9 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -225,11 +223,15 @@ func extractErrorCode(body []byte) string {
 // RefreshToken exchanges a refresh token for a new access token via the backend.
 func RefreshToken(ctx context.Context, backendURL, refreshToken string) (*TokenResponse, error) {
 	body, _ := json.Marshal(map[string]string{
-		"grant_type":    "refresh_token",
 		"refresh_token": refreshToken,
 	})
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, backendURL+"/oauth/token", bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodPost,
+		strings.TrimRight(backendURL, "/")+"/api/v1/auth/cli-refresh",
+		bytes.NewReader(body),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("create refresh request: %w", err)
 	}
@@ -269,24 +271,10 @@ func OpenBrowser(u string) error {
 
 // SaveCredentials writes credentials to ~/.config/autopus/credentials.json.
 func SaveCredentials(creds map[string]any) error {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("get home dir: %w", err)
-	}
-
-	dir := filepath.Join(home, ".config", "autopus")
-	if err := os.MkdirAll(dir, 0700); err != nil {
-		return fmt.Errorf("create config dir: %w", err)
-	}
-
-	path := filepath.Join(dir, "credentials.json")
 	data, err := json.MarshalIndent(creds, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal credentials: %w", err)
 	}
 
-	if err := os.WriteFile(path, data, 0600); err != nil {
-		return fmt.Errorf("write credentials: %w", err)
-	}
-	return nil
+	return saveCredentialBytes(data)
 }

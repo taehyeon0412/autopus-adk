@@ -93,39 +93,3 @@ func truncateForMemory(description, output string) string {
 	}
 	return summary
 }
-
-// startKnowledgeWatcher creates and starts a file watcher that syncs changes
-// to the knowledge backend. Runs in background until context is cancelled.
-// skipSyncPatterns contains file patterns that should not be synced.
-var skipSyncPatterns = []string{
-	"audit.jsonl",
-	".git/",
-	"node_modules/",
-	".DS_Store",
-}
-
-func shouldSkipSync(path string) bool {
-	for _, pat := range skipSyncPatterns {
-		if strings.Contains(path, pat) {
-			return true
-		}
-	}
-	return false
-}
-
-func startKnowledgeWatcher(ctx context.Context, syncer *knowledge.Syncer, dir string) *knowledge.FileWatcher {
-	watcher := knowledge.NewFileWatcher(dir, 0, func(path string) {
-		if shouldSkipSync(path) {
-			return
-		}
-		if err := syncer.SyncFile(ctx, path); err != nil {
-			log.Printf("[worker] knowledge sync failed for %s: %v", path, err)
-		}
-	}, nil)
-	go func() {
-		if err := watcher.Start(ctx); err != nil && ctx.Err() == nil {
-			log.Printf("[worker] knowledge watcher stopped: %v", err)
-		}
-	}()
-	return watcher
-}

@@ -45,9 +45,8 @@ type LoopConfig struct {
 	WorkspaceID       string                // workspace identifier for scheduler
 	MaxConcurrency    int                   // max parallel tasks (0 or 1 = sequential)
 	WorktreeIsolation bool                  // enable worktree isolation for parallel tasks
-	KnowledgeSync     bool                  // enable knowledge file sync
-	KnowledgeDir      string                // directory to watch for knowledge sync (defaults to WorkDir)
-	KnowledgeSourceID string                // knowledge source ID for bridge binding
+	KnowledgeSync     bool                  // enable local knowledge context loading
+	KnowledgeDir      string                // local knowledge directory hint (defaults to WorkDir)
 }
 
 // WorkerLoop integrates A2A Server, ProviderAdapter, ContextBuilder, and StreamParser.
@@ -66,8 +65,6 @@ type WorkerLoop struct {
 	auditWriter       *audit.RotatingWriter
 	knowledgeSearcher *knowledge.KnowledgeSearcher
 	memorySearcher    *knowledge.MemorySearcher
-	knowledgeSyncer   *knowledge.Syncer
-	knowledgeWatcher  *knowledge.FileWatcher
 	semaphore         *parallel.TaskSemaphore
 	worktreeManager   *parallel.WorktreeManager
 	auditLogger       *slogAuditLogger

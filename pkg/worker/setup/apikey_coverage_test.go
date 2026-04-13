@@ -15,19 +15,19 @@ import (
 // Returns a cleanup function that removes the file.
 func writeTestCredentials(t *testing.T, creds map[string]any) func() {
 	t.Helper()
+	withLegacyCredentialStore(t)
+	_, cleanup := isolatedHome(t)
 
 	data, err := json.Marshal(creds)
 	require.NoError(t, err)
 
 	credPath := DefaultCredentialsPath()
-	require.NoError(t, os.MkdirAll(filepath.Dir(credPath), 0700))
-
-	if _, err := os.Stat(credPath); !os.IsNotExist(err) {
-		t.Skip("real credentials.json exists — skipping to avoid overwrite")
-	}
-
+	require.NoError(t, os.MkdirAll(filepath.Dir(credPath), 0o700))
 	require.NoError(t, os.WriteFile(credPath, data, 0600))
-	return func() { os.Remove(credPath) }
+	return func() {
+		_ = os.Remove(credPath)
+		cleanup()
+	}
 }
 
 // TestLoadAPIKey_WithAPIKey verifies LoadAPIKey returns the key when present.
@@ -58,12 +58,9 @@ func TestLoadAPIKey_WrongAuthType(t *testing.T) {
 
 // TestLoadAPIKey_MissingFile verifies LoadAPIKey returns empty when no file.
 func TestLoadAPIKey_MissingFile(t *testing.T) {
-	t.Parallel()
-
-	// Only run if no real credentials.json exists.
-	if _, err := os.Stat(DefaultCredentialsPath()); !os.IsNotExist(err) {
-		t.Skip("real credentials.json exists")
-	}
+	_, cleanup := isolatedHome(t)
+	defer cleanup()
+	withLegacyCredentialStore(t)
 
 	key, err := LoadAPIKey()
 	require.NoError(t, err)
@@ -98,11 +95,9 @@ func TestLoadAuthToken_JWT(t *testing.T) {
 
 // TestLoadAuthToken_Empty verifies empty return when no creds configured.
 func TestLoadAuthToken_Empty(t *testing.T) {
-	t.Parallel()
-
-	if _, err := os.Stat(DefaultCredentialsPath()); !os.IsNotExist(err) {
-		t.Skip("real credentials.json exists")
-	}
+	_, cleanup := isolatedHome(t)
+	defer cleanup()
+	withLegacyCredentialStore(t)
 
 	token, err := LoadAuthToken()
 	require.NoError(t, err)
@@ -111,10 +106,11 @@ func TestLoadAuthToken_Empty(t *testing.T) {
 
 // TestSaveAPIKeyCredentials_WritesFile verifies SaveAPIKeyCredentials writes creds.
 func TestSaveAPIKeyCredentials_WritesFile(t *testing.T) {
+	withLegacyCredentialStore(t)
+	_, cleanup := isolatedHome(t)
+	defer cleanup()
+
 	credPath := DefaultCredentialsPath()
-	if _, err := os.Stat(credPath); !os.IsNotExist(err) {
-		t.Skip("real credentials.json exists — skipping to avoid overwrite")
-	}
 	defer os.Remove(credPath)
 
 	err := SaveAPIKeyCredentials("wrk-mytestkey", "https://api.autopus.co")

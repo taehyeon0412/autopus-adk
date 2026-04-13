@@ -369,7 +369,8 @@ Detects installed CLI tools, validates API keys, tests connectivity, and writes 
 
 ### 🤖 ADK Worker — Local Agent Execution
 
-Bridge between Autopus CLI and the Autopus platform. ADK Worker runs A2A + MCP hybrid tasks locally, enabling platform-grade orchestration without cloud dependency.
+ADK Worker runs A2A + MCP hybrid tasks locally with browser login, JWT refresh, and direct platform connectivity.
+No separate bridge daemon or worker API key exchange is required for the default production path.
 
 ### 💰 Iteration Budget Management
 

@@ -30,13 +30,13 @@ func TestParseBuildLine(t *testing.T) {
 			},
 		},
 		{
-			name: "empty build line",
-			line: "",
+			name:     "empty build line",
+			line:     "",
 			expected: nil,
 		},
 		{
-			name: "whitespace only",
-			line: "   ",
+			name:     "whitespace only",
+			line:     "   ",
 			expected: nil,
 		},
 		{
@@ -45,13 +45,6 @@ func TestParseBuildLine(t *testing.T) {
 			expected: []BuildEntry{
 				{Command: "go build ./cmd/auto/", Label: "ADK", SubmodulePath: "autopus-adk"},
 				{Command: "go build ./cmd/server/", Label: "Backend", SubmodulePath: "Autopus"},
-			},
-		},
-		{
-			name: "single entry with label",
-			line: "go build ./cmd/bridge/ (Bridge)",
-			expected: []BuildEntry{
-				{Command: "go build ./cmd/bridge/", Label: "Bridge", SubmodulePath: "autopus-bridge"},
 			},
 		},
 		{
@@ -186,7 +179,7 @@ func TestMatchBuild(t *testing.T) {
 			wantNil:  true,
 		},
 		{
-			name: "single build without label always matches",
+			name:     "single build without label always matches",
 			scenario: Scenario{Section: "Any Section"},
 			builds: []BuildEntry{
 				{Command: "go build -o auto ./cmd/auto", Label: "", SubmodulePath: ""},

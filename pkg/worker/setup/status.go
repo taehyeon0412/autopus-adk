@@ -44,7 +44,7 @@ func DefaultCredentialsPath() string {
 
 // loadRawCredentials reads and parses credentials.json without strict type constraints.
 func loadRawCredentials() (*rawCredentials, error) {
-	data, err := os.ReadFile(DefaultCredentialsPath())
+	data, err := loadCredentialBytes()
 	if err != nil {
 		return nil, err
 	}

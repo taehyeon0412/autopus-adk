@@ -204,16 +204,16 @@ func newWorkerSetupCmd() *cobra.Command {
 
 비대화형 모드 (에이전트/CI 환경):
   auto worker setup --token <jwt> --workspace <workspace-id>
-  auto worker setup --api-key <acos_worker_...> --workspace <workspace-id>`,
+  auto worker setup --api-key <acos_worker_...> --workspace <workspace-id>  # legacy`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return runWorkerSetup(cmd, backendURL, token, workspaceID, apiKey)
 		},
 	}
 	// @AX:NOTE[AUTO]: magic constant — default backend URL "https://api.autopus.co" is hardcoded; must match production endpoint
 	cmd.Flags().StringVar(&backendURL, "backend", "https://api.autopus.co", "Backend API URL")
-	cmd.Flags().StringVar(&token, "token", "", "Pre-obtained JWT — skips browser OAuth (for agents/CI)")
+	cmd.Flags().StringVar(&token, "token", "", "Pre-obtained JWT — preferred non-interactive auth")
 	cmd.Flags().StringVar(&workspaceID, "workspace", "", "Workspace ID — skips interactive selection")
-	cmd.Flags().StringVar(&apiKey, "api-key", "", "Worker API Key (acos_worker_...) — skips browser OAuth")
+	cmd.Flags().StringVar(&apiKey, "api-key", "", "Legacy Worker API Key (acos_worker_...) — backward compatibility only")
 	return cmd
 }
 

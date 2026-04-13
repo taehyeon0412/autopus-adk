@@ -15,9 +15,8 @@ type WorkerConfig struct {
 	Providers         []string `yaml:"providers"`
 	WorkDir           string   `yaml:"work_dir"`
 	WorktreeIsolation bool     `yaml:"worktree_isolation"`
-	KnowledgeDir      string   `yaml:"knowledge_dir"`       // directory to watch for knowledge sync (defaults to work_dir)
-	KnowledgeSourceID string   `yaml:"knowledge_source_id"` // knowledge source ID for bridge binding
-	MemoryAgentID     string   `yaml:"memory_agent_id"`     // agent UUID for memory context/write-back
+	KnowledgeDir      string   `yaml:"knowledge_dir"`   // local knowledge root for search context (defaults to work_dir)
+	MemoryAgentID     string   `yaml:"memory_agent_id"` // agent UUID for memory context/write-back
 	A2AURL            string   `yaml:"a2a_url"`
 	Concurrency       int      `yaml:"concurrency"`
 }

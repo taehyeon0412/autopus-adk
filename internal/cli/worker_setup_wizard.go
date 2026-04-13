@@ -8,7 +8,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/insajin/autopus-adk/pkg/connect"
 	"github.com/insajin/autopus-adk/pkg/worker/setup"
 )
 
@@ -24,7 +23,7 @@ func userError(context string, err error) error {
 //
 //   - preToken + preWorkspaceID: use JWT token, skip browser OAuth and workspace prompt
 //
-//   - preAPIKey + preWorkspaceID: use Worker API Key, skip browser OAuth and workspace prompt
+//   - preAPIKey + preWorkspaceID: use a legacy Worker API Key, skip browser OAuth and workspace prompt
 //
 //     Step 1: Device Auth OAuth (PKCE) → Autopus server login  [skipped if preToken/preAPIKey != ""]
 //     Step 2: Workspace selection                              [skipped if preWorkspaceID != ""]
@@ -43,17 +42,19 @@ func runWorkerSetup(cmd *cobra.Command, backendURL, preToken, preWorkspaceID, pr
 	var token string
 	switch {
 	case preAPIKey != "":
-		fmt.Fprintln(out, "Step 1/3: Autopus 서버 인증 (Worker API Key 사용 — 비대화형)")
+		fmt.Fprintln(out, "Step 1/3: Autopus 서버 인증 (레거시 Worker API Key 사용 — 비대화형)")
 		if err := setup.SaveAPIKeyCredentials(preAPIKey, backendURL); err != nil {
 			return userError("API 키 저장", err)
 		}
-		fmt.Fprintln(out, "  ✓ Worker API Key 저장 완료")
+		fmt.Fprintln(out, "  ✓ 레거시 Worker API Key 저장 완료")
 		// token stays empty — API key is used for A2A WebSocket auth directly.
 	case preToken != "":
 		fmt.Fprintln(out, "Step 1/3: Autopus 서버 인증 (토큰 사용 — 비대화형)")
 		if err := setup.SaveCredentials(map[string]any{
+			"auth_type":    "jwt",
 			"access_token": preToken,
 			"backend_url":  backendURL,
+			"created_at":   time.Now().Format(time.RFC3339),
 		}); err != nil {
 			return userError("토큰 저장", err)
 		}
@@ -186,10 +187,16 @@ func stepDeviceAuth(cmd *cobra.Command, backendURL string) (string, error) {
 
 	// Save credentials.
 	creds := map[string]any{
+		"auth_type":     "jwt",
 		"access_token":  tokenResp.AccessToken,
 		"refresh_token": tokenResp.RefreshToken,
 		"backend_url":   backendURL,
 		"created_at":    time.Now().Format(time.RFC3339),
+	}
+	if tokenResp.ExpiresIn > 0 {
+		creds["expires_at"] = time.Now().
+			Add(time.Duration(tokenResp.ExpiresIn) * time.Second).
+			Format(time.RFC3339)
 	}
 	if err := setup.SaveCredentials(creds); err != nil {
 		return "", fmt.Errorf("save credentials: %w", err)
@@ -229,21 +236,8 @@ func stepSaveAndCheckProviders(cmd *cobra.Command, backendURL, token string, ws 
 
 	_ = setup.SaveProgress(3)
 	setupToken := token
-
-	// Exchange JWT for a long-lived Worker API Key for A2A WebSocket auth.
-	// JWT tokens are not accepted by the A2A endpoint — only acos_worker_ keys are.
 	if token != "" {
-		apiKey, err := setup.CreateWorkerAPIKey(backendURL, token, ws.ID)
-		if err != nil {
-			fmt.Fprintf(out, "  ⚠ Worker API Key 생성 실패 (JWT로 계속 진행): %v\n", err)
-		} else {
-			if err := setup.SaveAPIKeyCredentials(apiKey, backendURL); err != nil {
-				return fmt.Errorf("save worker API key: %w", err)
-			}
-			fmt.Fprintln(out, "  ✓ Worker API Key 발급 및 저장 완료")
-			// Clear token so MCP config uses the API key path too.
-			token = apiKey
-		}
+		fmt.Fprintln(out, "  ✓ 워커 인증은 JWT/refresh 토큰으로 유지됩니다")
 	}
 
 	workDir, err := os.Getwd()
@@ -261,22 +255,7 @@ func stepSaveAndCheckProviders(cmd *cobra.Command, backendURL, token string, ws 
 		Concurrency:       3,
 	}
 
-	provisionToken := setupToken
-	if provisionToken == "" {
-		provisionToken = token
-	}
-	if provisionToken != "" {
-		client := connect.NewClient(provisionToken).WithServerURL(backendURL)
-		sourceID, provisionErr := client.ProvisionBridgeSource(cmd.Context(), ws.ID, workDir)
-		if provisionErr != nil {
-			fmt.Fprintf(out, "  ⚠ bridge_sync source 생성 실패 (knowledge sync 비활성화): %v\n", provisionErr)
-		} else {
-			workerCfg.KnowledgeSourceID = sourceID
-			fmt.Fprintf(out, "  ✓ Knowledge source 연결: %s\n", sourceID)
-		}
-	} else {
-		fmt.Fprintln(out, "  ⚠ knowledge source 생성 건너뜀 — 사용자 인증 토큰이 없어 source를 자동 생성하지 못했습니다")
-	}
+	fmt.Fprintln(out, "  ✓ 자동 knowledge file sync는 더 이상 설정하지 않습니다")
 
 	if setupToken != "" {
 		agents, err := setup.FetchWorkspaceAgents(backendURL, setupToken, ws.ID)

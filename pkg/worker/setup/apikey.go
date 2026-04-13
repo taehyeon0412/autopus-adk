@@ -1,7 +1,7 @@
-// Package setup - apikey.go: Worker API Key credential persistence.
+// Package setup - apikey.go: legacy Worker API Key credential persistence.
 //
-// Workers may authenticate using a long-lived Worker API Key instead of the
-// PKCE device-code flow. The key is stored in credentials.json with
+// Legacy workers may authenticate using a long-lived Worker API Key instead of
+// the PKCE device-code flow. The key is stored in credentials.json with
 // auth_type="api_key" so CollectStatus can distinguish it from JWT tokens.
 package setup
 
@@ -31,9 +31,9 @@ func LoadAPIKey() (string, error) {
 	return creds.APIKey, nil
 }
 
-// LoadAuthToken returns the bearer token for A2A WebSocket authentication.
+// LoadAuthToken returns the bearer token for worker authentication.
 // It reads credentials.json and returns the appropriate token based on auth_type:
-//   - auth_type="api_key" → returns the api_key field (Worker API Key)
+//   - auth_type="api_key" → returns the api_key field (legacy Worker API Key)
 //   - otherwise → returns the access_token field (JWT)
 //
 // Returns ("", nil) if no credentials are configured.

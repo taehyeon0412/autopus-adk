@@ -16,15 +16,17 @@ import (
 // Skips the test if real credentials already exist.
 func writeCredentials(t *testing.T, creds map[string]any) func() {
 	t.Helper()
+	withLegacyCredentialStore(t)
+	_, cleanup := isolatedHome(t)
 	credPath := DefaultCredentialsPath()
-	if _, err := os.Stat(credPath); !os.IsNotExist(err) {
-		t.Skip("real credentials.json exists — skipping to avoid overwrite")
-	}
-	require.NoError(t, os.MkdirAll(filepath.Dir(credPath), 0700))
+	require.NoError(t, os.MkdirAll(filepath.Dir(credPath), 0o700))
 	data, err := json.Marshal(creds)
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(credPath, data, 0600))
-	return func() { os.Remove(credPath) }
+	return func() {
+		_ = os.Remove(credPath)
+		cleanup()
+	}
 }
 
 // TestCheckAuthValidity_APIKey verifies API key auth is treated as valid.
@@ -70,11 +72,9 @@ func TestCheckAuthValidity_ExpiredJWT(t *testing.T) {
 
 // TestCheckAuthValidity_NoFile verifies missing file returns false/none.
 func TestCheckAuthValidity_NoFile(t *testing.T) {
-	t.Parallel()
-
-	if _, err := os.Stat(DefaultCredentialsPath()); !os.IsNotExist(err) {
-		t.Skip("real credentials.json exists")
-	}
+	_, cleanup := isolatedHome(t)
+	defer cleanup()
+	withLegacyCredentialStore(t)
 
 	valid, authType := checkAuthValidity()
 	assert.False(t, valid)

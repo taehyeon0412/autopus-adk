@@ -69,16 +69,7 @@ func newConnectCmd() *cobra.Command {
 				return fmt.Errorf("workspace selection failed: %w", err)
 			}
 			tui.Successf(out, "Selected workspace: %s", wsName)
-
-			// Provision bridge source for Knowledge Hub file sync.
-			sourceID, provErr := stepProvisionBridgeSource(ctx, client, wsID)
-			if provErr != nil {
-				// Non-blocking: log warning but continue with OAuth.
-				log.Printf("[connect] bridge source provisioning failed: %v", provErr)
-				tui.Warnf(out, "Knowledge Hub source provisioning failed (file sync disabled): %v", provErr)
-			} else if sourceID != "" {
-				tui.Successf(out, "Knowledge Hub bridge source provisioned: %s", sourceID[:8]+"...")
-			}
+			tui.Info(out, "Local knowledge file sync is disabled in JWT-only mode")
 
 			tui.SectionHeader(out, "Step 3: OpenAI OAuth")
 
@@ -95,8 +86,8 @@ func newConnectCmd() *cobra.Command {
 
 			tui.Successf(out, "Connected OpenAI to workspace %q", wsName)
 
-			// Save workspace ID and source ID to worker config for subsequent starts.
-			if err := saveConnectConfig(wsID, sourceID, serverURL); err != nil {
+			// Save workspace ID to worker config for subsequent starts.
+			if err := saveConnectConfig(wsID, serverURL); err != nil {
 				log.Printf("[connect] failed to save worker config: %v", err)
 			}
 
@@ -195,26 +186,15 @@ func stepSubmitToken(ctx context.Context, client *connect.Client, wsID string, o
 	return client.SubmitToken(ctx, req)
 }
 
-// stepProvisionBridgeSource creates a bridge_sync knowledge source for the workspace.
-// Returns the source ID, or empty string on failure (non-blocking).
-func stepProvisionBridgeSource(ctx context.Context, client *connect.Client, wsID string) (string, error) {
-	workDir, err := os.Getwd()
-	if err != nil {
-		workDir = "."
-	}
-	return client.ProvisionBridgeSource(ctx, wsID, workDir)
-}
-
-// saveConnectConfig persists workspace ID and source ID to worker.yaml
+// saveConnectConfig persists workspace ID to worker.yaml
 // so that subsequent `auto worker start` picks them up automatically.
-func saveConnectConfig(wsID, sourceID, serverURL string) error {
+func saveConnectConfig(wsID, serverURL string) error {
 	cfg, err := setup.LoadWorkerConfig()
 	if err != nil {
 		// No existing config — create a new one.
 		cfg = &setup.WorkerConfig{}
 	}
 	cfg.WorkspaceID = wsID
-	cfg.KnowledgeSourceID = sourceID
 	if serverURL != "" {
 		cfg.BackendURL = serverURL
 	}

@@ -16,27 +16,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestBridgeFeatureRegression verifies all Bridge capabilities are covered
-// by an equivalent ADK Worker package. Each subtest instantiates the key
-// type and exercises its primary method.
-func TestBridgeFeatureRegression(t *testing.T) {
+// TestWorkerFeatureRegression verifies the current ADK worker feature surface.
+// Each subtest instantiates the key type and exercises its primary method.
+func TestWorkerFeatureRegression(t *testing.T) {
 	t.Parallel()
 
 	features := []struct {
-		name       string
-		bridgeFunc string
-		workerPkg  string
-		verify     func(t *testing.T)
+		name      string
+		workerPkg string
+		verify    func(t *testing.T)
 	}{
-		{"WebSocket connection", "bridge connect", "a2a", verifyA2APackage},
-		{"Task execution", "bridge execute", "adapter", verifyAdapterPackage},
-		{"Provider API calls", "provider registry", "adapter", verifyProviderRegistry},
-		{"Security allowlist", "command_allowlist", "security", verifySecurityPackage},
-		{"Policy validation", "validate", "security", verifyPolicyValidation},
-		{"MCP server", "mcp-server", "mcpserver", verifyMCPServer},
-		{"Parallel execution", "semaphore", "parallel", verifySemaphore},
-		{"Knowledge sync", "knowledge", "knowledge", verifyKnowledge},
-		{"QA pipeline", "qa", "qa", verifyQAPipeline},
+		{"WebSocket connection", "a2a", verifyA2APackage},
+		{"Task execution", "adapter", verifyAdapterPackage},
+		{"Provider API calls", "adapter", verifyProviderRegistry},
+		{"Security allowlist", "security", verifySecurityPackage},
+		{"Policy validation", "security", verifyPolicyValidation},
+		{"MCP server", "mcpserver", verifyMCPServer},
+		{"Parallel execution", "parallel", verifySemaphore},
+		{"Knowledge search", "knowledge", verifyKnowledge},
+		{"QA pipeline", "qa", verifyQAPipeline},
 	}
 
 	for _, f := range features {
@@ -188,11 +186,8 @@ func verifySemaphore(t *testing.T) {
 	}
 }
 
-// verifyKnowledge confirms knowledge syncer and searcher instantiation.
+// verifyKnowledge confirms knowledge search and file watching primitives.
 func verifyKnowledge(t *testing.T) {
-	syncer := knowledge.NewSyncer("http://localhost:0", "token", "ws-1", "src-1")
-	require.NotNil(t, syncer, "NewSyncer must return non-nil")
-
 	searcher := knowledge.NewKnowledgeSearcher("http://localhost:0", "token", "ws-1")
 	require.NotNil(t, searcher, "NewKnowledgeSearcher must return non-nil")
 
