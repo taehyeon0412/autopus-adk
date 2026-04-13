@@ -29,7 +29,8 @@ func TestGeminiAdapterBuildCommand(t *testing.T) {
 	assert.Contains(t, cmd.Args, "--resume")
 	assert.Contains(t, cmd.Args, "worker-sess-task-g1")
 	assert.Contains(t, cmd.Args, "-p")
-	assert.Contains(t, cmd.Args, "analyze code")
+	assert.Contains(t, cmd.Args, geminiStdinPrompt)
+	assert.NotContains(t, cmd.Args, "analyze code")
 	assert.Equal(t, "/tmp/gemini-work", cmd.Dir)
 
 	envContains(t, cmd.Env, "AUTOPUS_TASK_ID=task-g1")

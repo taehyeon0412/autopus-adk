@@ -122,13 +122,67 @@ func (s *Server) handleSendMessage(ctx context.Context, req JSONRPCRequest) {
 		return
 	}
 
+	if err := s.enqueueAndDispatchTask(ctx, req.ID, params); err != nil {
+		log.Printf("[a2a] send message rejected: %v", err)
+		s.sendError(req.ID, -32602, err.Error())
+		return
+	}
+}
+
+// HandlePolledTask routes a REST-polled task through the same dispatch path used
+// by WebSocket-delivered tasks.
+func (s *Server) HandlePolledTask(ctx context.Context, task PollResult) error {
+	params, err := paramsFromPolledTask(task)
+	if err != nil {
+		return err
+	}
+	return s.enqueueAndDispatchTask(ctx, nil, params)
+}
+
+func paramsFromPolledTask(task PollResult) (SendMessageParams, error) {
+	if task.ID == "" {
+		return SendMessageParams{}, fmt.Errorf("missing polled task ID")
+	}
+
+	var params SendMessageParams
+	if err := json.Unmarshal(task.Payload, &params); err == nil {
+		if params.TaskID == "" {
+			params.TaskID = task.ID
+		}
+		if params.Model == "" {
+			params.Model = task.Model
+		}
+		if len(params.PipelinePhases) == 0 {
+			params.PipelinePhases = append([]string(nil), task.PipelinePhases...)
+		}
+		if len(params.PipelineInstructions) == 0 && len(task.PipelineInstructions) > 0 {
+			params.PipelineInstructions = cloneStringMap(task.PipelineInstructions)
+		}
+		if len(params.Payload) == 0 {
+			params.Payload = task.Payload
+		}
+		return params, nil
+	}
+
+	return SendMessageParams{
+		TaskID:               task.ID,
+		Model:                task.Model,
+		PipelinePhases:       append([]string(nil), task.PipelinePhases...),
+		PipelineInstructions: cloneStringMap(task.PipelineInstructions),
+		Payload:              task.Payload,
+	}, nil
+}
+
+func (s *Server) enqueueAndDispatchTask(ctx context.Context, reqID json.RawMessage, params SendMessageParams) error {
+	if params.TaskID == "" {
+		return fmt.Errorf("missing task ID")
+	}
+
 	// SEC-007: Reject duplicate task IDs to prevent state overwrites.
 	s.mu.Lock()
 	if _, exists := s.tasks[params.TaskID]; exists {
 		s.mu.Unlock()
-		log.Printf("[a2a] duplicate task ID rejected: %s", params.TaskID)
-		s.sendError(req.ID, -32602, fmt.Sprintf("duplicate task ID: %s", params.TaskID))
-		return
+		return fmt.Errorf("duplicate task ID: %s", params.TaskID)
 	}
 	s.tasks[params.TaskID] = &Task{ID: params.TaskID, Status: StatusWorking}
 	s.mu.Unlock()
@@ -141,7 +195,8 @@ func (s *Server) handleSendMessage(ctx context.Context, req JSONRPCRequest) {
 	_ = s.UpdateTaskStatus(params.TaskID, StatusWorking, nil)
 
 	// Dispatch asynchronously.
-	go s.dispatchTask(ctx, req.ID, params)
+	go s.dispatchTask(ctx, reqID, params)
+	return nil
 }
 
 // @AX:ANCHOR [AUTO] task execution contract — applies SecurityPolicy timeout and per-task context; callers rely on UpdateTaskStatus being sent for all terminal states — fan_in: 3 (handleSendMessage goroutine, cancel path, timeout path)
@@ -168,16 +223,88 @@ func (s *Server) dispatchTask(ctx context.Context, reqID json.RawMessage, params
 		s.mu.Unlock()
 	}()
 
-	result, err := s.handler(taskCtx, params.TaskID, params.Payload)
+	payload, err := mergeTaskPayload(params.Payload, params.Model, params.PipelinePhases, params.PipelineInstructions)
 	if err != nil {
 		failResult := &TaskResult{Status: StatusFailed, Error: err.Error()}
 		_ = s.UpdateTaskStatus(params.TaskID, StatusFailed, failResult)
-		s.sendResult(reqID, failResult)
+		if len(reqID) > 0 {
+			s.sendResult(reqID, failResult)
+		}
+		return
+	}
+
+	result, err := s.handler(taskCtx, params.TaskID, payload)
+	if err != nil {
+		failResult := &TaskResult{Status: StatusFailed, Error: err.Error()}
+		_ = s.UpdateTaskStatus(params.TaskID, StatusFailed, failResult)
+		if len(reqID) > 0 {
+			s.sendResult(reqID, failResult)
+		}
 		return
 	}
 	result.Status = StatusCompleted
 	_ = s.UpdateTaskStatus(params.TaskID, StatusCompleted, result)
-	s.sendResult(reqID, result)
+	if len(reqID) > 0 {
+		s.sendResult(reqID, result)
+	}
+}
+
+func mergeTaskPayload(payload json.RawMessage, model string, pipelinePhases []string, pipelineInstructions map[string]string) (json.RawMessage, error) {
+	if model == "" && len(pipelinePhases) == 0 && len(pipelineInstructions) == 0 {
+		return payload, nil
+	}
+
+	if len(payload) == 0 {
+		obj := map[string]any{}
+		if model != "" {
+			obj["model"] = model
+		}
+		if len(pipelinePhases) > 0 {
+			obj["pipeline_phases"] = pipelinePhases
+		}
+		if len(pipelineInstructions) > 0 {
+			obj["pipeline_instructions"] = pipelineInstructions
+		}
+		data, err := json.Marshal(obj)
+		if err != nil {
+			return nil, fmt.Errorf("marshal transport metadata payload: %w", err)
+		}
+		return data, nil
+	}
+
+	var obj map[string]any
+	if err := json.Unmarshal(payload, &obj); err != nil {
+		return nil, fmt.Errorf("merge transport metadata into payload: %w", err)
+	}
+	if obj == nil {
+		obj = make(map[string]any)
+	}
+	if model != "" {
+		obj["model"] = model
+	}
+	if len(pipelinePhases) > 0 {
+		obj["pipeline_phases"] = pipelinePhases
+	}
+	if len(pipelineInstructions) > 0 {
+		obj["pipeline_instructions"] = pipelineInstructions
+	}
+
+	data, err := json.Marshal(obj)
+	if err != nil {
+		return nil, fmt.Errorf("marshal merged payload: %w", err)
+	}
+	return data, nil
+}
+
+func cloneStringMap(src map[string]string) map[string]string {
+	if len(src) == 0 {
+		return nil
+	}
+	dst := make(map[string]string, len(src))
+	for k, v := range src {
+		dst[k] = v
+	}
+	return dst
 }
 
 // handleCancelTask marks a task as canceled.

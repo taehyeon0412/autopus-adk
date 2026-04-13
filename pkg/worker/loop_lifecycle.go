@@ -7,11 +7,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/insajin/autopus-adk/pkg/worker/a2a"
 	"github.com/insajin/autopus-adk/pkg/worker/audit"
 	"github.com/insajin/autopus-adk/pkg/worker/auth"
 	"github.com/insajin/autopus-adk/pkg/worker/knowledge"
 	workerNet "github.com/insajin/autopus-adk/pkg/worker/net"
-	"github.com/insajin/autopus-adk/pkg/worker/poll"
 	"github.com/insajin/autopus-adk/pkg/worker/reaper"
 	"github.com/insajin/autopus-adk/pkg/worker/scheduler"
 )
@@ -114,7 +114,26 @@ func (wl *WorkerLoop) startServices(ctx context.Context) {
 	)
 	wl.netMonitor.Start(wl.lifecycleCtx)
 
-	// 6. Zombie reaper: detect and reap zombie child processes (FR-PROC-04).
+	// 6. REST fallback poller: reuses the A2A dispatch path when WebSocket receive
+	// is exhausted. This keeps fallback behavior aligned with normal task handling.
+	wl.server.SetRESTPoller(a2a.NewRESTPoller(a2a.RESTPollerConfig{
+		BackendURL: wl.config.BackendURL,
+		WorkerID:   wl.config.WorkerName,
+		AuthToken:  wl.config.AuthToken,
+		TaskHandler: func(task a2a.PollResult) error {
+			return wl.server.HandlePolledTask(wl.lifecycleCtx, task)
+		},
+		OnAuthError: func(statusCode int) {
+			log.Printf("[worker] REST poll auth error: status=%d", statusCode)
+			if wl.authReconnector != nil {
+				if err := wl.authReconnector.Reconnect(wl.lifecycleCtx); err != nil {
+					log.Printf("[worker] REST poll auth recovery failed: %v", err)
+				}
+			}
+		},
+	}))
+
+	// 7. Zombie reaper: detect and reap zombie child processes (FR-PROC-04).
 	// @AX:NOTE[AUTO]: magic constant — 30s reaper interval matches reaper.go default; keep in sync if default changes
 	wl.zombieReaper = reaper.New(reaper.Config{Interval: 30 * time.Second})
 	wl.zombieReaper.Start(wl.lifecycleCtx) //nolint:errcheck
@@ -139,23 +158,8 @@ func (wl *WorkerLoop) stopServices() {
 	}
 }
 
-// activateFallbackPoller starts REST polling when WebSocket reconnect fails.
-// It is a no-op if the fallback poller is already active.
-// @AX:WARN[AUTO]: goroutine without bounded lifetime — fallback poller goroutine runs until lifecycleCtx; no mechanism to stop it independently once activated
+// activateFallbackPoller logs when the server-side A2A fallback path is engaged.
+// The actual poller lifecycle is managed by a2a.Server.messageLoop.
 func (wl *WorkerLoop) activateFallbackPoller() {
-	if wl.pollFallback != nil {
-		return // already active
-	}
-	wl.pollFallback = poll.NewTaskPoller(
-		wl.config.BackendURL,
-		wl.config.AuthToken,
-		wl.config.WorkspaceID,
-		func(taskData []byte) {
-			// @AX:TODO[AUTO]:CYCLE:1 forward polled task to the A2A server's handleSendMessage path — currently logs only, no task processing
-			// TODO: forward polled task to the A2A server's handleSendMessage path.
-			// Currently logs only — WebSocket is the primary task delivery path.
-			log.Printf("[worker] fallback poller received task (%d bytes) — processing not yet implemented", len(taskData))
-		},
-	)
-	go wl.pollFallback.Start(wl.lifecycleCtx)
+	log.Printf("[worker] activating A2A REST fallback poller")
 }

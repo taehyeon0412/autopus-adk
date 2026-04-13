@@ -19,9 +19,12 @@ const (
 
 // PollResult represents a single task returned from the REST poll endpoint.
 type PollResult struct {
-	ID      string          `json:"id"`
-	Type    string          `json:"type"`
-	Payload json.RawMessage `json:"payload"`
+	ID                   string            `json:"id"`
+	Type                 string            `json:"type"`
+	Model                string            `json:"model,omitempty"`
+	PipelinePhases       []string          `json:"pipeline_phases,omitempty"`
+	PipelineInstructions map[string]string `json:"pipeline_instructions,omitempty"`
+	Payload              json.RawMessage   `json:"payload"`
 }
 
 // pollResponse is the envelope returned by /api/a2a/poll.

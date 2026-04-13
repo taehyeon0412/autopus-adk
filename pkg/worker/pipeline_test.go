@@ -61,6 +61,67 @@ func TestPipelineExecutor_PhasePrompts(t *testing.T) {
 	}
 }
 
+func TestParsePhasePlan(t *testing.T) {
+	plan, err := ParsePhasePlan([]string{"planner", "reviewer"})
+	if err != nil {
+		t.Fatalf("ParsePhasePlan returned error: %v", err)
+	}
+	if got, want := len(plan), 2; got != want {
+		t.Fatalf("len(plan) = %d, want %d", got, want)
+	}
+	if plan[0] != PhasePlanner || plan[1] != PhaseReviewer {
+		t.Fatalf("unexpected phase plan: %v", plan)
+	}
+}
+
+func TestParsePhasePlan_Invalid(t *testing.T) {
+	_, err := ParsePhasePlan([]string{"planner", "deployer"})
+	if err == nil {
+		t.Fatal("expected invalid phase plan to fail")
+	}
+}
+
+func TestParsePhaseInstructions(t *testing.T) {
+	instructions, err := ParsePhaseInstructions(map[string]string{
+		"planner":  "Plan the work carefully.",
+		"reviewer": "Review the result rigorously.",
+	})
+	if err != nil {
+		t.Fatalf("ParsePhaseInstructions returned error: %v", err)
+	}
+	if got, want := len(instructions), 2; got != want {
+		t.Fatalf("len(instructions) = %d, want %d", got, want)
+	}
+	if instructions[PhasePlanner] != "Plan the work carefully." {
+		t.Fatalf("unexpected planner instruction: %q", instructions[PhasePlanner])
+	}
+}
+
+func TestParsePhaseInstructions_Invalid(t *testing.T) {
+	_, err := ParsePhaseInstructions(map[string]string{"deployer": "ship it"})
+	if err == nil {
+		t.Fatal("expected invalid phase instructions to fail")
+	}
+}
+
+func TestPipelineExecutor_PhasePromptUsesServerInstruction(t *testing.T) {
+	pe := NewPipelineExecutor(adapter.NewClaudeAdapter(), "", "/tmp")
+	pe.SetPhaseInstructions(map[Phase]string{
+		PhasePlanner: "Use the server-selected planning instruction.",
+	})
+
+	result, err := pe.phasePrompt(PhasePlanner, "test input")
+	if err != nil {
+		t.Fatalf("phasePrompt returned error: %v", err)
+	}
+	if !strings.Contains(result, "server-selected planning instruction") {
+		t.Fatal("phase prompt should use server-selected instruction")
+	}
+	if !strings.Contains(result, "test input") {
+		t.Fatal("phase prompt should include phase input")
+	}
+}
+
 func TestIsContextOverflow(t *testing.T) {
 	tests := []struct {
 		name string

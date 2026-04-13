@@ -68,10 +68,10 @@ type AgentCard struct {
 
 // Task represents an A2A task with status tracking.
 type Task struct {
-	ID        string      `json:"id"`
-	Status    TaskStatus  `json:"status"`
-	Artifacts []Artifact  `json:"artifacts,omitempty"`
-	Metadata  TaskMeta    `json:"metadata,omitempty"`
+	ID        string     `json:"id"`
+	Status    TaskStatus `json:"status"`
+	Artifacts []Artifact `json:"artifacts,omitempty"`
+	Metadata  TaskMeta   `json:"metadata,omitempty"`
 }
 
 // Artifact holds a single result artifact from task execution.
@@ -89,17 +89,20 @@ type TaskMeta struct {
 
 // SecurityPolicy defines the security constraints for task execution.
 type SecurityPolicy struct {
-	AllowNetwork  bool     `json:"allow_network"`
-	AllowFS       bool     `json:"allow_fs"`
-	AllowedPaths  []string `json:"allowed_paths,omitempty"`
-	TimeoutSec    int      `json:"timeout_sec,omitempty"`
+	AllowNetwork bool     `json:"allow_network"`
+	AllowFS      bool     `json:"allow_fs"`
+	AllowedPaths []string `json:"allowed_paths,omitempty"`
+	TimeoutSec   int      `json:"timeout_sec,omitempty"`
 }
 
 // SendMessageParams is the payload for the tasks/send method.
 type SendMessageParams struct {
-	TaskID         string          `json:"task_id"`
-	Payload        json.RawMessage `json:"payload"`
-	SecurityPolicy SecurityPolicy  `json:"security_policy"`
+	TaskID               string            `json:"task_id"`
+	Payload              json.RawMessage   `json:"payload"`
+	Model                string            `json:"model,omitempty"`
+	PipelinePhases       []string          `json:"pipeline_phases,omitempty"`
+	PipelineInstructions map[string]string `json:"pipeline_instructions,omitempty"`
+	SecurityPolicy       SecurityPolicy    `json:"security_policy"`
 }
 
 // TaskResult holds the outcome of a completed or failed task.
