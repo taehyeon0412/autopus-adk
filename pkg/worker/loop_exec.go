@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"fmt"
@@ -84,6 +85,9 @@ func (wl *WorkerLoop) executeWithParallel(ctx context.Context, taskCfg adapter.T
 			if prepErr := prepareSymphonyWorkspace(taskCfg.WorkDir, taskCfg.Prompt); prepErr != nil {
 				log.Printf("[worker] symphony workspace prepare failed for %s: %v", taskID, prepErr)
 			}
+			if envErr := prepareTaskRuntimeEnv(&taskCfg); envErr != nil {
+				log.Printf("[worker] runtime env prepare failed for %s: %v", taskID, envErr)
+			}
 			defer func() {
 				if rmErr := wl.worktreeManager.Remove(wtPath, false); rmErr != nil {
 					log.Printf("[worker] worktree remove failed: %v", rmErr)
@@ -105,6 +109,64 @@ func (wl *WorkerLoop) executeWithParallel(ctx context.Context, taskCfg adapter.T
 	}
 	if wl.auditWriter != nil {
 		writeResilientAuditEvent(wl.auditWriter, newAuditCompletedEvent(taskID, durationMS, result.CostUSD, taskCfg.ComputerUse), wl.auditLogger)
+	}
+
+	return result, nil
+}
+
+func (wl *WorkerLoop) executePipelineWithParallel(ctx context.Context, taskID, prompt, model string, phases []Phase, instructions map[Phase]string) (adapter.TaskResult, error) {
+	startTime := time.Now()
+
+	if wl.auditWriter != nil {
+		writeResilientAuditEvent(wl.auditWriter, newAuditStartedEvent(taskID, false), wl.auditLogger)
+	}
+
+	if wl.semaphore != nil {
+		if err := wl.semaphore.Acquire(ctx); err != nil {
+			return adapter.TaskResult{}, fmt.Errorf("acquire semaphore: %w", err)
+		}
+		defer wl.semaphore.Release()
+	}
+
+	workDir := wl.config.WorkDir
+	var envVars map[string]string
+	if wl.worktreeManager != nil && wl.config.WorktreeIsolation {
+		wtPath, err := wl.worktreeManager.Create(taskID)
+		if err != nil {
+			log.Printf("[worker] worktree create failed for %s, falling back to in-place: %v", taskID, err)
+		} else {
+			workDir = wtPath
+			if prepErr := prepareSymphonyWorkspace(workDir, prompt); prepErr != nil {
+				log.Printf("[worker] symphony workspace prepare failed for %s: %v", taskID, prepErr)
+			}
+			runtimeCfg := adapter.TaskConfig{TaskID: taskID, WorkDir: workDir}
+			if envErr := prepareTaskRuntimeEnv(&runtimeCfg); envErr != nil {
+				log.Printf("[worker] runtime env prepare failed for %s: %v", taskID, envErr)
+			} else {
+				envVars = runtimeCfg.EnvVars
+			}
+			defer func() {
+				if rmErr := wl.worktreeManager.Remove(wtPath, false); rmErr != nil {
+					log.Printf("[worker] worktree remove failed: %v", rmErr)
+				}
+			}()
+		}
+	}
+
+	pe := NewPipelineExecutor(wl.config.Provider, wl.config.MCPConfig, workDir)
+	pe.SetEnvVars(envVars)
+	pe.SetPhaseInstructions(instructions)
+	result, err := pe.ExecuteWithPlan(ctx, taskID, prompt, model, phases)
+	durationMS := time.Since(startTime).Milliseconds()
+
+	if err != nil {
+		if wl.auditWriter != nil {
+			writeResilientAuditEvent(wl.auditWriter, newAuditFailedEvent(taskID, durationMS, false), wl.auditLogger)
+		}
+		return adapter.TaskResult{}, err
+	}
+	if wl.auditWriter != nil {
+		writeResilientAuditEvent(wl.auditWriter, newAuditCompletedEvent(taskID, durationMS, result.CostUSD, false), wl.auditLogger)
 	}
 
 	return result, nil
@@ -133,6 +195,29 @@ func prepareSymphonyWorkspace(workDir, prompt string) error {
 	if err := os.Chmod(promptPath, 0o444); err != nil {
 		return fmt.Errorf("chmod prompt.md: %w", err)
 	}
+	return nil
+}
+
+func prepareTaskRuntimeEnv(taskCfg *adapter.TaskConfig) error {
+	symphonyDir := filepath.Join(taskCfg.WorkDir, ".symphony")
+	artifactsDir := filepath.Join(symphonyDir, "artifacts")
+	tmpDir := filepath.Join(artifactsDir, "tmp")
+	goCacheDir := filepath.Join(artifactsDir, "gocache")
+
+	for _, dir := range []string{artifactsDir, tmpDir, goCacheDir} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return fmt.Errorf("create runtime dir %s: %w", dir, err)
+		}
+	}
+
+	if taskCfg.EnvVars == nil {
+		taskCfg.EnvVars = make(map[string]string)
+	}
+	taskCfg.EnvVars["TMPDIR"] = tmpDir
+	taskCfg.EnvVars["TEST_TMPDIR"] = tmpDir
+	taskCfg.EnvVars["GOTMPDIR"] = tmpDir
+	taskCfg.EnvVars["GOCACHE"] = goCacheDir
+
 	return nil
 }
 
@@ -218,7 +303,7 @@ func (wl *WorkerLoop) parseStream(r io.Reader, taskID string) (adapter.TaskResul
 
 // parseStreamWithBudget extends parseStream with tool call counting and warnings.
 func (wl *WorkerLoop) parseStreamWithBudget(r io.Reader, taskID string, sw *StdinWriter, bc *BudgetConfig) (adapter.TaskResult, error) {
-	parser := stream.NewParser(r)
+	scanner := bufio.NewScanner(r)
 	var lastResult adapter.TaskResult
 	hasResult := false
 
@@ -232,36 +317,33 @@ func (wl *WorkerLoop) parseStreamWithBudget(r io.Reader, taskID string, sw *Stdi
 		}
 	}
 
-	for {
-		evt, err := parser.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return adapter.TaskResult{}, err
+	for scanner.Scan() {
+		line := bytes.TrimSpace(scanner.Bytes())
+		if len(line) == 0 {
+			continue
 		}
 
-		adapterEvt := adapter.StreamEvent{
-			Type:    evt.Type,
-			Subtype: evt.Subtype,
-			Data:    evt.Raw,
+		adapterEvt, err := wl.config.Provider.ParseEvent(append([]byte(nil), line...))
+		if err != nil {
+			log.Printf("[stream] skipping malformed line: %v", err)
+			continue
 		}
 
 		switch {
-		case evt.Type == "system" && evt.Subtype == "init":
+		case adapterEvt.Type == "system" && adapterEvt.Subtype == "init":
 			log.Printf("[worker] task %s: subprocess initialized", taskID)
 
-		case evt.Type == "system" && evt.Subtype == "task_started":
+		case adapterEvt.Type == "system" && adapterEvt.Subtype == "task_started":
 			log.Printf("[worker] task %s: subagent started", taskID)
 
-		case evt.Type == "system" && evt.Subtype == "task_progress":
+		case adapterEvt.Type == "system" && adapterEvt.Subtype == "task_progress":
 			log.Printf("[worker] task %s: progress update", taskID)
 
-		case evt.Type == "system" && evt.Subtype == "task_notification":
+		case adapterEvt.Type == "system" && adapterEvt.Subtype == "task_notification":
 			log.Printf("[worker] task %s: subagent notification", taskID)
 
 		// REQ-BUDGET-01/05: Count tool_call and tool_use events.
-		case evt.Type == stream.EventToolCall || evt.Type == "tool_use":
+		case adapterEvt.Type == stream.EventToolCall || adapterEvt.Type == "tool_use":
 			if counter != nil {
 				r := counter.Increment()
 				log.Printf("[worker] task %s: tool call %d/%d", taskID, r.Count, r.Budget.Limit)
@@ -279,13 +361,16 @@ func (wl *WorkerLoop) parseStreamWithBudget(r io.Reader, taskID string, sw *Stdi
 				}
 			}
 
-		case evt.Type == "result":
+		case adapterEvt.Type == "result":
 			lastResult = wl.config.Provider.ExtractResult(adapterEvt)
 			hasResult = true
 
-		case evt.Type == "error":
+		case adapterEvt.Type == "error":
 			log.Printf("[worker] task %s: error event received", taskID)
 		}
+	}
+	if err := scanner.Err(); err != nil {
+		return adapter.TaskResult{}, fmt.Errorf("stream scan: %w", err)
 	}
 
 	if !hasResult {

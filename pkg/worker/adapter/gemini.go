@@ -8,6 +8,8 @@ import (
 	"os/exec"
 )
 
+const geminiStdinPrompt = "Read the full task from stdin and use it as the authoritative prompt."
+
 // GeminiAdapter implements ProviderAdapter for Gemini CLI.
 type GeminiAdapter struct{}
 
@@ -32,7 +34,8 @@ func (a *GeminiAdapter) BuildCommand(ctx context.Context, task TaskConfig) *exec
 	}
 
 	if task.Prompt != "" {
-		args = append(args, "-p", task.Prompt)
+		// Keep headless mode enabled without leaking the full task prompt via argv.
+		args = append(args, "-p", geminiStdinPrompt)
 	}
 
 	if task.Model != "" {
@@ -80,14 +83,12 @@ func (a *GeminiAdapter) ParseEvent(line []byte) (StreamEvent, error) {
 		return StreamEvent{}, fmt.Errorf("gemini: missing type field")
 	}
 
-	typ := raw.Type
-	if typ == "tool_call" {
-		typ = "tool_call" // already canonical
-	}
+	typ, subtype := splitEventType(raw.Type)
 
 	return StreamEvent{
-		Type: typ,
-		Data: json.RawMessage(append([]byte(nil), line...)),
+		Type:    typ,
+		Subtype: subtype,
+		Data:    json.RawMessage(append([]byte(nil), line...)),
 	}, nil
 }
 

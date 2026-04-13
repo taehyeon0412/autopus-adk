@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io"
@@ -34,16 +35,25 @@ type PhaseResult struct {
 	ToolCalls  int // number of tool calls made during this phase
 }
 
+var defaultPipelinePhases = []Phase{
+	PhasePlanner,
+	PhaseExecutor,
+	PhaseTester,
+	PhaseReviewer,
+}
+
 // PipelineExecutor spawns separate subprocesses for each phase:
 // planner -> executor(s) -> tester -> reviewer.
 // Triggered when a single --print execution exceeds the context window.
 type PipelineExecutor struct {
-	provider   adapter.ProviderAdapter
-	mcpConfig  string
-	workDir    string
-	allocator  *budget.PhaseAllocator    // nil if budget not configured
-	compressor compress.ContextCompressor // nil if compression not configured
-	router     *routing.Router            // nil if routing not configured
+	provider          adapter.ProviderAdapter
+	mcpConfig         string
+	workDir           string
+	envVars           map[string]string
+	phaseInstructions map[Phase]string
+	allocator         *budget.PhaseAllocator     // nil if budget not configured
+	compressor        compress.ContextCompressor // nil if compression not configured
+	router            *routing.Router            // nil if routing not configured
 }
 
 // NewPipelineExecutor creates a new PipelineExecutor.
@@ -65,6 +75,30 @@ func (pe *PipelineExecutor) SetCompressor(c compress.ContextCompressor) {
 	pe.compressor = c
 }
 
+// SetEnvVars configures additional environment variables for all pipeline phases.
+func (pe *PipelineExecutor) SetEnvVars(envVars map[string]string) {
+	if len(envVars) == 0 {
+		pe.envVars = nil
+		return
+	}
+	pe.envVars = make(map[string]string, len(envVars))
+	for k, v := range envVars {
+		pe.envVars[k] = v
+	}
+}
+
+// SetPhaseInstructions configures server-selected instructions for pipeline phases.
+func (pe *PipelineExecutor) SetPhaseInstructions(instructions map[Phase]string) {
+	if len(instructions) == 0 {
+		pe.phaseInstructions = nil
+		return
+	}
+	pe.phaseInstructions = make(map[Phase]string, len(instructions))
+	for phase, instruction := range instructions {
+		pe.phaseInstructions[phase] = instruction
+	}
+}
+
 // SetRouter configures model routing for the pipeline (REQ-ROUTE-01).
 func (pe *PipelineExecutor) SetRouter(r *routing.Router) {
 	pe.router = r
@@ -74,22 +108,18 @@ func (pe *PipelineExecutor) SetRouter(r *routing.Router) {
 // Each phase uses an independent --resume session ID.
 // Returns an aggregated TaskResult combining all phase outputs.
 func (pe *PipelineExecutor) Execute(ctx context.Context, taskID, prompt string) (adapter.TaskResult, error) {
+	return pe.ExecuteWithPlan(ctx, taskID, prompt, "", nil)
+}
+
+// ExecuteWithPlan runs the pipeline with an optional server-selected model and
+// explicit phase plan. When phases is empty, the default sequence is used.
+func (pe *PipelineExecutor) ExecuteWithPlan(ctx context.Context, taskID, prompt, model string, phases []Phase) (adapter.TaskResult, error) {
 	log.Printf("[pipeline] starting phase-split for task %s", taskID)
 
 	// Resolve model once from the original prompt (REQ-ROUTE-01).
-	var routedModel string
-	if pe.router != nil {
+	routedModel := model
+	if routedModel == "" && pe.router != nil {
 		routedModel = pe.router.Route(pe.provider.Name(), prompt)
-	}
-
-	phases := []struct {
-		phase      Phase
-		promptFunc func(string) string
-	}{
-		{PhasePlanner, pe.plannerPrompt},
-		{PhaseExecutor, pe.executorPrompt},
-		{PhaseTester, pe.testerPrompt},
-		{PhaseReviewer, pe.reviewerPrompt},
 	}
 
 	var results []PhaseResult
@@ -97,7 +127,7 @@ func (pe *PipelineExecutor) Execute(ctx context.Context, taskID, prompt string) 
 	var totalDuration int64
 	prevOutput := prompt
 
-	for _, p := range phases {
+	for _, phase := range normalizePhasePlan(phases) {
 		select {
 		case <-ctx.Done():
 			return adapter.TaskResult{}, ctx.Err()
@@ -106,22 +136,25 @@ func (pe *PipelineExecutor) Execute(ctx context.Context, taskID, prompt string) 
 
 		// Log phase budget if allocator is configured (REQ-BUDGET-09).
 		if pe.allocator != nil {
-			limit := pe.allocator.PhaseLimit(string(p.phase))
-			log.Printf("[pipeline] phase %s budget: %d tool calls", p.phase, limit)
+			limit := pe.allocator.PhaseLimit(string(phase))
+			log.Printf("[pipeline] phase %s budget: %d tool calls", phase, limit)
 		}
 
-		phasePrompt := p.promptFunc(prevOutput)
-		pr, err := pe.runPhase(ctx, taskID, p.phase, phasePrompt, routedModel)
+		phasePrompt, err := pe.phasePrompt(phase, prevOutput)
 		if err != nil {
-			log.Printf("[pipeline] phase %s failed for task %s: %v", p.phase, taskID, err)
-			return adapter.TaskResult{}, fmt.Errorf("phase %s: %w", p.phase, err)
+			return adapter.TaskResult{}, err
+		}
+		pr, err := pe.runPhase(ctx, taskID, phase, phasePrompt, routedModel)
+		if err != nil {
+			log.Printf("[pipeline] phase %s failed for task %s: %v", phase, taskID, err)
+			return adapter.TaskResult{}, fmt.Errorf("phase %s: %w", phase, err)
 		}
 
 		// Record phase completion for budget carry-over (REQ-BUDGET-10).
 		if pe.allocator != nil {
-			pe.allocator.CompletePhase(string(p.phase), pr.ToolCalls)
+			pe.allocator.CompletePhase(string(phase), pr.ToolCalls)
 			log.Printf("[pipeline] phase %s used %d tool calls, remaining total: %d",
-				p.phase, pr.ToolCalls, pe.allocator.TotalRemaining())
+				phase, pr.ToolCalls, pe.allocator.TotalRemaining())
 		}
 
 		results = append(results, pr)
@@ -130,15 +163,96 @@ func (pe *PipelineExecutor) Execute(ctx context.Context, taskID, prompt string) 
 
 		// Compress phase output before passing to next phase (REQ-COMP-001).
 		if pe.compressor != nil {
-			prevOutput = pe.compressor.Compress(string(p.phase), pr.Output, pe.provider.Name())
+			prevOutput = pe.compressor.Compress(string(phase), pr.Output, pe.provider.Name())
 		} else {
 			prevOutput = pr.Output
 		}
 
-		log.Printf("[pipeline] phase %s completed: cost=$%.4f duration=%dms", p.phase, pr.CostUSD, pr.DurationMS)
+		log.Printf("[pipeline] phase %s completed: cost=$%.4f duration=%dms", phase, pr.CostUSD, pr.DurationMS)
 	}
 
 	return pe.aggregateResults(results, totalCost, totalDuration), nil
+}
+
+// ParsePhasePlan validates and canonicalizes a server-provided phase plan.
+func ParsePhasePlan(phases []string) ([]Phase, error) {
+	if len(phases) == 0 {
+		return nil, nil
+	}
+
+	plan := make([]Phase, 0, len(phases))
+	for _, raw := range phases {
+		phase, err := ParsePhase(raw)
+		if err != nil {
+			return nil, err
+		}
+		plan = append(plan, phase)
+	}
+	if len(plan) == 0 {
+		return nil, nil
+	}
+	return plan, nil
+}
+
+// ParsePhase validates and canonicalizes a single phase name.
+func ParsePhase(name string) (Phase, error) {
+	switch phase := Phase(strings.ToLower(strings.TrimSpace(name))); phase {
+	case PhasePlanner, PhaseExecutor, PhaseTester, PhaseReviewer:
+		return phase, nil
+	case "":
+		return "", fmt.Errorf("empty phase name")
+	default:
+		return "", fmt.Errorf("unsupported phase %q", name)
+	}
+}
+
+// ParsePhaseInstructions validates phase instruction overrides from the server.
+func ParsePhaseInstructions(instructions map[string]string) (map[Phase]string, error) {
+	if len(instructions) == 0 {
+		return nil, nil
+	}
+
+	parsed := make(map[Phase]string, len(instructions))
+	for rawPhase, instruction := range instructions {
+		phase, err := ParsePhase(rawPhase)
+		if err != nil {
+			return nil, err
+		}
+		if strings.TrimSpace(instruction) == "" {
+			continue
+		}
+		parsed[phase] = strings.TrimSpace(instruction)
+	}
+	if len(parsed) == 0 {
+		return nil, nil
+	}
+	return parsed, nil
+}
+
+func normalizePhasePlan(phases []Phase) []Phase {
+	if len(phases) == 0 {
+		return append([]Phase(nil), defaultPipelinePhases...)
+	}
+	return append([]Phase(nil), phases...)
+}
+
+func (pe *PipelineExecutor) phasePrompt(phase Phase, input string) (string, error) {
+	if instruction, ok := pe.phaseInstructions[phase]; ok && strings.TrimSpace(instruction) != "" {
+		return fmt.Sprintf("%s\n\n%s", instruction, input), nil
+	}
+
+	switch phase {
+	case PhasePlanner:
+		return pe.plannerPrompt(input), nil
+	case PhaseExecutor:
+		return pe.executorPrompt(input), nil
+	case PhaseTester:
+		return pe.testerPrompt(input), nil
+	case PhaseReviewer:
+		return pe.reviewerPrompt(input), nil
+	default:
+		return "", fmt.Errorf("unsupported phase %q", phase)
+	}
 }
 
 // runPhase spawns a single subprocess for the given phase.
@@ -151,6 +265,12 @@ func (pe *PipelineExecutor) runPhase(ctx context.Context, taskID string, phase P
 		MCPConfig: pe.mcpConfig,
 		WorkDir:   pe.workDir,
 		Model:     model,
+	}
+	if len(pe.envVars) > 0 {
+		taskCfg.EnvVars = make(map[string]string, len(pe.envVars))
+		for k, v := range pe.envVars {
+			taskCfg.EnvVars[k] = v
+		}
 	}
 
 	cmd := pe.provider.BuildCommand(ctx, taskCfg)
@@ -193,18 +313,21 @@ func (pe *PipelineExecutor) runPhase(ctx context.Context, taskID string, phase P
 // parsePhaseStream reads subprocess stdout and extracts the phase result.
 // Counts tool_call and tool_use events for budget tracking.
 func (pe *PipelineExecutor) parsePhaseStream(r io.Reader, phase Phase) (PhaseResult, error) {
-	parser := stream.NewParser(r)
+	scanner := bufio.NewScanner(r)
 	var result PhaseResult
 	result.Phase = phase
 	hasResult := false
 
-	for {
-		evt, err := parser.Next()
-		if err == io.EOF {
-			break
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
 		}
+
+		evt, err := pe.provider.ParseEvent([]byte(line))
 		if err != nil {
-			return PhaseResult{}, err
+			log.Printf("[stream] skipping malformed line: %v", err)
+			continue
 		}
 
 		// Count tool calls for budget tracking (REQ-BUDGET-05).
@@ -213,14 +336,16 @@ func (pe *PipelineExecutor) parsePhaseStream(r io.Reader, phase Phase) (PhaseRes
 		}
 
 		if evt.Type == "result" {
-			adapterEvt := adapter.StreamEvent{Type: evt.Type, Subtype: evt.Subtype, Data: evt.Raw}
-			tr := pe.provider.ExtractResult(adapterEvt)
+			tr := pe.provider.ExtractResult(evt)
 			result.Output = tr.Output
 			result.CostUSD = tr.CostUSD
 			result.DurationMS = tr.DurationMS
 			result.SessionID = tr.SessionID
 			hasResult = true
 		}
+	}
+	if err := scanner.Err(); err != nil {
+		return PhaseResult{}, fmt.Errorf("stream scan: %w", err)
 	}
 
 	if !hasResult {

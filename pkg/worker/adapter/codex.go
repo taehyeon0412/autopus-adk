@@ -28,7 +28,9 @@ func (a *CodexAdapter) BuildCommand(ctx context.Context, task TaskConfig) *exec.
 
 	args := []string{"exec"}
 	if task.Prompt != "" {
-		args = append(args, task.Prompt)
+		// Read the sensitive task prompt from stdin instead of exposing it
+		// in the process argv where other local processes can inspect it.
+		args = append(args, "-")
 	}
 	args = append(args, "--json", "resume", sessionID)
 
@@ -76,14 +78,37 @@ func (a *CodexAdapter) ParseEvent(line []byte) (StreamEvent, error) {
 		return StreamEvent{}, fmt.Errorf("codex: missing type field")
 	}
 
-	typ := raw.Type
-	if typ == "tool_call" {
-		typ = "tool_call" // already canonical
+	if raw.Type == "item.completed" {
+		var item struct {
+			Item struct {
+				Type string `json:"type"`
+				Text string `json:"text,omitempty"`
+			} `json:"item"`
+		}
+		if err := json.Unmarshal(line, &item); err != nil {
+			return StreamEvent{}, fmt.Errorf("codex parse item.completed: %w", err)
+		}
+		if item.Item.Type == "agent_message" || item.Item.Type == "assistant_message" {
+			synthetic, err := json.Marshal(codexResultEvent{
+				Type:   "result",
+				Output: item.Item.Text,
+			})
+			if err != nil {
+				return StreamEvent{}, fmt.Errorf("codex synthesize result: %w", err)
+			}
+			return StreamEvent{
+				Type: "result",
+				Data: synthetic,
+			}, nil
+		}
 	}
 
+	typ, subtype := splitEventType(raw.Type)
+
 	return StreamEvent{
-		Type: typ,
-		Data: json.RawMessage(append([]byte(nil), line...)),
+		Type:    typ,
+		Subtype: subtype,
+		Data:    json.RawMessage(append([]byte(nil), line...)),
 	}, nil
 }
 

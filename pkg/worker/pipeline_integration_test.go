@@ -14,16 +14,23 @@ import (
 
 // pipelineMockAdapter implements ProviderAdapter using a shell script.
 type pipelineMockAdapter struct {
-	script string
+	script    string
+	parseFn   func([]byte) (adapter.StreamEvent, error)
+	extractFn func(adapter.StreamEvent) adapter.TaskResult
+	calls     []adapter.TaskConfig
 }
 
 func (m *pipelineMockAdapter) Name() string { return "pipeline-mock" }
 
 func (m *pipelineMockAdapter) BuildCommand(ctx context.Context, task adapter.TaskConfig) *exec.Cmd {
+	m.calls = append(m.calls, task)
 	return exec.CommandContext(ctx, "sh", "-c", m.script)
 }
 
 func (m *pipelineMockAdapter) ParseEvent(line []byte) (adapter.StreamEvent, error) {
+	if m.parseFn != nil {
+		return m.parseFn(line)
+	}
 	var raw struct {
 		Type string `json:"type"`
 	}
@@ -37,6 +44,9 @@ func (m *pipelineMockAdapter) ParseEvent(line []byte) (adapter.StreamEvent, erro
 }
 
 func (m *pipelineMockAdapter) ExtractResult(event adapter.StreamEvent) adapter.TaskResult {
+	if m.extractFn != nil {
+		return m.extractFn(event)
+	}
 	var data struct {
 		Output     string  `json:"output"`
 		CostUSD    float64 `json:"cost_usd"`
@@ -92,6 +102,42 @@ func TestPipelineExecute_ContextCancel(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestPipelineExecuteWithPlan_UsesServerSelectedPhaseOrder(t *testing.T) {
+	script := `cat /dev/stdin > /dev/null; echo '{"type":"result","output":"phase ok","cost_usd":0.01,"duration_ms":100}'`
+	mock := &pipelineMockAdapter{script: script}
+
+	pe := NewPipelineExecutor(mock, "", t.TempDir())
+	result, err := pe.ExecuteWithPlan(context.Background(), "pipe-plan", "initial prompt", "server-model", []Phase{PhasePlanner, PhaseReviewer})
+
+	require.NoError(t, err)
+	require.Len(t, mock.calls, 2)
+	assert.Equal(t, "server-model", mock.calls[0].Model)
+	assert.Equal(t, "server-model", mock.calls[1].Model)
+	assert.Equal(t, "pipe-plan-planner", mock.calls[0].TaskID)
+	assert.Equal(t, "pipe-plan-reviewer", mock.calls[1].TaskID)
+	assert.Contains(t, result.Output, "planner")
+	assert.Contains(t, result.Output, "reviewer")
+	assert.NotContains(t, result.Output, "executor")
+	assert.NotContains(t, result.Output, "tester")
+}
+
+func TestPipelineExecuteWithPlan_UsesServerSelectedPhaseInstructions(t *testing.T) {
+	script := `cat /dev/stdin > /dev/null; echo '{"type":"result","output":"phase ok","cost_usd":0.01,"duration_ms":100}'`
+	mock := &pipelineMockAdapter{script: script}
+
+	pe := NewPipelineExecutor(mock, "", t.TempDir())
+	pe.SetPhaseInstructions(map[Phase]string{
+		PhasePlanner: "Use the server-provided planning instruction.",
+	})
+
+	_, err := pe.ExecuteWithPlan(context.Background(), "pipe-instruction", "initial prompt", "server-model", []Phase{PhasePlanner})
+
+	require.NoError(t, err)
+	require.Len(t, mock.calls, 1)
+	assert.Contains(t, mock.calls[0].Prompt, "server-provided planning instruction")
+	assert.Contains(t, mock.calls[0].Prompt, "initial prompt")
+}
+
 func TestPipelineRunPhase_NoResultEvent(t *testing.T) {
 	script := `cat /dev/stdin > /dev/null; echo '{"type":"system.init"}'`
 	mock := &pipelineMockAdapter{script: script}
@@ -114,4 +160,21 @@ func TestPipelineRunPhase_FailWithOutput(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "partial", result.Output)
 	assert.Equal(t, PhaseExecutor, result.Phase)
+}
+
+func TestPipelineRunPhase_CodexJSONTurnCompletion(t *testing.T) {
+	script := `cat /dev/stdin > /dev/null; echo '{"type":"thread.started","thread_id":"t1"}'; echo '{"type":"turn.started"}'; echo '{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"phase ok"}}'; echo '{"type":"turn.completed","usage":{"input_tokens":10,"output_tokens":5}}'`
+	codex := adapter.NewCodexAdapter()
+	mock := &pipelineMockAdapter{
+		script:    script,
+		parseFn:   codex.ParseEvent,
+		extractFn: codex.ExtractResult,
+	}
+
+	pe := &PipelineExecutor{provider: mock, workDir: t.TempDir()}
+	result, err := pe.runPhase(context.Background(), "pipe-codex", PhasePlanner, "prompt", "")
+
+	require.NoError(t, err)
+	assert.Equal(t, "phase ok", result.Output)
+	assert.Equal(t, PhasePlanner, result.Phase)
 }

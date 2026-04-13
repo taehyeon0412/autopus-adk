@@ -10,6 +10,7 @@ import (
 
 	"github.com/insajin/autopus-adk/pkg/worker/a2a"
 	"github.com/insajin/autopus-adk/pkg/worker/adapter"
+	"github.com/insajin/autopus-adk/pkg/worker/routing"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -49,19 +50,26 @@ func TestNewWorkerLoop(t *testing.T) {
 
 // mockAdapter implements ProviderAdapter using a helper script for testing.
 type mockAdapter struct {
-	name   string
-	script string // shell script content for subprocess
-	last   adapter.TaskConfig
+	name      string
+	script    string // shell script content for subprocess
+	last      adapter.TaskConfig
+	calls     []adapter.TaskConfig
+	parseFn   func([]byte) (adapter.StreamEvent, error)
+	extractFn func(adapter.StreamEvent) adapter.TaskResult
 }
 
 func (m *mockAdapter) Name() string { return m.name }
 
 func (m *mockAdapter) BuildCommand(ctx context.Context, task adapter.TaskConfig) *exec.Cmd {
 	m.last = task
+	m.calls = append(m.calls, task)
 	return exec.CommandContext(ctx, "sh", "-c", m.script)
 }
 
 func (m *mockAdapter) ParseEvent(line []byte) (adapter.StreamEvent, error) {
+	if m.parseFn != nil {
+		return m.parseFn(line)
+	}
 	var raw struct {
 		Type string `json:"type"`
 	}
@@ -75,6 +83,9 @@ func (m *mockAdapter) ParseEvent(line []byte) (adapter.StreamEvent, error) {
 }
 
 func (m *mockAdapter) ExtractResult(event adapter.StreamEvent) adapter.TaskResult {
+	if m.extractFn != nil {
+		return m.extractFn(event)
+	}
 	var data struct {
 		Output     string  `json:"output"`
 		CostUSD    float64 `json:"cost_usd"`
@@ -193,6 +204,30 @@ func TestExecuteSubprocess_NoResultEvent(t *testing.T) {
 	assert.Contains(t, err.Error(), "no result event")
 }
 
+func TestExecuteSubprocess_CodexJSONTurnCompletion(t *testing.T) {
+	script := `head -c0; echo '{"type":"thread.started","thread_id":"t1"}'; echo '{"type":"turn.started"}'; echo '{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"task done via codex"}}'; echo '{"type":"turn.completed","usage":{"input_tokens":10,"output_tokens":5}}'`
+	codex := adapter.NewCodexAdapter()
+	mock := &mockAdapter{
+		name:      "codex-mock",
+		script:    script,
+		parseFn:   codex.ParseEvent,
+		extractFn: codex.ExtractResult,
+	}
+
+	wl := &WorkerLoop{
+		config: LoopConfig{Provider: mock},
+	}
+
+	taskCfg := adapter.TaskConfig{
+		TaskID: "test-codex-v2",
+		Prompt: "do work",
+	}
+
+	result, err := wl.executeSubprocess(context.Background(), taskCfg)
+	require.NoError(t, err)
+	assert.Equal(t, "task done via codex", result.Output)
+}
+
 // --- Integration: handleTask tests ---
 
 func TestHandleTask_HappyPath(t *testing.T) {
@@ -242,6 +277,119 @@ func TestHandleTask_UsesPromptPayloadWhenDescriptionMissing(t *testing.T) {
 	assert.Equal(t, "completed", string(result.Status))
 }
 
+func TestHandleTask_PrefersBackendSelectedModel(t *testing.T) {
+	script := `head -c0; echo '{"type":"result","output":"done","cost_usd":0.02,"duration_ms":300}'`
+	mock := &mockAdapter{name: "mock", script: script}
+	router := routing.NewRouter(routing.RoutingConfig{
+		Enabled: true,
+		Thresholds: routing.ClassifierThresholds{
+			SimpleMaxChars:  10,
+			ComplexMinChars: 20,
+		},
+		Models: map[string]routing.ProviderModels{
+			"mock": {Simple: "local-simple", Medium: "local-medium", Complex: "local-complex"},
+		},
+	})
+
+	wl := &WorkerLoop{
+		config: LoopConfig{Provider: mock, WorkDir: t.TempDir(), Router: router},
+	}
+
+	payload, _ := json.Marshal(taskPayloadMessage{
+		Description: "this description would route locally",
+		Model:       "server-selected-model",
+	})
+
+	result, err := wl.handleTask(context.Background(), "task-ht-model", payload)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Equal(t, "server-selected-model", mock.last.Model)
+}
+
+func TestHandleTask_UsesBackendSelectedPipelinePhases(t *testing.T) {
+	script := `head -c0; echo '{"type":"result","output":"done","cost_usd":0.02,"duration_ms":300}'`
+	mock := &mockAdapter{name: "mock", script: script}
+
+	wl := &WorkerLoop{
+		config: LoopConfig{Provider: mock, WorkDir: t.TempDir()},
+	}
+
+	payload, _ := json.Marshal(taskPayloadMessage{
+		Prompt:         "backend-built prompt",
+		PipelinePhases: []string{"planner", "reviewer"},
+		Model:          "server-selected-model",
+	})
+
+	result, err := wl.handleTask(context.Background(), "task-ht-pipeline", payload)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Len(t, mock.calls, 2)
+	assert.Equal(t, "task-ht-pipeline-planner", mock.calls[0].TaskID)
+	assert.Equal(t, "task-ht-pipeline-reviewer", mock.calls[1].TaskID)
+	assert.Equal(t, "server-selected-model", mock.calls[0].Model)
+	assert.Equal(t, "server-selected-model", mock.calls[1].Model)
+}
+
+func TestHandleTask_UsesBackendSelectedPipelineInstructions(t *testing.T) {
+	script := `head -c0; echo '{"type":"result","output":"done","cost_usd":0.02,"duration_ms":300}'`
+	mock := &mockAdapter{name: "mock", script: script}
+
+	wl := &WorkerLoop{
+		config: LoopConfig{Provider: mock, WorkDir: t.TempDir()},
+	}
+
+	payload, _ := json.Marshal(taskPayloadMessage{
+		Prompt:         "backend-built prompt",
+		PipelinePhases: []string{"planner"},
+		PipelineInstructions: map[string]string{
+			"planner": "Use the backend-selected planning instruction.",
+		},
+	})
+
+	result, err := wl.handleTask(context.Background(), "task-ht-pipeline-instructions", payload)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Len(t, mock.calls, 1)
+	assert.Contains(t, mock.calls[0].Prompt, "backend-selected planning instruction")
+	assert.Contains(t, mock.calls[0].Prompt, "backend-built prompt")
+}
+
+func TestHandleTask_InvalidPipelineInstructions(t *testing.T) {
+	mock := &mockAdapter{name: "mock", script: "true"}
+
+	wl := &WorkerLoop{
+		config: LoopConfig{Provider: mock, WorkDir: t.TempDir()},
+	}
+
+	payload, _ := json.Marshal(taskPayloadMessage{
+		Description: "test task",
+		PipelineInstructions: map[string]string{
+			"deployer": "ship it",
+		},
+	})
+
+	_, err := wl.handleTask(context.Background(), "task-invalid-instruction", payload)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unsupported phase")
+}
+
+func TestHandleTask_InvalidPipelinePhase(t *testing.T) {
+	mock := &mockAdapter{name: "mock", script: "true"}
+
+	wl := &WorkerLoop{
+		config: LoopConfig{Provider: mock, WorkDir: t.TempDir()},
+	}
+
+	payload, _ := json.Marshal(taskPayloadMessage{
+		Description:    "test task",
+		PipelinePhases: []string{"planner", "deployer"},
+	})
+
+	_, err := wl.handleTask(context.Background(), "task-invalid-phase", payload)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unsupported phase")
+}
+
 func TestPrepareSymphonyWorkspace_CreatesPromptMarkdown(t *testing.T) {
 	workDir := t.TempDir()
 	prompt := "Please read .symphony/prompt.md before proceeding."
@@ -257,6 +405,20 @@ func TestPrepareSymphonyWorkspace_CreatesPromptMarkdown(t *testing.T) {
 	info, err := os.Stat(promptPath)
 	require.NoError(t, err)
 	assert.Equal(t, os.FileMode(0o444), info.Mode().Perm())
+}
+
+func TestPrepareTaskRuntimeEnv_ConfiguresWritableCaches(t *testing.T) {
+	taskCfg := adapter.TaskConfig{WorkDir: t.TempDir()}
+
+	err := prepareTaskRuntimeEnv(&taskCfg)
+	require.NoError(t, err)
+
+	assert.DirExists(t, filepath.Join(taskCfg.WorkDir, ".symphony", "artifacts", "tmp"))
+	assert.DirExists(t, filepath.Join(taskCfg.WorkDir, ".symphony", "artifacts", "gocache"))
+	assert.Equal(t, filepath.Join(taskCfg.WorkDir, ".symphony", "artifacts", "tmp"), taskCfg.EnvVars["TMPDIR"])
+	assert.Equal(t, filepath.Join(taskCfg.WorkDir, ".symphony", "artifacts", "tmp"), taskCfg.EnvVars["TEST_TMPDIR"])
+	assert.Equal(t, filepath.Join(taskCfg.WorkDir, ".symphony", "artifacts", "tmp"), taskCfg.EnvVars["GOTMPDIR"])
+	assert.Equal(t, filepath.Join(taskCfg.WorkDir, ".symphony", "artifacts", "gocache"), taskCfg.EnvVars["GOCACHE"])
 }
 
 // --- Approval wiring tests ---

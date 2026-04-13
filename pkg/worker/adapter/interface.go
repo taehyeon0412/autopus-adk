@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"os/exec"
+	"strings"
 )
 
 // ProviderAdapter abstracts CLI provider execution.
@@ -20,12 +21,12 @@ type ProviderAdapter interface {
 
 // TaskConfig holds the configuration for a subprocess execution.
 type TaskConfig struct {
-	TaskID    string            // unique task identifier
-	SessionID string            // for --resume
-	Prompt    string            // delivered via stdin
-	MCPConfig string            // path to worker-mcp.json
-	WorkDir   string            // working directory for subprocess
-	EnvVars   map[string]string // additional env vars
+	TaskID      string            // unique task identifier
+	SessionID   string            // for --resume
+	Prompt      string            // delivered via stdin
+	MCPConfig   string            // path to worker-mcp.json
+	WorkDir     string            // working directory for subprocess
+	EnvVars     map[string]string // additional env vars
 	Model       string            // provider-specific model override
 	ComputerUse bool              // enable computer use for this task
 }
@@ -51,4 +52,11 @@ type Artifact struct {
 	Name     string
 	MimeType string
 	Data     string
+}
+
+func splitEventType(full string) (string, string) {
+	if before, after, ok := strings.Cut(full, "."); ok {
+		return before, after
+	}
+	return full, ""
 }

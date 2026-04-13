@@ -25,7 +25,8 @@ func TestCodexAdapterBuildCommand(t *testing.T) {
 	cmd := a.BuildCommand(context.Background(), task)
 
 	assert.Contains(t, cmd.Args, "exec")
-	assert.Contains(t, cmd.Args, "fix the bug")
+	assert.Contains(t, cmd.Args, "-")
+	assert.NotContains(t, cmd.Args, "fix the bug")
 	assert.Contains(t, cmd.Args, "--json")
 	assert.Contains(t, cmd.Args, "resume")
 	assert.Contains(t, cmd.Args, "worker-sess-task-c1")
@@ -66,6 +67,28 @@ func TestCodexAdapterParseEvent(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "result", evt.Type)
 	assert.NotEmpty(t, evt.Data)
+}
+
+func TestCodexAdapterParseEventSplitsDottedTypes(t *testing.T) {
+	a := NewCodexAdapter()
+
+	line := []byte(`{"type":"turn.completed"}`)
+	evt, err := a.ParseEvent(line)
+	require.NoError(t, err)
+	assert.Equal(t, "turn", evt.Type)
+	assert.Equal(t, "completed", evt.Subtype)
+}
+
+func TestCodexAdapterParseEventPromotesAgentMessageToResult(t *testing.T) {
+	a := NewCodexAdapter()
+
+	line := []byte(`{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"done via codex"}}`)
+	evt, err := a.ParseEvent(line)
+	require.NoError(t, err)
+	assert.Equal(t, "result", evt.Type)
+
+	result := a.ExtractResult(evt)
+	assert.Equal(t, "done via codex", result.Output)
 }
 
 // REQ-BUDGET-02: Codex maps tool_call -> EventToolCall (already canonical).
