@@ -117,6 +117,13 @@ func TestPipelineRunCmd_DryRunFlag(t *testing.T) {
 	assert.True(t, cfg.DryRun)
 }
 
+func TestPipelineRunCmd_GlobalMultiFlagIsAccepted(t *testing.T) {
+	t.Parallel()
+
+	root := NewRootCmd()
+	require.NotNil(t, root.PersistentFlags().Lookup("multi"))
+}
+
 // makeDummyBinary creates a zero-byte executable file at tmpDir/name.
 // exec.LookPath only checks file existence and execute permission.
 func makeDummyBinary(t *testing.T, tmpDir, name string) {

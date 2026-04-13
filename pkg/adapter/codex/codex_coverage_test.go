@@ -33,12 +33,18 @@ func TestNormalizeCodexExtendedSkill_RewritesSpecialSkills(t *testing.T) {
 
 	teams := normalizeCodexExtendedSkill("agent-teams", "placeholder")
 	assert.Contains(t, teams, "spawn_agent")
+	assert.Contains(t, teams, ".codex/agents/")
+	assert.Contains(t, teams, "`planner`")
+	assert.Contains(t, teams, "`executor`")
 	assert.NotContains(t, teams, "TeamCreate")
 	assert.NotContains(t, teams, "SendMessage")
+	assert.NotContains(t, teams, "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS")
 
 	pipeline := normalizeCodexExtendedSkill("agent-pipeline", "placeholder")
 	assert.Contains(t, pipeline, "@auto go")
 	assert.Contains(t, pipeline, "spawn_agent")
+	assert.Contains(t, pipeline, ".codex/agents/")
+	assert.Contains(t, pipeline, "orchestra-backed review")
 	assert.NotContains(t, pipeline, "bypassPermissions")
 	assert.NotContains(t, pipeline, "auto permission detect")
 

@@ -105,6 +105,7 @@ func resolvePlatform(platform string) string {
 // runPipeline executes the pipeline for the given SPEC ID.
 func runPipeline(cmd *cobra.Command, specID string, cfg *pipelineRunConfig) error {
 	platform := resolvePlatform(cfg.Platform)
+	flags := globalFlagsFromContext(cmd.Context())
 
 	cp, err := LoadCheckpointIfContinue(specID, cfg.Continue)
 	if err != nil {
@@ -137,5 +138,11 @@ func runPipeline(cmd *cobra.Command, specID string, cfg *pipelineRunConfig) erro
 	}
 
 	fmt.Fprintf(cmd.OutOrStdout(), "Pipeline complete: %d phases executed\n", len(result.PhaseResults))
+	if flags.MultiMode && !cfg.DryRun {
+		fmt.Fprintf(cmd.ErrOrStderr(), "Running multi-provider review for %s\n", specID)
+		if err := runSpecReview(cmd.Context(), specID, "", 0); err != nil {
+			return fmt.Errorf("pipeline multi review failed: %w", err)
+		}
+	}
 	return nil
 }

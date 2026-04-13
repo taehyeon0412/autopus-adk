@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sort"
 
 	"github.com/spf13/cobra"
 
@@ -58,8 +59,12 @@ func runSpecReview(ctx context.Context, specID, strategy string, timeout int) er
 	}
 
 	gate := cfg.Spec.ReviewGate
+	flags := globalFlagsFromContext(ctx)
 	if strategy == "" {
 		strategy = gate.Strategy
+	}
+	if strategy == "" && flags.MultiMode {
+		strategy = string(orchestra.StrategyDebate)
 	}
 	if timeout <= 0 {
 		timeout = 120
@@ -69,9 +74,13 @@ func runSpecReview(ctx context.Context, specID, strategy string, timeout int) er
 		maxRevisions = defaultMaxRevisions
 	}
 
-	providers := buildReviewProviders(gate.Providers)
+	providerNames := resolveSpecReviewProviderNames(cfg, flags.MultiMode)
+	providers := buildReviewProviders(providerNames)
 	if len(providers) == 0 {
-		return fmt.Errorf("사용 가능한 프로바이더가 없습니다. 설치를 확인하세요: %v", gate.Providers)
+		return fmt.Errorf("사용 가능한 프로바이더가 없습니다. 설치를 확인하세요: %v", providerNames)
+	}
+	if flags.MultiMode && len(providers) < 2 {
+		return fmt.Errorf("--multi requires at least 2 installed providers (resolved: %v)", providerNames)
 	}
 
 	// Collect code context once
@@ -216,4 +225,50 @@ func buildReviewProviders(names []string) []orchestra.ProviderConfig {
 		}
 	}
 	return available
+}
+
+func resolveSpecReviewProviderNames(cfg *config.HarnessConfig, multi bool) []string {
+	if cfg == nil {
+		return nil
+	}
+
+	names := mergeProviderNames(cfg.Spec.ReviewGate.Providers)
+	if !multi {
+		return names
+	}
+
+	if cmd, ok := cfg.Orchestra.Commands["review"]; ok {
+		names = mergeProviderNames(names, cmd.Providers)
+	}
+
+	return mergeProviderNames(names, sortedProviderKeys(cfg.Orchestra.Providers), defaultProviders())
+}
+
+func mergeProviderNames(groups ...[]string) []string {
+	seen := make(map[string]struct{})
+	var merged []string
+
+	for _, group := range groups {
+		for _, name := range group {
+			if name == "" {
+				continue
+			}
+			if _, ok := seen[name]; ok {
+				continue
+			}
+			seen[name] = struct{}{}
+			merged = append(merged, name)
+		}
+	}
+
+	return merged
+}
+
+func sortedProviderKeys(providers map[string]config.ProviderEntry) []string {
+	names := make([]string, 0, len(providers))
+	for name := range providers {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }

@@ -35,9 +35,11 @@ func codexAgentTeamsSkillBody() string {
 
 ## Overview
 
-In Codex, ` + "`--team`" + ` is an orchestration pattern, not a native Team API. The main session acts as the lead coordinator and manages parallel workers with ` + "`spawn_agent(...)`" + `, ` + "`send_input(...)`" + `, and ` + "`wait_agent(...)`" + `.
+In Codex, ` + "`--team`" + ` is a harness-defined multi-agent orchestration pattern, not a native Team API. The main session acts as the lead coordinator and manages parallel workers with ` + "`spawn_agent(...)`" + `, ` + "`send_input(...)`" + `, and ` + "`wait_agent(...)`" + `.
 
 **Activation flag**: ` + "`@auto go SPEC-ID --team`" + `
+
+The worker roles come from the harness-generated agent definitions under ` + "`.codex/agents/*.toml`" + `. Use those role contracts as the source of truth for prompts, ownership, and quality expectations.
 
 ## Activation
 
@@ -53,22 +55,38 @@ If decomposition is unclear, fall back to the default pipeline or ` + "`--solo`"
 ### Lead (main session)
 
 - Loads the SPEC and decides the split strategy
+- Reads ` + "`.codex/agents/`" + ` role definitions before spawning workers
 - Spawns workers with explicit ownership and completion criteria
 - Tracks progress, merges findings, and resolves conflicts
 - Runs the final integration step after worker results return
 
 ### Builder workers
 
-- Usually ` + "`executor`" + ` or ` + "`tester`" + `
+- Usually ` + "`planner`" + ` for decomposition, then ` + "`executor`" + ` and ` + "`tester`" + ` for implementation
 - Own a disjoint file set or concern slice
 - Implement RED → GREEN → REFACTOR inside their forked workspace
 - Return changed file paths, tests run, and unresolved blockers
 
 ### Guardian workers
 
-- Usually ` + "`validator`" + `, ` + "`reviewer`" + `, ` + "`security-auditor`" + `
+- Usually ` + "`validator`" + `, ` + "`reviewer`" + `, ` + "`security-auditor`" + `, optional ` + "`annotator`" + ` / ` + "`frontend-specialist`" + `
 - Review builder output without sharing mutable state
 - Report PASS / FAIL or APPROVE / REQUEST_CHANGES with actionable evidence
+
+## Harness Role Mapping
+
+Prefer the harness roles exactly as generated:
+
+| Slice | Preferred agents |
+|------|------------------|
+| Task decomposition | ` + "`planner`" + ` |
+| Implementation | ` + "`executor`" + ` |
+| Test expansion | ` + "`tester`" + ` |
+| Validation gate | ` + "`validator`" + ` |
+| Final review | ` + "`reviewer`" + ` + ` + "`security-auditor`" + ` |
+| Annotation / UX | ` + "`annotator`" + `, ` + "`frontend-specialist`" + ` when needed |
+
+Do not invent ad-hoc worker roles when an equivalent harness agent already exists.
 
 ## Coordination Pattern
 
@@ -130,7 +148,7 @@ Team mode in Codex still depends on strict ownership isolation:
 - Shared files move back to the main session or sequential execution
 - Validation workers remain read-only
 
-For deeper guidance on parallel file ownership and branch hygiene, see .codex/skills/worktree-isolation.md.
+For deeper guidance on parallel file ownership and branch hygiene, see .codex/skills/worktree-isolation.md. For actual role definitions, inspect ` + "`.codex/agents/`" + `.
 `
 }
 
@@ -147,9 +165,9 @@ This skill is the default for ` + "`@auto go SPEC-ID`" + `.
 | Flag | Mode | Codex meaning |
 |------|------|---------------|
 | none | Subagent pipeline | Main session orchestrates specialists phase-by-phase |
-| ` + "`--team`" + ` | Parallel team pattern | Main session coordinates multiple workers in parallel |
+| ` + "`--team`" + ` | Parallel team pattern | Main session coordinates multiple harness-defined workers from ` + "`.codex/agents/`" + ` |
 | ` + "`--solo`" + ` | Single session | No worker spawning; implement directly in the main session |
-| ` + "`--multi`" + ` | Multi-provider review | Run additional review/validation passes when configured |
+| ` + "`--multi`" + ` | Multi-provider review | Run additional review/validation passes when configured, prefer orchestra-backed review when available |
 
 See .codex/skills/agent-teams.md for the Codex interpretation of ` + "`--team`" + ` and .codex/skills/worktree-isolation.md for parallel ownership rules.
 
@@ -245,7 +263,7 @@ Run annotator after validation PASS. Harness-only markdown changes may skip this
 
 ### Phase 4: Review
 
-Run reviewer and security-auditor in parallel when the change scope justifies both. Consolidate findings in the main session.
+Run reviewer and security-auditor in parallel when the change scope justifies both. When ` + "`--multi`" + ` is set, prefer an additional orchestra-backed review/decision pass after local validation if the CLI/config supports it. Consolidate findings in the main session.
 
 ## Parallelism Rules
 

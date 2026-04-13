@@ -7,6 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/insajin/autopus-adk/pkg/config"
 )
 
 // TestNewSpecReviewCmd_Structure verifies that the spec review command
@@ -71,6 +73,35 @@ func TestBuildReviewProviders_SkipsMultipleMissingBinaries(t *testing.T) {
 		"no_such_binary_ccc",
 	})
 	assert.Empty(t, result, "all missing binaries should be skipped")
+}
+
+func TestResolveSpecReviewProviderNames_Default(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.DefaultFullConfig("test-project")
+	cfg.Spec.ReviewGate.Providers = []string{"claude", "gemini"}
+
+	result := resolveSpecReviewProviderNames(cfg, false)
+	assert.Equal(t, []string{"claude", "gemini"}, result)
+}
+
+func TestResolveSpecReviewProviderNames_MultiExpandsAndDeduplicates(t *testing.T) {
+	t.Parallel()
+
+	cfg := config.DefaultFullConfig("test-project")
+	cfg.Spec.ReviewGate.Providers = []string{"claude"}
+	cfg.Orchestra.Commands["review"] = config.CommandEntry{
+		Strategy:  "debate",
+		Providers: []string{"claude", "codex"},
+	}
+	cfg.Orchestra.Providers = map[string]config.ProviderEntry{
+		"gemini": {Binary: "gemini"},
+		"codex":  {Binary: "codex"},
+		"claude": {Binary: "claude"},
+	}
+
+	result := resolveSpecReviewProviderNames(cfg, true)
+	assert.Equal(t, []string{"claude", "codex", "gemini"}, result)
 }
 
 // TestRunSpecReview_SpecLoadError verifies that runSpecReview returns an error
