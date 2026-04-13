@@ -7,9 +7,12 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/insajin/autopus-adk/internal/cli/tui"
+	"github.com/insajin/autopus-adk/pkg/config"
+	"github.com/insajin/autopus-adk/pkg/lore"
 )
 
 const (
@@ -50,7 +53,6 @@ func checkArch(dir string, out io.Writer, quiet, stagedOnly bool) bool {
 	}
 	return checkArchWalk(dir, out, quiet)
 }
-
 
 // isGeneratedGoFile reports whether a file name matches generated file patterns.
 func isGeneratedGoFile(name string) bool {
@@ -103,8 +105,9 @@ func checkLore(dir string, out io.Writer, quiet bool) bool {
 
 	validType := hasValidLoreType(msg)
 	hasSignOff := strings.Contains(msg, loreSignOff)
+	validTrailers := validateLoreMessage(msg, dir, out)
 
-	if validType && hasSignOff {
+	if validType && hasSignOff && validTrailers {
 		if !quiet {
 			tui.OK(out, "last commit follows Lore format")
 		}
@@ -117,7 +120,7 @@ func checkLore(dir string, out io.Writer, quiet bool) bool {
 	if !hasSignOff {
 		tui.FAIL(out, fmt.Sprintf("last commit missing sign-off: %s", loreSignOff))
 	}
-	return false
+	return validType && hasSignOff && validTrailers
 }
 
 // checkLoreFromFile validates a commit message read from the given file path.
@@ -141,8 +144,13 @@ func checkLoreFromFile(msgFile string, out io.Writer, quiet bool) bool {
 
 	validType := hasValidLoreType(msg)
 	hasSignOff := strings.Contains(msg, loreSignOff)
+	configDir := filepath.Dir(msgFile)
+	if filepath.Base(configDir) == ".git" {
+		configDir = filepath.Dir(configDir)
+	}
+	validTrailers := validateLoreMessage(msg, configDir, out)
 
-	if validType && hasSignOff {
+	if validType && hasSignOff && validTrailers {
 		if !quiet {
 			tui.OK(out, "commit message follows Lore format")
 		}
@@ -155,7 +163,7 @@ func checkLoreFromFile(msgFile string, out io.Writer, quiet bool) bool {
 	if !hasSignOff {
 		tui.FAIL(out, fmt.Sprintf("commit message missing sign-off: %s", loreSignOff))
 	}
-	return false
+	return validType && hasSignOff && validTrailers
 }
 
 // lastCommitMessage returns the full body of the most recent commit.
@@ -194,4 +202,27 @@ func isExperimentBranch(dir string) bool {
 		return false
 	}
 	return strings.HasPrefix(strings.TrimSpace(buf.String()), "experiment/")
+}
+
+func validateLoreMessage(msg, dir string, out io.Writer) bool {
+	cfg, err := config.Load(dir)
+	if err != nil {
+		tui.Error(out, fmt.Sprintf("cannot load lore config: %v", err))
+		return false
+	}
+
+	loreConfig := lore.LoreConfig{
+		RequiredTrailers:   append([]string(nil), cfg.Lore.RequiredTrailers...),
+		StaleThresholdDays: cfg.Lore.StaleThresholdDays,
+	}
+
+	errs := lore.Validate(msg, loreConfig)
+	if len(errs) == 0 {
+		return true
+	}
+
+	for _, err := range errs {
+		tui.FAIL(out, fmt.Sprintf("lore trailer invalid [%s]: %s", err.Field, err.Message))
+	}
+	return false
 }

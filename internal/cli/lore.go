@@ -3,10 +3,12 @@ package cli
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 
 	"github.com/spf13/cobra"
 
+	"github.com/insajin/autopus-adk/pkg/config"
 	"github.com/insajin/autopus-adk/pkg/lore"
 )
 
@@ -172,12 +174,26 @@ func newLoreValidateCmd() *cobra.Command {
 				return fmt.Errorf("파일 읽기 실패: %w", err)
 			}
 
-			config := lore.LoreConfig{
+			if !cmd.Flags().Changed("required") || !cmd.Flags().Changed("stale-days") {
+				configPathDir := loreConfigDirForMessageFile(args[0])
+				cfg, err := config.Load(configPathDir)
+				if err != nil {
+					return fmt.Errorf("설정 로드 실패: %w", err)
+				}
+				if !cmd.Flags().Changed("required") {
+					requiredTrailers = append([]string(nil), cfg.Lore.RequiredTrailers...)
+				}
+				if !cmd.Flags().Changed("stale-days") {
+					staleDays = cfg.Lore.StaleThresholdDays
+				}
+			}
+
+			loreConfig := lore.LoreConfig{
 				RequiredTrailers:   requiredTrailers,
 				StaleThresholdDays: staleDays,
 			}
 
-			errs := lore.Validate(string(content), config)
+			errs := lore.Validate(string(content), loreConfig)
 			if len(errs) == 0 {
 				fmt.Println("유효한 Lore 커밋 메시지입니다")
 				return nil
@@ -194,6 +210,14 @@ func newLoreValidateCmd() *cobra.Command {
 	cmd.Flags().StringSliceVar(&requiredTrailers, "required", nil, "Required trailers (comma-separated)")
 	cmd.Flags().IntVar(&staleDays, "stale-days", 90, "Stale threshold in days")
 	return cmd
+}
+
+func loreConfigDirForMessageFile(messageFile string) string {
+	dir := filepath.Dir(messageFile)
+	if filepath.Base(dir) == ".git" {
+		return filepath.Dir(dir)
+	}
+	return dir
 }
 
 // printLoreEntries는 Lore 항목 목록을 출력한다.

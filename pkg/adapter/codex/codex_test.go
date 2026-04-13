@@ -133,6 +133,7 @@ func TestCodexAdapter_Update(t *testing.T) {
 	data, err := os.ReadFile(commitMsgHook)
 	require.NoError(t, err)
 	assert.Contains(t, string(data), "auto check --lore --quiet --message")
+	assert.Contains(t, string(data), "auto lore validate \"$1\"")
 }
 
 func TestCodexAdapter_InstallHooks_NoOp(t *testing.T) {

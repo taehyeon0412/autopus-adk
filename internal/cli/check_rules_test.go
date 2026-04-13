@@ -83,7 +83,7 @@ func TestCheckLore_ValidLoreCommit(t *testing.T) {
 	// Create a file and commit with valid Lore format.
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "dummy.go"), []byte("package dummy\n"), 0o644))
 
-	commitMsg := "feat(cli): add feature\n\nWhy: testing\nDecision: yes\nAlternatives: none\n\n🐙 Autopus <noreply@autopus.co>"
+	commitMsg := "feat(cli): add feature\n\nConstraint: keep cli contract stable\n\n🐙 Autopus <noreply@autopus.co>"
 	addCmd := exec.Command("git", "add", "dummy.go")
 	addCmd.Dir = dir
 	require.NoError(t, addCmd.Run())
@@ -161,7 +161,7 @@ func TestCheckLore_MissingSignOffOnly(t *testing.T) {
 	require.NoError(t, addCmd.Run())
 
 	// Has valid type prefix but no sign-off.
-	commitCmd := exec.Command("git", "commit", "-m", "fix(api): correct logic\n\nWhy: needed")
+	commitCmd := exec.Command("git", "commit", "-m", "fix(api): correct logic\n\nConstraint: preserve api contract")
 	commitCmd.Dir = dir
 	out, err := commitCmd.CombinedOutput()
 	require.NoError(t, err, "git commit failed: %s", out)
@@ -306,12 +306,28 @@ func TestCheckLoreFromFile_ValidMessage(t *testing.T) {
 
 	dir := t.TempDir()
 	msgPath := filepath.Join(dir, "COMMIT_EDITMSG")
-	msg := "feat(cli): add feature\n\nWhy: testing\n\n🐙 Autopus <noreply@autopus.co>"
+	msg := "feat(cli): add feature\n\nConstraint: keep cli stable\n\n🐙 Autopus <noreply@autopus.co>"
 	require.NoError(t, os.WriteFile(msgPath, []byte(msg), 0o644))
 
 	var buf bytes.Buffer
 	result := checkLoreFromFile(msgPath, &buf, false)
 	assert.True(t, result, "valid Lore message file should pass")
+}
+
+// TestCheckLoreFromFile_MissingRequiredTrailer verifies that the default Lore
+// configuration requires the configured trailers in addition to type/sign-off.
+func TestCheckLoreFromFile_MissingRequiredTrailer(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	msgPath := filepath.Join(dir, "COMMIT_EDITMSG")
+	msg := "feat(cli): add feature\n\n🐙 Autopus <noreply@autopus.co>"
+	require.NoError(t, os.WriteFile(msgPath, []byte(msg), 0o644))
+
+	var buf bytes.Buffer
+	result := checkLoreFromFile(msgPath, &buf, false)
+	assert.False(t, result, "message file missing required trailers should fail")
+	assert.Contains(t, buf.String(), "Constraint")
 }
 
 // TestCheckLoreFromFile_InvalidMessage verifies checkLoreFromFile fails for a

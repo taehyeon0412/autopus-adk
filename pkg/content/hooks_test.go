@@ -57,6 +57,12 @@ func TestGenerateHookConfigs_WithoutHooks(t *testing.T) {
 	}
 	assert.Contains(t, paths, ".git/hooks/pre-commit")
 	assert.Contains(t, paths, ".git/hooks/commit-msg")
+	for _, g := range gitHooks {
+		if g.Path == ".git/hooks/commit-msg" {
+			assert.Contains(t, g.Content, "auto check --lore --quiet --message")
+			assert.Contains(t, g.Content, "auto lore validate \"$1\"")
+		}
+	}
 }
 
 func TestGenerateHookConfigs_AllDisabled(t *testing.T) {

@@ -32,6 +32,7 @@ func TestBuildCommit_WithTrailers(t *testing.T) {
 	assert.Contains(t, result, "Confidence: high")
 	assert.Contains(t, result, "Scope-risk: module")
 	assert.Contains(t, result, "Reversibility: moderate")
+	assert.Contains(t, result, "🐙 Autopus <noreply@autopus.co>")
 }
 
 func TestBuildCommit_EmptyEntry(t *testing.T) {
@@ -43,8 +44,9 @@ func TestBuildCommit_EmptyEntry(t *testing.T) {
 
 	lines := strings.Split(result, "\n")
 	assert.Equal(t, "chore: 설정 업데이트", lines[0])
-	// 트레일러 없음
+	// 트레일러가 없어도 Lore sign-off는 유지되어야 한다.
 	assert.NotContains(t, result, "Constraint:")
+	assert.Contains(t, result, "🐙 Autopus <noreply@autopus.co>")
 }
 
 func TestBuildCommit_EmptyMessage(t *testing.T) {
@@ -66,4 +68,5 @@ func TestBuildCommit_MultilineMessage(t *testing.T) {
 
 	assert.Contains(t, result, "feat: 유효성 검사")
 	assert.Contains(t, result, "Directive: 항상 검증")
+	assert.Contains(t, result, "🐙 Autopus <noreply@autopus.co>")
 }

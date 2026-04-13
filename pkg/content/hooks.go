@@ -116,7 +116,9 @@ func buildPreCommitScript(cfg config.HooksConf) string {
 // The commit message file path is passed as $1 by git.
 func buildCommitMsgScript() string {
 	return "#!/bin/sh\n# Autopus-ADK commit-msg hook (자동 생성)\nset -e\n\n" +
-		"# Lore 커밋 메시지 검사\nauto check --lore --quiet --message \"$1\"\n\n" +
+		"ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)\ncd \"$ROOT\"\n\n" +
+		"# Lore 커밋 메시지 검사\nauto check --lore --quiet --message \"$1\"\n" +
+		"auto lore validate \"$1\"\n\n" +
 		"exit 0\n"
 }
 
