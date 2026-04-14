@@ -4,14 +4,14 @@
 
 ### 에이전트*로 이루어진*, 에이전트*에 의해 운영되는*, 에이전트*를 위한* 하네스.
 
-AI 코딩 도구(Claude Code, Codex, Gemini CLI)가 진짜 개발팀처럼 일하게 만듭니다 — 기획, 테스트, 코드 리뷰, 보안 감사까지 자동으로.
+AI 코딩 도구(Claude Code, Codex, Gemini CLI, OpenCode)가 진짜 개발팀처럼 일하게 만듭니다 — 기획, 테스트, 코드 리뷰, 보안 감사까지 자동으로.
 
 **16개 에이전트. 40개 스킬. 하나의 설정. 모든 플랫폼.**
 
 [![GitHub Stars](https://img.shields.io/github/stars/Insajin/autopus-adk?style=social)](https://github.com/Insajin/autopus-adk/stargazers)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Go Version](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)](https://golang.org)
-[![Platforms](https://img.shields.io/badge/Platforms-3-orange)](#-하나의-설정-세-개-플랫폼)
+[![Platforms](https://img.shields.io/badge/Platforms-4-orange)](#-하나의-설정-네-개-플랫폼)
 [![Agents](https://img.shields.io/badge/Agents-16-blueviolet)](#-16개-전문-에이전트)
 [![Skills](https://img.shields.io/badge/Skills-40-ff69b4)](#-전체-명령어)
 
@@ -65,7 +65,7 @@ powershell -c "irm https://raw.githubusercontent.com/Insajin/autopus-adk/main/in
   ✅ 5/5 태스크 │ 91% 커버리지 │ 보안 이슈 0건 │ 4분 32초
 ```
 
-> 💡 슬래시 명령 하나로. 테스트, 보안 감사, 문서, 의사결정 이력이 포함된 프로덕션 수준의 코드.
+> 💡 명령 하나로. 테스트, 보안 감사, 문서, 의사결정 이력이 포함된 프로덕션 수준의 코드.
 
 ---
 
@@ -355,6 +355,15 @@ auto connect    # 대화형 마법사: 감지 → 설정 → 검증
 
 Autopus CLI와 Autopus 플랫폼 간의 브릿지입니다. ADK Worker는 A2A + MCP 하이브리드 태스크를 로컬에서 실행하여, 클라우드 의존 없이 플랫폼급 오케스트레이션을 가능하게 합니다.
 
+어떤 기능인가요?
+- 로컬 워크스페이스를 Autopus 플랫폼의 worker loop에 연결합니다
+- 플랫폼에서 내려온 태스크를 로컬 도구로 실행합니다
+- 메인 하네스와 같은 보안, 예산, 감사 레일을 재사용합니다
+
+지금은 어떻게 보면 되나요?
+- `auto init`, Codex `@auto ...`, OpenCode `/auto ...`를 쓰려는 용도라면 Worker는 일단 무시해도 됩니다
+- `auto worker ...`는 선택형 고급 기능이며, 현재는 점진적으로 정리 및 문서화 중입니다
+
 ### 💰 반복 예산 관리
 
 Worker가 영원히 실행되지 않습니다. 각 executor에 도구 호출 예산이 할당되어 — 복잡한 태스크를 완료할 충분한 여유를 보장하면서 폭주 에이전트를 방지합니다.
@@ -415,13 +424,25 @@ auto init   # 지원되는 설치된 AI 코딩 CLI 자동 감지
 
 Codex 참고:
 - `auto init` 또는 `auto update` 직후에는 `$auto plan ...`, `$auto go ...`, `$auto idea ...`를 바로 사용할 수 있습니다
-- 생성된 로컬 플러그인을 `/plugins`에서 설치하면 더 자연스러운 `@auto ...` 문법을 사용할 수 있습니다
+- `.agents/plugins/marketplace.json`에 등록된 로컬 플러그인(`.autopus/plugins/auto`)을 설치하면 더 자연스러운 `@auto ...` 문법을 사용할 수 있습니다
 
 OpenCode 참고:
 - `/auto ...`와 `/auto-plan ...` 같은 직접 alias가 `.opencode/commands/`에 생성됩니다
 - 네이티브 규칙/에이전트/플러그인은 `.opencode/` 아래에, 재사용 스킬은 `.agents/skills/` 아래에 생성됩니다
 - `/auto status`, `/auto map`, `/auto why`, `/auto verify`, `/auto secure`, `/auto test`, `/auto dev`, `/auto doctor` 같은 helper workflow도 OpenCode 명령 래퍼로 함께 생성됩니다
 - `opencode.json`이 관리형 hook plugin을 자동 등록하므로 `auto init` 또는 `auto update` 직후 `.opencode/plugins/autopus-hooks.js`가 바로 활성화됩니다
+
+### Codex vs OpenCode 비교
+
+| 항목 | Codex | OpenCode |
+|------|-------|----------|
+| 기본 명령 문법 | `@auto <subcommand> ...` | `/auto <subcommand> ...` |
+| `auto init` 직후 바로 되는 것 | `$auto ...` repo-skill fallback | `/auto ...`, `/auto-<subcommand> ...` 래퍼 |
+| 추가 설치 단계 | 있음. `.agents/plugins/marketplace.json`의 로컬 플러그인을 설치해야 `@auto ...` 사용 가능 | 라우터 기준 추가 설치 불필요. `opencode.json`이 관리형 plugin을 자동 연결 |
+| 생성되는 표면 | `.codex/`, `.agents/skills/`, `.agents/plugins/marketplace.json`, `.autopus/plugins/auto/`, `AGENTS.md` | `.opencode/commands/`, `.opencode/agents/`, `.opencode/rules/`, `.opencode/plugins/`, `.agents/skills/`, `AGENTS.md`, `opencode.json` |
+| 지금 잘 되는 것 | 핵심 `auto` 워크플로우, repo skill, 로컬 플러그인 기반 `@auto` 라우팅 | 핵심 `auto` 워크플로우, 네이티브 명령 래퍼, 관리형 hook plugin wiring |
+| 현재 경계 | `@auto ...`는 로컬 플러그인 설치가 전제이며, 설치 전에는 `$auto ...`를 사용 | 현재 패리티 목표는 핵심 워크플로우 표면입니다. Claude식 native settings/statusline 폭까지 주장하지 않습니다 |
+| Worker 표면 | 지금은 선택 사항입니다. 플랫폼 연결 worker 실행이 필요하지 않다면 무시해도 됩니다 | 지금은 선택 사항입니다. 플랫폼 연결 worker 실행이 필요하지 않다면 무시해도 됩니다 |
 
 ---
 
@@ -431,7 +452,7 @@ OpenCode 참고:
 
 ### 1단계 · 설치 및 초기화 (한 줄)
 
-> **AI 코딩 도구(Claude Code, Codex 등)의 채팅창에 아래 명령을 붙여넣으세요** — 에이전트가 대신 실행해서 설치부터 초기화까지 알아서 처리합니다. 터미널에서 직접 실행해도 됩니다.
+> **AI 코딩 도구(Claude Code, Codex, OpenCode 등)의 채팅창에 아래 명령을 붙여넣으세요** — 에이전트가 대신 실행해서 설치부터 초기화까지 알아서 처리합니다. 터미널에서 직접 실행해도 됩니다.
 
 ```bash
 # macOS / Linux — 바이너리 설치 + 프로젝트 자동 초기화
@@ -468,6 +489,11 @@ auto init
 
 `auto init`은 설치된 AI 코딩 CLI(Claude Code, Codex, Gemini CLI, OpenCode)를 자동 감지하고, 각 플랫폼에 맞는 **네이티브 설정** — 규칙, 스킬, 에이전트 — 을 하나의 `autopus.yaml`에서 생성합니다.
 
+플랫폼별 명령 문법:
+- Codex: 생성된 로컬 플러그인을 설치한 뒤 `@auto ...`를 사용하고, 그 전에는 `$auto ...`를 사용합니다
+- OpenCode: `/auto ...` 또는 `/auto-<subcommand> ...`를 사용합니다
+- Claude Code / Gemini CLI: `/auto ...`를 사용합니다
+
 ```
 ✓ 감지됨: claude-code, codex, gemini-cli, opencode
 ✓ 생성됨: .claude/rules/, .claude/skills/, .claude/agents/, CLAUDE.md
@@ -482,7 +508,9 @@ auto init
 **가장 중요한 단계입니다.** AI 에이전트는 세션 간 모든 기억을 잃습니다 — 매번 프로젝트를 처음 보는 것과 같습니다. `/auto setup`은 에이전트가 프로젝트를 즉시 이해할 수 있게 해주는 "온보딩 문서"를 생성합니다.
 
 ```bash
-/auto setup     # AI 코딩 도구 안에서 입력 (Claude Code, Codex 등)
+/auto setup     # Claude Code, Gemini CLI, OpenCode
+@auto setup     # Codex 로컬 플러그인 설치 후
+$auto setup     # Codex 플러그인 설치 전 fallback
 ```
 
 코드베이스를 분석하여 5개의 컨텍스트 문서를 생성합니다:
@@ -630,7 +658,7 @@ Autopus Triage가 자동으로 요청을 분석합니다:
   Complexity: HIGH → /auto idea --multi (추천)
 ```
 
-Codex에서는 생성된 로컬 플러그인을 `/plugins`에서 설치한 뒤 `@auto ...`를 쓰거나, 바로 `$auto ...`를 repo skill fallback으로 사용하면 됩니다.
+Codex에서는 `.agents/plugins/marketplace.json`에 등록된 로컬 플러그인을 설치한 뒤 `@auto ...`를 쓰거나, 바로 `$auto ...`를 repo skill fallback으로 사용하면 됩니다.
 </details>
 
 ### 🔄 업데이트

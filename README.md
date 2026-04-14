@@ -4,18 +4,18 @@
 
 ### A harness *of* the agents, *by* the agents, *for* the agents.
 
-Make your AI coding tools (Claude Code, Codex, Gemini CLI) work like a real engineering team — with planning, testing, code review, and security audits built in.
+Make your AI coding tools (Claude Code, Codex, Gemini CLI, OpenCode) work like a real engineering team — with planning, testing, code review, and security audits built in.
 
 **16 agents. 40 skills. One config. Every platform.**
 
 [![GitHub Stars](https://img.shields.io/github/stars/Insajin/autopus-adk?style=social)](https://github.com/Insajin/autopus-adk/stargazers)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Go Version](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)](https://golang.org)
-[![Platforms](https://img.shields.io/badge/Platforms-3-orange)](#-one-config-three-platforms)
+[![Platforms](https://img.shields.io/badge/Platforms-4-orange)](#-one-config-four-platforms)
 [![Agents](https://img.shields.io/badge/Agents-16-blueviolet)](#-16-specialized-agents)
 [![Skills](https://img.shields.io/badge/Skills-40-ff69b4)](#-all-commands)
 
-**Paste this command into your AI coding agent's chat (Claude Code, Codex, etc.) — the agent will run it and set up everything automatically. Or run it directly in your terminal.**
+**Paste this command into your AI coding agent's chat (Claude Code, Codex, OpenCode, etc.) — the agent will run it and set up everything automatically. Or run it directly in your terminal.**
 
 ```bash
 # macOS / Linux
@@ -65,7 +65,7 @@ Or if you prefer step-by-step control:
   ✅ 5/5 tasks │ 91% coverage │ 0 security issues │ 4m 32s
 ```
 
-> 💡 One slash command. Production-ready code with tests, security audit, documentation, and decision history.
+> 💡 One command. Production-ready code with tests, security audit, documentation, and decision history.
 
 ---
 
@@ -372,6 +372,15 @@ Detects installed CLI tools, validates API keys, tests connectivity, and writes 
 ADK Worker runs A2A + MCP hybrid tasks locally with browser login, JWT refresh, and direct platform connectivity.
 No separate bridge daemon or worker API key exchange is required for the default production path.
 
+What it is for:
+- Connecting a local workspace to the Autopus platform worker loop
+- Receiving platform-dispatched tasks and executing them with local tools
+- Reusing the same security, budget, and audit rails as the main harness
+
+What to do today:
+- If you're here for `auto init`, Codex `@auto ...`, or OpenCode `/auto ...`, you can ignore Worker for now
+- `auto worker ...` is an optional advanced surface that is still being rolled out and documented
+
 ### 💰 Iteration Budget Management
 
 Workers don't run forever. Each executor gets a tool-call budget — preventing runaway agents while ensuring enough room to complete complex tasks.
@@ -472,7 +481,7 @@ Fallback: providers without hooks use ReadScreen + idle detection (SPEC-ORCH-006
 | **Signature Map** | `auto setup` | Extract exported API signatures (Go + TypeScript) via AST analysis |
 | **Test Runner Detection** | `auto init` | Auto-detect jest, vitest, pytest, cargo test frameworks |
 
-### 🌐 One Config, Three Platforms
+### 🌐 One Config, Four Platforms
 
 ```bash
 auto init   # auto-detects supported installed AI coding CLIs
@@ -490,13 +499,25 @@ Same 16 agents. Same 40 skills. Same rules. **Every platform.**
 
 Codex note:
 - Use `$auto plan ...`, `$auto go ...`, `$auto idea ...` immediately after `auto init` or `auto update`
-- Install the generated local plugin from `/plugins` to unlock the friendlier `@auto ...` syntax
+- Install the generated local plugin from the marketplace entry in `.agents/plugins/marketplace.json` (`.autopus/plugins/auto`) to unlock the friendlier `@auto ...` syntax
 
 OpenCode note:
 - `/auto ...` and direct aliases like `/auto-plan ...` are generated under `.opencode/commands/`
 - Native rule/agent/plugin files live under `.opencode/`, while reusable skills are published under `.agents/skills/`
 - Helper workflows like `/auto status`, `/auto map`, `/auto why`, `/auto verify`, `/auto secure`, `/auto test`, `/auto dev`, and `/auto doctor` are generated as OpenCode-native command wrappers
 - `opencode.json` now registers the managed hook plugin automatically, so `.opencode/plugins/autopus-hooks.js` is live immediately after `auto init` or `auto update`
+
+### Codex vs OpenCode
+
+| Topic | Codex | OpenCode |
+|-------|-------|----------|
+| Primary command syntax | `@auto <subcommand> ...` | `/auto <subcommand> ...` |
+| Works immediately after `auto init` | `$auto ...` repo-skill fallback | `/auto ...` and `/auto-<subcommand> ...` wrappers |
+| Extra install step | Yes. Install the generated local plugin from `.agents/plugins/marketplace.json` to enable `@auto ...` | No extra router install step. `opencode.json` wires the managed plugin automatically |
+| Generated surface | `.codex/`, `.agents/skills/`, `.agents/plugins/marketplace.json`, `.autopus/plugins/auto/`, `AGENTS.md` | `.opencode/commands/`, `.opencode/agents/`, `.opencode/rules/`, `.opencode/plugins/`, `.agents/skills/`, `AGENTS.md`, `opencode.json` |
+| What works well today | Core `auto` workflows, repo skills, local plugin-based `@auto` routing | Core `auto` workflows, native command wrappers, managed hook plugin wiring |
+| Current boundary | `@auto ...` depends on local plugin installation; without it, use `$auto ...` | Current parity target is the core workflow surface. Claude-style native settings/statusline breadth is not claimed |
+| Worker surface | Optional for now. Ignore unless you specifically need platform-connected worker execution | Optional for now. Ignore unless you specifically need platform-connected worker execution |
 
 ---
 
@@ -506,7 +527,7 @@ Get from zero to your first AI-powered feature in under 5 minutes.
 
 ### Step 1 · Install & Initialize (one line)
 
-> **Paste this command into your AI coding agent's chat** (Claude Code, Codex, etc.) — the agent will run it for you. Or run it directly in your terminal.
+> **Paste this command into your AI coding agent's chat** (Claude Code, Codex, OpenCode, etc.) — the agent will run it for you. Or run it directly in your terminal.
 
 ```bash
 # macOS / Linux — installs binary + auto-initializes your project
@@ -518,7 +539,12 @@ cd your-project
 powershell -c "irm https://raw.githubusercontent.com/Insajin/autopus-adk/main/install.ps1 | iex"
 ```
 
-**That's it.** The installer detects your platforms (Claude Code, Codex, Gemini CLI), installs the `auto` CLI plus an `autopus` alias, and auto-initializes your project. From now on, type `/auto` commands inside your AI coding tool to use Autopus.
+**That's it.** The installer detects your platforms (Claude Code, Codex, Gemini CLI, OpenCode), installs the `auto` CLI plus an `autopus` alias, and auto-initializes your project.
+
+Platform command syntax:
+- Codex: install the generated local plugin, then use `@auto ...`; until then, use `$auto ...`
+- OpenCode: use `/auto ...` or `/auto-<subcommand> ...`
+- Claude Code / Gemini CLI: use `/auto ...`
 
 > Note: If you run the Windows installer from Git Bash via `powershell -c ...`, restart Git Bash after install so it reloads the updated user `PATH`. The installer prints the exact install directory and a one-line `export PATH=...` fallback for that case.
 
@@ -571,7 +597,9 @@ The installer scans your machine for supported installed AI coding CLIs (Claude 
 This is the most important step. **AI agents lose all memory between sessions** — every conversation is their first day on the job. `/auto setup` creates the "onboarding documents" that let agents understand your project instantly.
 
 ```bash
-/auto setup     # type this inside your AI coding tool (Claude Code, Codex, etc.)
+/auto setup     # Claude Code, Gemini CLI, OpenCode
+@auto setup     # Codex after local plugin install
+$auto setup     # Codex fallback before plugin install
 ```
 
 This analyzes your codebase and generates 5 context documents:
@@ -719,7 +747,7 @@ Autopus Triage analyzes your request automatically:
   Complexity: HIGH → /auto idea --multi (recommended)
 ```
 
-For Codex, use `@auto ...` after installing the generated local plugin from `/plugins`, or use `$auto ...` immediately as the repo-skill fallback.
+For Codex, use `@auto ...` after installing the generated local plugin from `.agents/plugins/marketplace.json`, or use `$auto ...` immediately as the repo-skill fallback.
 </details>
 
 ---
