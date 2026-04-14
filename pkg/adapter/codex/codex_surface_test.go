@@ -35,6 +35,8 @@ func TestCodexAdapter_Generate_WorkflowSurfacesUseCodexConventions(t *testing.T)
 		content := string(data)
 		if filepath.Base(path) == "SKILL.md" {
 			assert.Contains(t, content, "## Codex Invocation", path)
+			assert.Contains(t, content, "## Autopus Branding", path)
+			assert.Contains(t, content, "🐙 Autopus ─────────────────────────", path)
 			assert.Contains(t, content, "thin router", path)
 		}
 		for _, token := range banned {
@@ -68,6 +70,10 @@ func TestCodexAdapter_Generate_WorkflowSurfacesUseCodexConventions(t *testing.T)
 			data, readErr := os.ReadFile(path)
 			require.NoError(t, readErr, path)
 			content := string(data)
+			if filepath.Base(path) == "SKILL.md" {
+				assert.Contains(t, content, "## Autopus Branding", path)
+				assert.Contains(t, content, "🐙 Autopus ─────────────────────────", path)
+			}
 			for _, token := range banned {
 				assert.NotContains(t, content, token, path)
 			}

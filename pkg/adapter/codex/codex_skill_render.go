@@ -29,6 +29,7 @@ func (a *Adapter) renderRouterSkill(cfg *config.HarnessConfig) (string, error) {
 	body = rewriteCodexRouterBody(body)
 	body = normalizeCodexInvocationBody(body)
 	body = normalizeCodexHelperPaths(body)
+	body = injectCodexBrandingBlock(body, true)
 	invoNote := strings.TrimSpace(fmt.Sprintf(`
 ## Codex Invocation
 
@@ -82,6 +83,7 @@ func (a *Adapter) renderWorkflowSkill(cfg *config.HarnessConfig, spec workflowSp
 	body = strings.TrimSpace(body)
 	body = pkgcontent.ReplacePlatformReferences(body, "codex")
 	body = normalizeCodexSkillBody(body, strings.TrimPrefix(spec.Name, "auto-"))
+	body = injectCodexBrandingBlock(body, false)
 	if !strings.Contains(body, "## Codex Invocation") {
 		invocationNote := strings.TrimSpace(fmt.Sprintf(`
 ## Codex Invocation
@@ -120,6 +122,28 @@ func normalizeCodexSkillBody(body, subcommand string) string {
 		fmt.Sprintf("$auto-%s", subcommand), fmt.Sprintf("$auto %s", subcommand),
 	)
 	return replacer.Replace(body)
+}
+
+func injectCodexBrandingBlock(body string, router bool) string {
+	if strings.Contains(body, "## Autopus Branding") {
+		return body
+	}
+
+	title := "this workflow"
+	if router {
+		title = "`@auto` router responses"
+	}
+
+	block := strings.TrimSpace(fmt.Sprintf(
+		"## Autopus Branding\n\n"+
+			"When handling %s, start the response with the canonical banner from `templates/shared/branding-formats.md.tmpl`:\n\n"+
+			"```text\n"+
+			"🐙 Autopus ─────────────────────────\n"+
+			"```\n\n"+
+			"End the completed response with `🐙`.\n",
+		title,
+	))
+	return injectAfterFirstHeading(body, block)
 }
 
 func rewriteCodexRouterBody(body string) string {

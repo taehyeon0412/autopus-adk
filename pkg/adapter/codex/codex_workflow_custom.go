@@ -16,7 +16,7 @@ func renderCustomWorkflowPrompt(spec workflowSpec) (string, bool) {
 		return "", false
 	}
 	frontmatter := fmt.Sprintf("---\ndescription: %q\n---", spec.Description)
-	return frontmatter + "\n\n" + strings.TrimSpace(body.prompt) + "\n", true
+	return frontmatter + "\n\n" + strings.TrimSpace(injectCodexBrandingBlock(body.prompt, false)) + "\n", true
 }
 
 func renderCustomWorkflowSkill(spec workflowSpec) (string, bool) {
@@ -25,7 +25,7 @@ func renderCustomWorkflowSkill(spec workflowSpec) (string, bool) {
 		return "", false
 	}
 	frontmatter := fmt.Sprintf("---\nname: %s\ndescription: >\n  %s\n---", spec.Name, spec.Description)
-	return frontmatter + "\n\n" + strings.TrimSpace(body.skill) + "\n", true
+	return frontmatter + "\n\n" + strings.TrimSpace(injectCodexBrandingBlock(body.skill, false)) + "\n", true
 }
 
 func customWorkflowBodies(spec workflowSpec) (customWorkflowBody, bool) {
