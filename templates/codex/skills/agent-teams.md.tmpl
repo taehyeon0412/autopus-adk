@@ -12,7 +12,8 @@ Today, Codex should continue to use the default `spawn_agent(...)` subagent pipe
 
 ## Current Behavior
 
-- `@auto go` without flags: use the default subagent pipeline
+- `@auto go` without flags: use the default subagent pipeline, but if runtime policy blocks implicit spawning, ask before proceeding
+- `@auto go --auto`: treat this as explicit approval to run the default subagent pipeline without an extra confirmation round
 - `@auto go --solo`: disable subagents and stay in the main session
 - `@auto go --team`: keep compatibility with future native multi-agent naming, but continue with the default subagent pipeline for now
 

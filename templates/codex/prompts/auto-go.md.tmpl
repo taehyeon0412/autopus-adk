@@ -41,5 +41,9 @@ SPEC-ID를 인자로 받아 구현을 실행합니다.
 - `--continue` 플래그로 중단점에서 재개
 - 개별 이슈는 `auto-fix`로 수정
 - Codex의 기본 구현 모드는 `spawn_agent(...)` 기반 subagent pipeline입니다
+- Codex에서 `--auto`는 기본 subagent pipeline 진행에 대한 명시적 승인입니다
+- `--auto`가 없고 현재 Codex 런타임 정책이 암묵적 `spawn_agent(...)` 호출을 제한하면, 조용히 단일 세션으로 폴백하지 말고 하네스 기본값과 제약을 명시적으로 설명한 뒤 사용자에게 서브에이전트 진행 여부 또는 `--solo` 선택을 받습니다
+- SPEC 상태가 `draft`이고 review gate가 활성화돼 있으면 구현을 시작하지 않고 `/auto spec review {SPEC-ID}` 를 먼저 안내합니다
+- 상세 파이프라인 단계와 phase/gate 계약은 `.codex/skills/agent-pipeline.md`를 따릅니다
 - `--team`은 future native multi-agent surface를 위한 reserved compatibility flag입니다
 - `--multi`는 reviewer/security-auditor/orchestra 기반 추가 검증을 요청하는 의미입니다

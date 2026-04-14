@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/insajin/autopus-adk/pkg/adapter/codex"
+	"github.com/insajin/autopus-adk/pkg/adapter/opencode"
 	"github.com/insajin/autopus-adk/pkg/config"
 )
 
@@ -58,6 +59,9 @@ func TestCodexAdapter_Generate_CreatesAgentsMD(t *testing.T) {
 	assert.Contains(t, content, "test-project")
 	assert.Contains(t, content, "<!-- AUTOPUS:BEGIN -->")
 	assert.Contains(t, content, "<!-- AUTOPUS:END -->")
+	assert.Contains(t, content, "## Execution Model")
+	assert.Contains(t, content, "spawn_agent(...)")
+	assert.Contains(t, content, "Codex --auto")
 }
 
 func TestCodexAdapter_Generate_CreatesSkillsDirectory(t *testing.T) {
@@ -205,7 +209,7 @@ func TestCodexAdapter_Generate_WorkflowSurfacesUseCodexConventions(t *testing.T)
 		}
 	}
 
-	for _, name := range []string{"auto-plan", "auto-go", "auto-fix", "auto-review", "auto-sync", "auto-idea", "auto-canary"} {
+	for _, name := range []string{"auto-setup", "auto-plan", "auto-go", "auto-fix", "auto-review", "auto-sync", "auto-idea", "auto-canary"} {
 		for _, path := range []string{
 			filepath.Join(dir, ".agents", "skills", name, "SKILL.md"),
 			filepath.Join(dir, ".autopus", "plugins", "auto", "skills", name, "SKILL.md"),
@@ -223,4 +227,65 @@ func TestCodexAdapter_Generate_WorkflowSurfacesUseCodexConventions(t *testing.T)
 	autoIdeaSkill, err := os.ReadFile(filepath.Join(dir, ".agents", "skills", "auto-idea", "SKILL.md"))
 	require.NoError(t, err)
 	assert.Contains(t, string(autoIdeaSkill), "auto orchestra brainstorm")
+	assert.Contains(t, string(autoIdeaSkill), "Sequential Thinking으로 fallback할까요?")
+	assert.Contains(t, string(autoIdeaSkill), "Pre-Completion Verification")
+
+	autoSetupSkill, err := os.ReadFile(filepath.Join(dir, ".agents", "skills", "auto-setup", "SKILL.md"))
+	require.NoError(t, err)
+	assert.Contains(t, string(autoSetupSkill), "explorer")
+	assert.Contains(t, string(autoSetupSkill), "ARCHITECTURE.md")
+	assert.Contains(t, string(autoSetupSkill), "First Win Guidance")
+
+	autoPlanSkill, err := os.ReadFile(filepath.Join(dir, ".agents", "skills", "auto-plan", "SKILL.md"))
+	require.NoError(t, err)
+	assert.Contains(t, string(autoPlanSkill), "auto spec review {SPEC-ID}")
+	assert.Contains(t, string(autoPlanSkill), "review_gate.enabled")
+
+	autoGoSkill, err := os.ReadFile(filepath.Join(dir, ".agents", "skills", "auto-go", "SKILL.md"))
+	require.NoError(t, err)
+	assert.Contains(t, string(autoGoSkill), "명시적 승인")
+	assert.Contains(t, string(autoGoSkill), ".codex/skills/agent-pipeline.md")
+	assert.Contains(t, string(autoGoSkill), "draft")
+
+	autoSyncSkill, err := os.ReadFile(filepath.Join(dir, ".agents", "skills", "auto-sync", "SKILL.md"))
+	require.NoError(t, err)
+	assert.Contains(t, string(autoSyncSkill), "ARCHITECTURE.md")
+	assert.Contains(t, string(autoSyncSkill), "@AX Lifecycle Management")
+	assert.Contains(t, string(autoSyncSkill), "2-Phase Commit")
+
+	autoPrompt, err := os.ReadFile(filepath.Join(dir, ".codex", "prompts", "auto.md"))
+	require.NoError(t, err)
+	assert.Contains(t, string(autoPrompt), "하네스 기본값과 제약을 명시적으로 설명")
+	assert.Contains(t, string(autoPrompt), "`setup`")
+
+	agentTeamsSkill, err := os.ReadFile(filepath.Join(dir, ".codex", "skills", "agent-teams.md"))
+	require.NoError(t, err)
+	assert.Contains(t, string(agentTeamsSkill), "@auto go --auto")
+}
+
+func TestCodexAndOpenCode_AGENTSMD_UsesSharedPlatformSection(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	cfg := config.DefaultFullConfig("shared-project")
+	cfg.Platforms = []string{"codex", "opencode"}
+
+	codexAdapter := codex.NewWithRoot(dir)
+	_, err := codexAdapter.Generate(context.Background(), cfg)
+	require.NoError(t, err)
+
+	opencodeAdapter := opencode.NewWithRoot(dir)
+	_, err = opencodeAdapter.Generate(context.Background(), cfg)
+	require.NoError(t, err)
+
+	data, err := os.ReadFile(filepath.Join(dir, "AGENTS.md"))
+	require.NoError(t, err)
+	content := string(data)
+
+	assert.Contains(t, content, "- **플랫폼**: codex, opencode")
+	assert.Contains(t, content, "Codex Rules: .codex/rules/autopus/")
+	assert.Contains(t, content, "OpenCode Rules: .opencode/rules/autopus/")
+	assert.Contains(t, content, "**Codex**: 하네스 기본값은 spawn_agent(...) 기반 subagent-first 입니다.")
+	assert.Contains(t, content, "**OpenCode**: 기본 실행 모델은 task(...) 기반 subagent-first 입니다.")
+	assert.Contains(t, content, "See .codex/rules/autopus/ for Codex guidance.")
+	assert.Contains(t, content, "See .opencode/rules/autopus/ for OpenCode guidance.")
 }

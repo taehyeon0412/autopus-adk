@@ -20,8 +20,8 @@ func TestRenderPromptTemplates(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, files, "should produce prompt file mappings")
 
-	// All 8 prompts should be generated.
-	assert.Len(t, files, 8)
+	// All 9 prompts should be generated.
+	assert.Len(t, files, 9)
 
 	// Verify files written to disk.
 	for _, f := range files {
@@ -59,7 +59,7 @@ func TestPreparePromptFiles_NoDiskWrite(t *testing.T) {
 
 	files, err := a.preparePromptFiles(cfg)
 	require.NoError(t, err)
-	assert.Len(t, files, 8)
+	assert.Len(t, files, 9)
 
 	// preparePromptFiles should NOT write to disk.
 	promptsDir := filepath.Join(dir, ".codex", "prompts")
@@ -97,4 +97,26 @@ func TestRenderPromptTemplates_YAMLFrontmatter(t *testing.T) {
 		assert.Contains(t, content, "---", "prompt %s should have YAML frontmatter", f.TargetPath)
 		assert.Contains(t, content, "description:", "prompt %s should have description field", f.TargetPath)
 	}
+}
+
+func TestRenderPromptTemplates_WorkflowContractsPresent(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	a := NewWithRoot(dir)
+	cfg := config.DefaultFullConfig("test-project")
+
+	files, err := a.renderPromptTemplates(cfg)
+	require.NoError(t, err)
+
+	byName := map[string]string{}
+	for _, f := range files {
+		byName[filepath.Base(f.TargetPath)] = string(f.Content)
+	}
+
+	assert.Contains(t, byName["auto-idea.md"], "orchestra CLI를 반드시 먼저 호출")
+	assert.Contains(t, byName["auto-setup.md"], "explorer")
+	assert.Contains(t, byName["auto-setup.md"], "ARCHITECTURE.md")
+	assert.Contains(t, byName["auto-plan.md"], "auto spec review {SPEC-ID}")
+	assert.Contains(t, byName["auto-go.md"], "draft")
+	assert.Contains(t, byName["auto-sync.md"], "@AX lifecycle")
 }

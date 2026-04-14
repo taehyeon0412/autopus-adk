@@ -19,6 +19,12 @@ For Agent Teams mode (`--team`), see `.codex/skills/autopus/agent-teams.md` for 
 
 @.codex/skills/autopus/worktree-isolation.md
 
+## Codex Auto Semantics
+
+- In Codex, `--auto` means "skip approval gates" and also counts as explicit approval for the default `spawn_agent(...)` subagent pipeline.
+- Without `--auto`, if the runtime policy blocks implicit worker spawning, the main session must explain the constraint and ask before switching to subagents.
+- `--team` remains a reserved compatibility flag until Codex ships a distinct native multi-agent surface.
+
 ## Permission Mode Detection
 
 WHEN the pipeline starts (Phase 0), THE SYSTEM SHALL detect the parent process's permission mode to determine agent spawning permissions.

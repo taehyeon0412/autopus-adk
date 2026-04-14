@@ -37,12 +37,13 @@ Use this skill through either of these surfaces:
 - %s — direct repository skill invocation
 
 Direct skill loads should treat the user's latest %s request as the arguments.
-This skill is a thin router. After resolving the subcommand, load the matching detailed skill (%s, %s, %s, %s, %s, %s, %s) before executing the workflow.
+This skill is a thin router. After resolving the subcommand, load the matching detailed skill (%s, %s, %s, %s, %s, %s, %s, %s) before executing the workflow.
 `,
 		"`@auto <subcommand> ...`",
 		"`/plugins`",
 		"`$auto <subcommand> ...`",
 		"`auto ...`",
+		"`auto-setup`",
 		"`auto-plan`",
 		"`auto-go`",
 		"`auto-fix`",
@@ -56,7 +57,7 @@ This skill is a thin router. After resolving the subcommand, load the matching d
 	frontmatter := strings.TrimSpace(fmt.Sprintf(`---
 name: auto
 description: >
-  Autopus Codex router skill. Use when the user wants %s or %s workflows such as plan, go, fix, review, sync, canary, and idea.
+  Autopus Codex router skill. Use when the user wants %s or %s workflows such as setup, plan, go, fix, review, sync, canary, and idea.
 ---`, "`@auto ...`", "`$auto ...`"))
 	return frontmatter + "\n\n" + strings.TrimSpace(body) + "\n", nil
 }

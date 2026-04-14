@@ -5,6 +5,7 @@
 ## 설명
 
 SPEC 문서를 기반으로 코드를 구현합니다.{{if .IsFullMode}} {{.Methodology.Mode | upper}} 방법론을 따릅니다.{{end}}
+기본 파이프라인 상세 단계는 `.codex/skills/agent-pipeline.md`를 따릅니다.
 
 ## 사용법
 
@@ -27,7 +28,7 @@ SPEC 문서를 기반으로 코드를 구현합니다.{{if .IsFullMode}} {{.Meth
 
 ### 공통 플래그
 
-- `--auto`: 승인/확인 단계 자동 진행
+- `--auto`: 승인/확인 단계 자동 진행. Codex에서는 기본 `spawn_agent(...)` subagent pipeline 진행에 대한 명시적 승인으로도 해석합니다.
 - `--loop`: RALF 재시도 루프 활성화
 - `--multi`: 멀티 프로바이더 리뷰 활성화
 - `--quality <mode>`: 하위 에이전트 품질 모드 지정
@@ -47,6 +48,54 @@ SPEC 문서를 기반으로 코드를 구현합니다.{{if .IsFullMode}} {{.Meth
 2. 파일별 구현
 3. 테스트 작성
 {{end}}
+
+## 실행 계약
+
+### Step 0: 플래그 파싱
+
+구현 시작 전에 다음 항목을 먼저 확정합니다.
+- `--team` → reserved compatibility flag
+- `--solo` → 단일 세션 구현
+- `--strategy <value>`
+- `--continue`
+- `--skip-scaffold`
+- 글로벌 `--auto` / `--loop` / `--multi` / `--quality`
+
+실행 모드:
+- `--solo` → single session
+- 그 외 → 기본 `spawn_agent(...)` subagent pipeline
+
+### Step 1: SPEC 로드
+
+- SPEC-ID를 해석해 `spec.md` 경로와 대상 모듈을 확정합니다.
+- SPEC 상태가 `draft`이고 `review_gate`가 활성화돼 있으면 구현을 진행하지 않고 `/auto spec review {SPEC-ID}` 를 먼저 안내합니다.
+
+### Step 2: 파이프라인 라우팅
+
+- 기본 경로: `.codex/skills/agent-pipeline.md`에 정의된 subagent pipeline
+- `--solo`: 메인 세션 직접 구현
+- `--team`: 현재는 예약 플래그이며 기본 pipeline 의미를 유지
+
+### Harness-Only Tasks
+
+모든 변경 대상이 `.md` 파일뿐이면:
+- 빌드/테스트 검증을 생략할 수 있습니다.
+- validator는 포맷, frontmatter, 300-line 제한 같은 문서 중심 체크만 수행합니다.
+
+### Pre-Completion Verification
+
+- [ ] Phase 1: Planning 완료
+- [ ] Phase 1.5: Test Scaffold 완료 또는 `--skip-scaffold`
+- [ ] Gate 1: Approval 완료 또는 `--auto`
+- [ ] Phase 1.8: Doc Fetch 완료 또는 skip
+- [ ] Phase 2: Implementation 완료
+- [ ] Gate 2: Validation PASS
+- [ ] Phase 2.5: Annotation 완료
+- [ ] Phase 3: Testing 완료 또는 harness-only skip
+- [ ] Gate 3: Coverage 확인 완료 또는 N/A
+- [ ] Phase 4: Review APPROVE
+
+하나라도 비어 있으면 sync 단계 안내로 넘어가지 않습니다.
 
 ## 품질 기준
 
@@ -106,6 +155,8 @@ auto orchestra run "{review topic}" --strategy consensus --rounds fast
 ## Codex Notes
 
 - Codex의 기본 구현 모드는 `spawn_agent(...)` 기반 subagent pipeline입니다.
+- Codex에서 `--auto`는 기본 subagent pipeline 진행에 대한 명시적 승인입니다.
+- `--auto`가 없고 현재 Codex 런타임 정책이 암묵적 `spawn_agent(...)` 호출을 제한하면, 조용히 단일 세션으로 폴백하지 말고 하네스 기본값과 제약을 사용자에게 명시적으로 설명한 뒤 서브에이전트 opt-in 또는 `--solo` 선택을 받습니다.
 - `--team`은 future native multi-agent surface를 위한 reserved compatibility flag이며, 현재 Codex에서는 추가 오케스트레이션 의미를 부여하지 않습니다.
 - `--multi`는 구현 이후 reviewer / security-auditor / orchestra 리뷰를 추가로 붙이는 강화 모드입니다.
 - 전체 파이프라인 단계, 재시도 한도, 게이트 규칙은 `@auto go ...` 라우터 본문을 우선합니다.
@@ -130,6 +181,8 @@ Status symbols: `✓` completed, `→` active, `○` pending. Replace `[N/M task
 🐙 Workflow: {SPEC-ID}
   ✓ plan  →  ● go  →  ○ sync
 ```
+
+다음 단계: `/auto sync {SPEC-ID}`
 
 ### Agent Result Format (use for executor/tester subagent results)
 

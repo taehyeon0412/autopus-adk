@@ -71,6 +71,7 @@ func (a *Adapter) Clean(_ context.Context) error {
 	}
 	autoSkillDirs := []string{
 		"auto",
+		"auto-setup",
 		"auto-plan",
 		"auto-go",
 		"auto-fix",

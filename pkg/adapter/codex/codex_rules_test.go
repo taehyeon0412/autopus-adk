@@ -86,7 +86,7 @@ func TestAgentsMD_NoInlineRules(t *testing.T) {
 	require.NoError(t, err)
 	content := string(data)
 
-	assert.Contains(t, content, "See .codex/rules/autopus/ for detailed guidelines",
+	assert.Contains(t, content, "See .codex/rules/autopus/ for Codex guidance.",
 		"AGENTS.md should reference rules directory")
 	assert.NotContains(t, content, "IMPORTANT: No single file may exceed 300 lines",
 		"AGENTS.md should not contain inline file-size-limit rule")

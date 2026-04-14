@@ -56,6 +56,7 @@ func TestAdapter_Generate_CreatesOpenCodeFiles(t *testing.T) {
 	assert.FileExists(t, filepath.Join(dir, "AGENTS.md"))
 	assert.FileExists(t, filepath.Join(dir, "opencode.json"))
 	assert.FileExists(t, filepath.Join(dir, ".opencode", "commands", "auto.md"))
+	assert.FileExists(t, filepath.Join(dir, ".opencode", "commands", "auto-setup.md"))
 	assert.FileExists(t, filepath.Join(dir, ".opencode", "commands", "auto-plan.md"))
 	assert.FileExists(t, filepath.Join(dir, ".opencode", "agents", "planner.md"))
 	assert.FileExists(t, filepath.Join(dir, ".opencode", "plugins", "autopus-hooks.js"))
@@ -74,6 +75,12 @@ func TestAdapter_Generate_CreatesOpenCodeFiles(t *testing.T) {
 	assert.Contains(t, string(autoIdeaSkill), "auto orchestra brainstorm")
 	assert.Contains(t, string(autoIdeaSkill), "## OpenCode Invocation")
 
+	autoSetupSkill, err := os.ReadFile(filepath.Join(dir, ".agents", "skills", "auto-setup", "SKILL.md"))
+	require.NoError(t, err)
+	assert.Contains(t, string(autoSetupSkill), "ARCHITECTURE.md")
+	assert.Contains(t, string(autoSetupSkill), "explorer")
+	assert.Contains(t, string(autoSetupSkill), "## OpenCode Invocation")
+
 	autoGoSkill, err := os.ReadFile(filepath.Join(dir, ".agents", "skills", "auto-go", "SKILL.md"))
 	require.NoError(t, err)
 	assert.Contains(t, string(autoGoSkill), `subagent_type = "executor"`)
@@ -87,6 +94,9 @@ func TestAdapter_Generate_CreatesOpenCodeFiles(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, string(agentsData), markerBegin)
 	assert.Contains(t, string(agentsData), "플랫폼")
+	assert.Contains(t, string(agentsData), "## Execution Model")
+	assert.Contains(t, string(agentsData), "task(...)")
+	assert.NotContains(t, string(agentsData), "Codex Rules: .codex/rules/autopus/")
 
 	configDoc := readConfigJSON(t, filepath.Join(dir, "opencode.json"))
 	instructions := jsonStringSlice(configDoc["instructions"])

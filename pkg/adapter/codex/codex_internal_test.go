@@ -276,7 +276,7 @@ func TestRulesReferenceInAgentsMD(t *testing.T) {
 	content := string(data)
 
 	assert.Contains(t, content, "## Rules")
-	assert.Contains(t, content, "See .codex/rules/autopus/ for detailed guidelines")
+	assert.Contains(t, content, "See .codex/rules/autopus/ for Codex guidance.")
 	// Should NOT contain inline rule content
 	assert.NotContains(t, content, "IMPORTANT: No single file may exceed 300 lines")
 }

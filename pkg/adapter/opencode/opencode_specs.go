@@ -10,9 +10,15 @@ type workflowSpec struct {
 var workflowSpecs = []workflowSpec{
 	{
 		Name:        "auto",
-		Description: "Autopus 명령 라우터 — plan/go/fix/review/sync/canary/idea 서브커맨드를 해석합니다",
+		Description: "Autopus 명령 라우터 — setup/plan/go/fix/review/sync/canary/idea 서브커맨드를 해석합니다",
 		PromptPath:  "codex/prompts/auto.md.tmpl",
 		SkillPath:   "claude/commands/auto-router.md.tmpl",
+	},
+	{
+		Name:        "auto-setup",
+		Description: "프로젝트 컨텍스트 생성 — 코드베이스를 분석하고 ARCHITECTURE.md 및 .autopus/project 문서를 생성합니다",
+		PromptPath:  "codex/prompts/auto-setup.md.tmpl",
+		SkillPath:   "codex/skills/auto-setup.md.tmpl",
 	},
 	{
 		Name:        "auto-plan",

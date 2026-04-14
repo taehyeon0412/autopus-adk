@@ -17,6 +17,11 @@ type standardSkillSpec struct {
 
 var codexUserFacingSkills = []standardSkillSpec{
 	{
+		Name:         "auto-setup",
+		Description:  "Autopus 프로젝트 컨텍스트 생성 워크플로우. 코드베이스를 분석하고 ARCHITECTURE.md 및 .autopus/project 문서를 생성할 때 사용합니다.",
+		TemplatePath: "codex/skills/auto-setup.md.tmpl",
+	},
+	{
 		Name:         "auto-plan",
 		Description:  "Autopus SPEC 작성 워크플로우. 기능 설명을 분석하고 SPEC 문서를 생성할 때 사용합니다.",
 		TemplatePath: "codex/skills/auto-plan.md.tmpl",

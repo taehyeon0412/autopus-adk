@@ -100,9 +100,9 @@ func (a *Adapter) renderRouterSkill(cfg *config.HarnessConfig) (string, error) {
 	body = strings.TrimSpace(body)
 	body = normalizeOpenCodeMarkdown(strings.TrimSpace(body))
 	body = skillInvocationNote("auto") + "\n" + body
-	body = body + "\n\n이 스킬은 얇은 라우터입니다. 서브커맨드를 해석한 뒤에는 반드시 대응하는 상세 스킬(`auto-plan`, `auto-go`, `auto-fix`, `auto-review`, `auto-sync`, `auto-canary`, `auto-idea`)을 추가로 로드해 실제 단계를 따르세요."
+	body = body + "\n\n이 스킬은 얇은 라우터입니다. 서브커맨드를 해석한 뒤에는 반드시 대응하는 상세 스킬(`auto-setup`, `auto-plan`, `auto-go`, `auto-fix`, `auto-review`, `auto-sync`, `auto-canary`, `auto-idea`)을 추가로 로드해 실제 단계를 따르세요."
 
-	frontmatter := fmt.Sprintf("name: %s\ndescription: %q\ncompatibility: opencode", "auto", "Autopus 명령 라우터 — plan/go/fix/review/sync/canary/idea 서브커맨드를 해석합니다")
+	frontmatter := fmt.Sprintf("name: %s\ndescription: %q\ncompatibility: opencode", "auto", "Autopus 명령 라우터 — setup/plan/go/fix/review/sync/canary/idea 서브커맨드를 해석합니다")
 	return buildMarkdown(frontmatter, body), nil
 }
 

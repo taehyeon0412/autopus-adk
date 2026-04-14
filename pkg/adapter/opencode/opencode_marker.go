@@ -21,15 +21,22 @@ const agentsMDTemplate = `# Autopus-ADK Harness
 
 - **프로젝트**: {{.ProjectName}}
 - **모드**: {{.Mode}}
-- **플랫폼**: opencode
+- **플랫폼**: {{join ", " .Platforms}}
 
 ## Installed Components
 
-- Rules: .opencode/rules/autopus/
-- Skills: .agents/skills/
-- Commands: .opencode/commands/
-- Agents: .opencode/agents/
-- Plugins: .opencode/plugins/
+{{if contains (join ", " .Platforms) "codex"}}- Codex Rules: .codex/rules/autopus/
+- Codex Skills: .codex/skills/
+- Codex Agents: .codex/agents/
+- Codex Config: config.toml
+{{end}}{{if contains (join ", " .Platforms) "opencode"}}- OpenCode Rules: .opencode/rules/autopus/
+- OpenCode Commands: .opencode/commands/
+- OpenCode Agents: .opencode/agents/
+- OpenCode Plugins: .opencode/plugins/
+{{end}}{{if contains (join ", " .Platforms) "codex"}}- Shared Agent Skills: .agents/skills/
+- Plugin Marketplace: .agents/plugins/marketplace.json
+{{else if contains (join ", " .Platforms) "opencode"}}- Shared Skills: .agents/skills/
+{{end}}
 
 ## Language Policy
 
@@ -38,6 +45,16 @@ IMPORTANT: Follow these language settings strictly for all work in this project.
 - **Code comments**: {{.Language.Comments}}
 - **Commit messages**: {{.Language.Commits}}
 - **AI responses**: {{.Language.AIResponses}}
+
+## Execution Model
+
+{{if contains (join ", " .Platforms) "codex"}}- **Codex**: 하네스 기본값은 spawn_agent(...) 기반 subagent-first 입니다.
+- **Codex --auto**: @auto ... --auto 가 포함되면, 기본 subagent pipeline 진행에 대한 명시적 승인으로 해석합니다.
+- **Codex Runtime Caveat**: 현재 세션의 Codex 런타임 정책이 암묵적 spawn_agent(...) 호출을 제한하면, 조용히 단일 세션으로 폴백하지 말고 그 제약을 명시적으로 알린 뒤 사용자의 서브에이전트 opt-in 또는 --solo 선택을 받으세요.
+- **Codex --team**: 미래의 native multi-agent surface를 위한 reserved compatibility flag입니다.
+{{end}}{{if contains (join ", " .Platforms) "opencode"}}- **OpenCode**: 기본 실행 모델은 task(...) 기반 subagent-first 입니다.
+- **OpenCode Invocation**: /auto <subcommand> ... 또는 /auto-<subcommand> ... alias를 사용합니다.
+{{end}}
 
 ## OpenCode Notes
 
@@ -61,6 +78,7 @@ func (a *Adapter) prepareAgentsMapping(cfg *config.HarnessConfig) (adapter.FileM
 
 func (a *Adapter) injectMarkerSection(cfg *config.HarnessConfig) (string, error) {
 	path := filepath.Join(a.root, "AGENTS.md")
+	cfg = ensurePlatformInRootDoc(cfg, "opencode")
 	var existing string
 	if data, err := os.ReadFile(path); err == nil {
 		existing = string(data)
@@ -75,7 +93,13 @@ func (a *Adapter) injectMarkerSection(cfg *config.HarnessConfig) (string, error)
 		return "", err
 	}
 	section += agentsSection
-	section += "\n## Rules\n\nSee .opencode/rules/autopus/ for detailed guidance.\n"
+	section += "\n## Rules\n\n"
+	if containsPlatform(cfg.Platforms, "codex") {
+		section += "See .codex/rules/autopus/ for Codex guidance.\n"
+	}
+	if containsPlatform(cfg.Platforms, "opencode") {
+		section += "See .opencode/rules/autopus/ for OpenCode guidance.\n"
+	}
 	newSection := markerBegin + "\n" + section + "\n" + markerEnd
 
 	if strings.Contains(existing, markerBegin) && strings.Contains(existing, markerEnd) {
@@ -134,6 +158,27 @@ func extractAgentMeta(content string, fallback string) (string, string) {
 		break
 	}
 	return name, desc
+}
+
+func containsPlatform(platforms []string, target string) bool {
+	for _, platform := range platforms {
+		if platform == target {
+			return true
+		}
+	}
+	return false
+}
+
+func ensurePlatformInRootDoc(cfg *config.HarnessConfig, platform string) *config.HarnessConfig {
+	if cfg == nil {
+		return nil
+	}
+	if containsPlatform(cfg.Platforms, platform) {
+		return cfg
+	}
+	cloned := *cfg
+	cloned.Platforms = append(append([]string{}, cfg.Platforms...), platform)
+	return &cloned
 }
 
 func removeMarkerSection(content string) string {
