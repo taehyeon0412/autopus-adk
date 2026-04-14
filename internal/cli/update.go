@@ -49,13 +49,18 @@ func newUpdateCmd() *cobra.Command {
 				return fmt.Errorf("설정 로드 실패: %w", err)
 			}
 
+			addedPlatforms := appendDetectedPlatforms(cfg)
+
 			// Orchestra config migration
 			if changed, migrateErr := config.MigrateOrchestraConfig(cfg); migrateErr != nil {
 				return fmt.Errorf("orchestra 마이그레이션 실패: %w", migrateErr)
-			} else if changed {
+			} else if changed || len(addedPlatforms) > 0 {
 				if saveErr := config.Save(dir, cfg); saveErr != nil {
 					return fmt.Errorf("마이그레이션 설정 저장 실패: %w", saveErr)
 				}
+			}
+			if len(addedPlatforms) > 0 {
+				fmt.Fprintf(cmd.OutOrStdout(), "  + 새 플랫폼 감지: %s\n", strings.Join(addedPlatforms, ", "))
 			}
 
 			// 프로젝트 설정 프롬프트 (미설정 항목만, --yes 시 스킵)
@@ -106,6 +111,18 @@ func newUpdateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&targetVersion, "version", "", "특정 버전 설치 (기본값: 최신 버전)")
 	cmd.Flags().BoolVarP(&yesFlag, "yes", "y", false, "모든 프롬프트를 기본값으로 자동 수락")
 	return cmd
+}
+
+func appendDetectedPlatforms(cfg *config.HarnessConfig) []string {
+	var added []string
+	for _, platform := range detectInstalledPlatforms() {
+		if containsPlatform(cfg.Platforms, platform) {
+			continue
+		}
+		cfg.Platforms = append(cfg.Platforms, platform)
+		added = append(added, platform)
+	}
+	return added
 }
 
 // @AX:NOTE: [AUTO] linear guard-clause pattern with 7 steps (R2-R12) — complexity is managed via early returns; no refactor needed unless new steps are added

@@ -58,6 +58,21 @@ func generatePlatformFiles(ctx context.Context, dir string, cfg *config.HarnessC
 // detectDefaultPlatforms returns installed, ADK-supported platforms in a stable order.
 // Falls back to Claude Code when no supported CLI is found in PATH.
 func detectDefaultPlatforms() []string {
+	detected := detectInstalledPlatforms()
+	platforms := make([]string, 0, len(detected))
+	for _, p := range detected {
+		platforms = append(platforms, p)
+	}
+
+	if len(platforms) == 0 {
+		return []string{"claude-code"}
+	}
+	return platforms
+}
+
+// detectInstalledPlatforms returns installed, ADK-supported platforms in a stable order.
+// Unlike detectDefaultPlatforms, it does not add any fallback platform.
+func detectInstalledPlatforms() []string {
 	detected := detect.DetectPlatforms()
 	platforms := make([]string, 0, len(detected))
 	seen := make(map[string]bool, len(detected))
@@ -68,10 +83,6 @@ func detectDefaultPlatforms() []string {
 		}
 		platforms = append(platforms, p.Name)
 		seen[p.Name] = true
-	}
-
-	if len(platforms) == 0 {
-		return []string{"claude-code"}
 	}
 	return platforms
 }

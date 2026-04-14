@@ -139,6 +139,31 @@ func TestUpdateCmd_OpenCodePlatformIsUpdated(t *testing.T) {
 	assert.NotContains(t, string(data), "user-modified")
 }
 
+func TestUpdateCmd_AutoDetectsAndAddsOpenCodePlatform(t *testing.T) {
+	dir := t.TempDir()
+	binDir := t.TempDir()
+	makeDummyBinary(t, binDir, "opencode")
+	t.Setenv("PATH", binDir)
+
+	initCmd := newTestRootCmd()
+	initCmd.SetArgs([]string{"init", "--dir", dir, "--project", "test-proj", "--platforms", "claude-code"})
+	require.NoError(t, initCmd.Execute())
+
+	var out bytes.Buffer
+	updateCmd := newTestRootCmd()
+	updateCmd.SetOut(&out)
+	updateCmd.SetArgs([]string{"update", "--dir", dir})
+	require.NoError(t, updateCmd.Execute())
+
+	cfg, err := loadConfigFromDir(dir)
+	require.NoError(t, err)
+	assert.Contains(t, cfg.Platforms, "opencode")
+	assert.Contains(t, out.String(), "새 플랫폼 감지: opencode")
+	assert.Contains(t, out.String(), "opencode updated")
+	assert.FileExists(t, filepath.Join(dir, "opencode.json"))
+	assert.FileExists(t, filepath.Join(dir, ".opencode", "commands", "auto.md"))
+}
+
 // TestUpdateCmd_SelfFlagRecognized verifies T11: --self flag is parsed by the
 // update command without an "unknown flag" error. The dev-build guard
 // (version="0.6.0", commit="none") stops execution before any network call.
