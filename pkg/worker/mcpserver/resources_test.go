@@ -31,6 +31,16 @@ func TestResourceRegistry_ListResources(t *testing.T) {
 	assert.Contains(t, uris, "autopus://executions/")
 }
 
+func TestResourceRegistry_ListTemplates(t *testing.T) {
+	t.Parallel()
+
+	r := NewResourceRegistry("http://localhost", "tok")
+	templates := r.ListTemplates()
+	require.Len(t, templates, 1)
+	assert.Equal(t, "autopus://executions/{id}", templates[0].URITemplate)
+	assert.Equal(t, "execution_by_id", templates[0].Name)
+}
+
 func TestResourceRegistry_Get_FreshCache(t *testing.T) {
 	t.Parallel()
 

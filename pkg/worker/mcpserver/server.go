@@ -48,12 +48,6 @@ type jsonRPCError struct {
 	Message string `json:"message"`
 }
 
-// toolDescriptor describes a tool for the tools/list response.
-type toolDescriptor struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-}
-
 // New creates a new MCP server connected to the given backend.
 // It is an alias for NewMCPServer for convenience.
 func New(backendURL, authToken, workspaceID string) *MCPServer {
@@ -127,15 +121,7 @@ func (s *MCPServer) Start(ctx context.Context) error {
 func (s *MCPServer) dispatch(ctx context.Context, req *jsonRPCRequest) {
 	switch req.Method {
 	case "initialize":
-		// @AX:NOTE[AUTO]: magic constant — protocolVersion "2024-11-05" is MCP spec version; update when upgrading MCP protocol
-		s.sendResult(req.ID, map[string]any{
-			"protocolVersion": "2024-11-05",
-			"serverInfo":      map[string]string{"name": "autopus-adk", "version": "0.1.0"},
-			"capabilities": map[string]any{
-				"tools":     map[string]any{},
-				"resources": map[string]any{},
-			},
-		})
+		s.handleInitialize(req)
 	case "ping":
 		s.sendResult(req.ID, map[string]any{})
 	case "notifications/initialized":
@@ -148,6 +134,8 @@ func (s *MCPServer) dispatch(ctx context.Context, req *jsonRPCRequest) {
 		s.handleResourcesList(req)
 	case "resources/read":
 		s.handleResourcesRead(ctx, req)
+	case "resources/templates/list":
+		s.handleResourceTemplatesList(req)
 	default:
 		if req.isNotification() {
 			return
@@ -162,8 +150,8 @@ func (r *jsonRPCRequest) isNotification() bool {
 
 func (s *MCPServer) handleToolsList(req *jsonRPCRequest) {
 	var list []toolDescriptor
-	for name := range s.tools {
-		list = append(list, toolDescriptor{Name: name, Description: name})
+	for _, name := range sortedToolNames(s.tools) {
+		list = append(list, buildToolDescriptor(name))
 	}
 	s.sendResult(req.ID, map[string]any{"tools": list})
 }
@@ -184,14 +172,18 @@ func (s *MCPServer) handleToolsCall(ctx context.Context, req *jsonRPCRequest) {
 	}
 	result, err := handler(ctx, p.Arguments)
 	if err != nil {
-		s.sendError(req.ID, -32000, err.Error())
+		s.sendResult(req.ID, formatToolError(err))
 		return
 	}
-	s.sendResult(req.ID, result)
+	s.sendResult(req.ID, formatToolResult(result))
 }
 
 func (s *MCPServer) handleResourcesList(req *jsonRPCRequest) {
 	s.sendResult(req.ID, map[string]any{"resources": s.resources.ListResources()})
+}
+
+func (s *MCPServer) handleResourceTemplatesList(req *jsonRPCRequest) {
+	s.sendResult(req.ID, map[string]any{"resourceTemplates": s.resources.ListTemplates()})
 }
 
 func (s *MCPServer) handleResourcesRead(ctx context.Context, req *jsonRPCRequest) {
@@ -204,10 +196,12 @@ func (s *MCPServer) handleResourcesRead(ctx context.Context, req *jsonRPCRequest
 	}
 	data, err := s.resources.Get(ctx, p.URI)
 	if err != nil {
-		s.sendError(req.ID, -32000, err.Error())
+		s.sendError(req.ID, -32002, err.Error())
 		return
 	}
-	s.sendResult(req.ID, data)
+	s.sendResult(req.ID, map[string]any{
+		"contents": []resourceContent{formatResourceContent(p.URI, data)},
+	})
 }
 
 func (s *MCPServer) sendResult(id any, result any) {

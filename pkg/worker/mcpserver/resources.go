@@ -14,8 +14,18 @@ const defaultTTL = 30 * time.Second
 type ResourceDescriptor struct {
 	URI         string `json:"uri"`
 	Name        string `json:"name"`
+	Title       string `json:"title,omitempty"`
 	Description string `json:"description"`
 	MimeType    string `json:"mimeType"`
+}
+
+// ResourceTemplate describes a parameterized MCP resource.
+type ResourceTemplate struct {
+	URITemplate string `json:"uriTemplate"`
+	Name        string `json:"name"`
+	Title       string `json:"title,omitempty"`
+	Description string `json:"description,omitempty"`
+	MimeType    string `json:"mimeType,omitempty"`
 }
 
 // cacheEntry stores a cached resource value with TTL.
@@ -34,12 +44,13 @@ type resourceFetcher func(ctx context.Context, uri string) (any, error)
 
 // ResourceRegistry manages MCP resources with TTL-based caching.
 type ResourceRegistry struct {
-	backendURL string
-	authToken  string
-	cache      map[string]*cacheEntry
-	mu         sync.RWMutex
-	fetchers   map[string]resourceFetcher
+	backendURL  string
+	authToken   string
+	cache       map[string]*cacheEntry
+	mu          sync.RWMutex
+	fetchers    map[string]resourceFetcher
 	descriptors []ResourceDescriptor
+	templates   []ResourceTemplate
 }
 
 // NewResourceRegistry creates a registry with the 4 standard resources.
@@ -93,12 +104,26 @@ func (r *ResourceRegistry) ListResources() []ResourceDescriptor {
 	return r.descriptors
 }
 
+// ListTemplates returns descriptors for parameterized resources.
+func (r *ResourceRegistry) ListTemplates() []ResourceTemplate {
+	return r.templates
+}
+
 func (r *ResourceRegistry) registerDefaults() {
 	r.descriptors = []ResourceDescriptor{
-		{URI: "autopus://status", Name: "System Status", Description: "Current system status", MimeType: "application/json"},
-		{URI: "autopus://workspaces", Name: "Workspaces", Description: "Available workspaces", MimeType: "application/json"},
-		{URI: "autopus://agents", Name: "Agents", Description: "Available agents", MimeType: "application/json"},
-		{URI: "autopus://executions/", Name: "Execution", Description: "Execution details by ID", MimeType: "application/json"},
+		{URI: "autopus://status", Name: "system_status", Title: "System Status", Description: "Current Autopus backend health and status.", MimeType: "application/json"},
+		{URI: "autopus://workspaces", Name: "workspaces", Title: "Workspaces", Description: "Available workspaces visible to this worker.", MimeType: "application/json"},
+		{URI: "autopus://agents", Name: "agents", Title: "Agents", Description: "Available Autopus agents.", MimeType: "application/json"},
+		{URI: "autopus://executions/", Name: "execution_collection", Title: "Execution Collection", Description: "Execution details namespace; use the execution template for a concrete ID.", MimeType: "application/json"},
+	}
+	r.templates = []ResourceTemplate{
+		{
+			URITemplate: "autopus://executions/{id}",
+			Name:        "execution_by_id",
+			Title:       "Execution By ID",
+			Description: "Execution details for a specific execution identifier.",
+			MimeType:    "application/json",
+		},
 	}
 
 	// Static URI fetchers.
