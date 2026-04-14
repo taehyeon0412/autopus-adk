@@ -47,12 +47,12 @@ func (wl *WorkerLoop) detachedTaskContext(parent context.Context) (context.Conte
 
 func (wl *WorkerLoop) executionContext(parent context.Context, taskID string) (context.Context, context.CancelFunc) {
 	baseCtx, baseCancel := wl.detachedTaskContext(parent)
-	timeout := wl.taskExecutionTimeout(taskID)
-	if timeout <= 0 {
+	deadline, ok := wl.taskExecutionDeadline(taskID)
+	if !ok {
 		return baseCtx, baseCancel
 	}
 
-	execCtx, timeoutCancel := context.WithTimeout(baseCtx, timeout)
+	execCtx, timeoutCancel := context.WithDeadline(baseCtx, deadline)
 	return execCtx, func() {
 		timeoutCancel()
 		baseCancel()
@@ -122,7 +122,7 @@ func (wl *WorkerLoop) executeWithParallel(ctx context.Context, taskCfg adapter.T
 	// Acquire a semaphore slot when parallel execution is configured.
 	// This blocks until a slot is available or ctx is cancelled.
 	if wl.semaphore != nil {
-		acquireCtx, cancelAcquire := wl.detachedTaskContext(ctx)
+		acquireCtx, cancelAcquire := wl.executionContext(ctx, taskID)
 		defer cancelAcquire()
 		if err := wl.semaphore.Acquire(acquireCtx); err != nil {
 			return adapter.TaskResult{}, fmt.Errorf("acquire semaphore: %w", err)
@@ -195,7 +195,7 @@ func (wl *WorkerLoop) executePipelineWithParallel(ctx context.Context, taskID, p
 	}
 
 	if wl.semaphore != nil {
-		acquireCtx, cancelAcquire := wl.detachedTaskContext(ctx)
+		acquireCtx, cancelAcquire := wl.executionContext(ctx, taskID)
 		defer cancelAcquire()
 		if err := wl.semaphore.Acquire(acquireCtx); err != nil {
 			return adapter.TaskResult{}, fmt.Errorf("acquire semaphore: %w", err)
