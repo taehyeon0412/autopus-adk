@@ -17,6 +17,8 @@ import (
 	"github.com/insajin/autopus-adk/pkg/worker/stream"
 )
 
+const maxSubprocessLineBytes = 8 * 1024 * 1024
+
 func prepareSymphonyWorkspace(workDir, prompt string) error {
 	if !strings.Contains(prompt, ".symphony/prompt.md") {
 		return nil
@@ -151,6 +153,7 @@ func (wl *WorkerLoop) parseStream(r io.Reader, taskID string) (adapter.TaskResul
 
 func (wl *WorkerLoop) parseStreamWithBudget(r io.Reader, taskID string, sw *StdinWriter, bc *BudgetConfig) (adapter.TaskResult, error) {
 	scanner := bufio.NewScanner(r)
+	scanner.Buffer(make([]byte, 0, 64*1024), maxSubprocessLineBytes)
 	var lastResult adapter.TaskResult
 	hasResult := false
 
